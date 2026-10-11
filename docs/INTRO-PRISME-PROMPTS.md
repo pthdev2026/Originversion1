@@ -1,5 +1,47 @@
 # Intro ORIGIN « Prisme » — pack de production (GPT → Minimax)
 
+> ## ✅ Version 3 (références visuelles du 11/10) — c'est CE prompt qu'il faut utiliser
+> Le niveau visé : des **stills de production** de série ou de film premium. Peau réelle (pores, rides, taches de
+> rousseur, brillance naturelle, sueur ou larmes), colorimétrie naturelle et terreuse, contraste moyen,
+> atmosphère (poussière, brume), costumes et décors aux vraies textures, émotion non posée.
+> **On ne reproduit ni personnage, ni acteur, ni costume connu** : on analyse la qualité, on ne copie pas.
+>
+> - **5 photos générées d'un seul coup** dans la même conversation GPT, pour garder exactement le même rendu.
+> - Enregistrées en `assets/intro/photos/P1.jpg … P5.jpg`.
+> - `build_keyframes.py` assemble 4 ou 5 colonnes (largeur égale) en `K1.png` ; `K2.png` est déjà fait.
+> - La V2 ci-dessous reste valable pour les corrections ; le prompt V3 remplace ses 4 prompts individuels.
+
+## V3 — prompt unique (cinq images)
+
+À coller dans **une nouvelle conversation GPT**, sans rien téléverser.
+
+```
+I need five separate photographs for one project, generated one after another in this same conversation so that they share exactly the same photographic look. Produce them one by one, each as its own image, portrait 2:3 (1024x1536 or larger). Never combine them into one image. Do not ask questions: start with image 1 and continue until all five are done.
+
+SHARED LOOK (applies to all five images):
+- A premium production still from a prestige film or drama series, as if shot on a cinema camera (ARRI Alexa, 40-50mm lens), shallow depth of field, natural or practical light only.
+- Skin must look real: visible pores, fine lines, freckles, small blemishes, uneven tone, natural oil sheen, and sweat or tears where the scene calls for it. No smoothing, no plastic skin, no beauty retouching. Hands and fabric must also show real texture.
+- Colour: natural, filmic, slightly warm and earthy, accurate skin tones, medium contrast. Keep detail in both shadows and highlights, never crush blacks, never blow highlights. No HDR look, no neon, no teal-and-orange grading.
+- Atmosphere: a touch of haze or dust in the light, real textures of cloth, wood, stone and skin, softly out-of-focus background with real people or objects.
+- Expression: genuine, unposed emotion. Subjects do not look at the camera unless stated.
+- People are fictional, ordinary and authentic, of varied ethnicities and ages, not resembling any real person, actor or known character. No recognisable costumes, no logos, no text, no watermark.
+- Framing: waist-up or closer, with the main subject kept inside the central 60% of the frame (the picture will later be cropped into a narrow vertical strip).
+
+THE FIVE SCENES:
+1. FILM - a man in his mid-30s sitting alone in a hospital corridor at dawn on a plastic chair, elbows on his knees, lifting his face from his hands, eyes red and tired; a blurred doctor in the far background; cold pale window light.
+2. INTERVIEW - a woman in her mid-30s speaking from the heart in a real home podcast studio, mid-sentence, eyes glistening, one hand resting on her chest; a microphone on a boom arm slightly out of focus in the foreground; a warm lamp behind her.
+3. DRAMA - an older mother in her 60s and her adult daughter embracing tightly in the doorway of a modest family kitchen, the daughter's face wet with tears and eyes closed, the mother's hand cradling the back of her head; soft window daylight; a real lived-in home.
+4. TENSION - a woman in her 40s standing at a half-open front door at night, one hand on the handle, listening, tense and afraid; a thin line of warm light from the hallway falls across her face; no violence, no weapons, no injury.
+5. FAITH - a bearded man in his 40s in simple ancient-period linen and wool clothing in a sunlit, dusty stone village square, arms slightly open, eyes lifted toward the sky, tears cutting through the dust on his face; a crowd of villagers softly out of focus behind him; warm earthy daylight.
+
+Start now with image 1.
+```
+
+Si GPT ne produit qu'une image à la fois, répondre : `Continue with the next image, same exact look.`
+Si le rendu dérive d'une image à l'autre : `Match the exact photographic look, colour and skin texture of image 1.`
+
+---
+
 > ## ⚠️ Version 2 (retours du 11/10) — remplace l'étape GPT ci-dessous
 > Retours sur la première génération : contrastes trop forts, rendu « IA », colonnes imparfaites.
 > Nouvelle approche :
