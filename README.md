@@ -13,7 +13,10 @@ Dossier de travail **local** du projet ORIGIN (source de vérité).
 | `assets/logos/` | Logo ORIGIN, logos-titres des productions |
 | `assets/visuels/` | Visuels Hero et photographies |
 | `assets/affiches/` | Affiches verticales et horizontales |
-| `app/` | Code de l'application (récupéré depuis GitHub / Lovable) |
+| `app/` | Front React (dépôt Git à part, relié à Lovable) |
+| `api/` | API locale : autorisation de lecture, distribution HLS |
+| `video-pipeline/` | Encodage FFmpeg → HLS multi-débits |
+| `storage/` | Rendus vidéo générés (non versionné) |
 
 ## Répartition
 

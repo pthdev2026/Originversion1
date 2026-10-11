@@ -28,3 +28,14 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - Stack de la V1 Lovable
 - Périmètre de la première livraison (desktop / mobile / TV)
 - Maquettes finales à fournir
+
+## Lecture vidéo (mission 1, réalisée le 11/10/2026)
+- ✅ Format : HLS, segments fMP4 de 4 s, H.264 + AAC, paliers 1080/720/480/360p sans sur-échantillonnage
+- ✅ Encodage hors ligne avec FFmpeg (`video-pipeline/`), preset `slow` par défaut
+- ✅ Lecteur : hls.js (natif sous Safari) avec contrôles ORIGIN, sans lecteur tiers
+- ✅ Protection V1 : jeton HMAC dans le chemin, 4 h, lié au programme (pas de DRM)
+- ✅ API : Node + Hono, un seul service ; pas de base de données à ce stade
+- ✅ Front sur la branche locale `feature/video-playback`, **non poussée** (le dépôt est relié à Lovable)
+- 🟡 4K : réservée plus tard aux Originals / comptes autorisés ; champ « droit de qualité » à prévoir
+- 🟡 Hébergement : Bunny Storage + CDN visé, selon la géographie de l'audience
+- 🟡 Design Lovable à intégrer (attendu), puis fusion avec `feature/video-playback`
