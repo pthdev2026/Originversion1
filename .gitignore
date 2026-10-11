@@ -1,0 +1,7 @@
+# Le front est un dépôt Git à part (app/), relié à Lovable
+app/
+# Rendus vidéo générés
+storage/
+node_modules
+.DS_Store
+.env
