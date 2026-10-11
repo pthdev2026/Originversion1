@@ -10,10 +10,13 @@
 
 | Ordre | Fichier | Rôle |
 |---|---|---|
-| 1 | `assets/intro/photos/P3.jpg` | Témoignage (podcast) |
-| 2 | `assets/intro/photos/P4.jpg` | Réconciliation (mère et fille) |
-| 3 | `assets/intro/photos/P5.jpg` | Foi (portrait N&B) |
-| 4 | `assets/intro/frames/ORIGIN-silver.png` | Logo : le mot ORIGIN argenté (référence de la fin) |
+| 1 | `assets/intro/photos/P1.jpg` | La foi (portrait N&B) |
+| 2 | `assets/intro/photos/P2.jpg` | Le témoignage (podcast) |
+| 3 | `assets/intro/photos/P3.jpg` | **Chantal**, présentatrice officielle (au cœur du mot, sur le G) |
+| 4 | `assets/intro/photos/P4.jpg` | La réconciliation (mère et fille) |
+| 5 | `assets/intro/frames/ORIGIN-silver.png` | Logo : le mot ORIGIN argenté (référence de la fin) |
+
+Les références de test non publiables sont rangées dans `photos/_tests/` et ne partent pas chez Minimax.
 
 Ne téléverser **que des images originales** (générées par nous). Les références trouvées ailleurs
 (photos d'auteurs, plans de série) restent hors de Minimax.
@@ -21,11 +24,11 @@ Ne téléverser **que des images originales** (générées par nous). Les réfé
 ## V5 — Prompt 15 secondes (film de marque)
 
 ```
-Make a short cinematic brand film for ORIGIN, a premium streaming platform of real human stories, within 15 seconds. The uploaded original portraits (images 1 to 3) are the protagonists: keep the faces, expressions, skin texture and clothing stable and faithful to the originals, no morphing. Image 4 is the ORIGIN logo: reproduce the word exactly as shown for the final lockup.
+Make a short cinematic brand film for ORIGIN, a premium streaming platform of real human stories, within 15 seconds. The uploaded original portraits (images 1 to 4) are the protagonists: keep the faces, expressions, skin texture and clothing stable and faithful to the originals, no morphing. Image 3 is the official host of the platform, a real woman: keep her identity, smile and outfit exactly as in the original, and give her the central place in the final composition. Image 5 is the ORIGIN logo: reproduce the word exactly as shown for the final lockup.
 
 Visual style: deep black, polished silver and glass with a very faint burgundy tint, panes of glass and prisms of cool silver-white light, fine dust in the light, restrained and premium, natural film-grade skin and colour, no neon, no saturated red.
 
-Express four beats: (1) awakening in the dark: thin vertical light streaks and glass panes sweep through the black; (2) the stories: the three portraits appear one after another inside tall glass panes, each with subtle natural micro-movement (a breath, a blink, a tear), with a short elegant caption in clean wide-spaced capitals ("TÉMOIGNER", "PARDONNER", "CROIRE"); (3) convergence: the glass panes slide together and the portraits become the inside of the letters O-R-I-G-I-N; (4) finalization: the letters turn into polished silver, a single glint passes, and the tagline "LES HISTOIRES MÉRITENT PLUS QU'UN ÉCRAN" fades in under the logo.
+Express four beats: (1) awakening in the dark: thin vertical light streaks and glass panes sweep through the black; (2) the stories: the four portraits appear one after another inside tall glass panes, each with subtle natural micro-movement (a breath, a blink, a tear), with a short elegant caption in clean wide-spaced capitals ("TÉMOIGNER", "PARDONNER", "CROIRE"); (3) convergence: the glass panes slide together and the portraits become the inside of the letters O-R-I-G-I-N; (4) finalization: the letters turn into polished silver, a single glint passes, and the tagline "LES HISTOIRES MÉRITENT PLUS QU'UN ÉCRAN" fades in under the logo.
 
 Sound: a low cinematic drone, soft glass chimes with each pane, a deep clean hit on the final lockup, then silence. Smooth premium camera movement, no shake, no sudden cuts. The word ORIGIN must stay perfectly readable at every moment.
 ```
@@ -33,11 +36,11 @@ Sound: a low cinematic drone, soft glass chimes with each pane, a deep clean hit
 ## V5 — Prompt 5 secondes (intro de l'application)
 
 ```
-Make a 5-second cinematic logo reveal for ORIGIN, a premium streaming platform of real human stories. The uploaded original portraits (images 1 to 3) are the protagonists, kept faithful with no morphing. Image 4 is the ORIGIN logo, reproduced exactly.
+Make a 5-second cinematic logo reveal for ORIGIN, a premium streaming platform of real human stories. The uploaded original portraits (images 1 to 4) are the protagonists, kept faithful with no morphing; image 3 is the official host, a real woman, kept exactly as in the original. Image 5 is the ORIGIN logo, reproduced exactly.
 
 Style: deep black, polished silver and glass, very faint burgundy tint, cool silver-white prisms of light, restrained and premium, natural film-grade skin, no neon, no saturated red.
 
-Beats: 0-1 s thin vertical light streaks and glass panes sweep through the black; 1-3 s the three portraits flash inside glass panes with subtle micro-movement then slide together and fill the letters O-R-I-G-I-N; 3-5 s the letters become polished silver, one clean glint passes, and the word ORIGIN holds perfectly still.
+Beats: 0-1 s thin vertical light streaks and glass panes sweep through the black; 1-3 s the four portraits flash inside glass panes with subtle micro-movement then slide together and fill the letters O-R-I-G-I-N; 3-5 s the letters become polished silver, one clean glint passes, and the word ORIGIN holds perfectly still.
 
 Sound: short low drone with a soft glass chime and one deep hit on the final word. Smooth premium motion, no shake. The word ORIGIN must stay perfectly readable at every moment. No other text.
 ```
@@ -389,3 +392,10 @@ La version en code (CSS) existe déjà et sert de repli, et de référence de ry
   On ne demande jamais à l'IA de reproduire leur logo, leurs plans ou leur nom.
 - Les personnes des images du catalogue sont générées : ne pas téléverser de photos de personnes réelles.
 - Conserver les prompts et les versions retenues dans ce dossier pour pouvoir régénérer la signature à l'identique.
+
+## Note — Chantal (présentatrice officielle)
+
+Chantal est une personne réelle. Avant d'envoyer son image à un outil de génération vidéo, vérifier :
+1. **Son accord écrit** pour l'usage de son image dans une animation générée par IA.
+2. **Les conditions du service** : certains outils encadrent l'usage de visages réels ; si le rendu est refusé ou altéré, on la place en code (cf. plan B) à partir de la vraie image.
+3. **Cohérence** : ses images viennent d'un tournage réel ; les autres portraits sont générés. L'étalonnage des cadres les rapproche, mais on évite de la montrer en même temps qu'un portrait aux traits proches.
