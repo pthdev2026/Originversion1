@@ -429,3 +429,14 @@ Express four beats: (1) awakening in the dark: thin vertical light streaks and g
 
 Sound: a low cinematic drone, soft glass chimes with each pane, a deep clean hit on the final lockup, then silence. Smooth premium camera movement, no shake, no sudden cuts. The word ORIGIN must stay perfectly readable at every moment. No other text than the captions and the tagline.
 ```
+
+# Version 6 — retours sur le premier sting Minimax (12/10)
+
+Constats : lettres 3D en verre très réussies (niveau cible), éclats prismatiques réussis, mais :
+1. Le montage contient des images **non publiables** (peinture « Matrix », trompettiste = personne réelle, visage au code, visage main sur la bouche) : le projet Minimax contenait encore d'anciennes pièces jointes. Seule Chantal est à nous.
+2. La typographie finale n'est pas notre logo (lettres anguleuses recréées).
+3. Les portraits originaux (foi, témoignage, réconciliation) n'apparaissent pas.
+4. Son : pic à −0,3 dBFS, −15 LUFS intégrés : trop chaud pour le web, à renormaliser.
+
+Décisions : plus d'images dans le montage (≈ 12 moments distincts, une carte-planche), son iconique à la harpe produit
+**séparément** puis monté, finale « ORIGIN STUDIO » pour l'ident de production.
