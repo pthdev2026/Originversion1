@@ -1,5 +1,75 @@
 # Intro ORIGIN « Prisme » — pack de production (GPT → Minimax)
 
+> ## ✅ Version 4 (modèle Amazon × Marvel) — c'est CE pack qu'il faut utiliser pour Minimax
+> Concept : les lettres **ORIGIN** sont remplies par les portraits (effet « Marvel »), balayées par des prismes
+> de verre et de lumière (effet « Amazon »), puis se fondent en argent poli.
+>
+> - Le mot est **composé par nous** (`assets/intro/build_wordmark_frames.py`), jamais généré par l'IA :
+>   Minimax reçoit un cadre où les lettres sont déjà justes, et n'ajoute que la lumière et la vie.
+> - Image de début : `assets/intro/frames/ORIGIN-fill.png` (lettres remplies par les portraits)
+> - Image de fin   : `assets/intro/frames/ORIGIN-silver.png` (lettres argentées)
+> - ⚠️ Les portraits P1 et P2 du cadre actuel sont des **références de test** (non publiables). Quand les
+>   originales sont prêtes dans `photos/`, on relance le script et on régénère les deux cadres.
+
+## V4 — réglages Minimax
+
+| Réglage | Valeur |
+|---|---|
+| Mode | Image → vidéo, avec **image de début ET image de fin** si disponible |
+| Image de début | `ORIGIN-fill.png` |
+| Image de fin | `ORIGIN-silver.png` |
+| Résolution / durée | 1080p, 6 s |
+| Optimisation du prompt | Désactivée si l'option existe |
+| Versions | 3 générations du prompt A, puis 1 à 2 du prompt B |
+
+## V4 — Prompt A (principal)
+
+```
+Cinematic logo reveal, 16:9. The first frame shows the word ORIGIN in large, bold, widely spaced capital letters centered on a pure black background; each letter is filled with dark photographic portraits of real human faces (an older man pointed at by fingers in black and white, a frightened wide-eyed person, a woman speaking with tears, a mother embracing her daughter, a bearded man with a calm gaze). The letters have a thin polished silver edge.
+
+[Static shot] for the first half second, then a very slow [Push in] toward the word.
+
+0.0 to 1.5 s: tall vertical panes of polished glass and prisms of cool silver-white light sweep slowly across the word from left to right, refracting along the silver edges of the letters, leaving soft anamorphic light streaks and faint prismatic reflections, deep blacks, fine dust catching the light.
+1.5 to 3.5 s: the portraits inside the letters come gently alive with natural micro-movements only: a slow breath, a blink, a tear sliding, the soft sway of hair, while a second sweep of light passes through the glass.
+3.5 to 5.0 s: the photographs dissolve smoothly into brushed polished silver, the letters become solid reflective silver metal matching the final frame, a single clean specular glint travels across the word from left to right.
+5.0 to 6.0 s: the word ORIGIN rests perfectly still in polished silver on black, with a soft silver glow and a very faint deep burgundy tint far in the background.
+
+The letter shapes must stay rigid, perfectly readable and unchanged throughout: no letter morphing, no warping, no melting, no extra letters, no additional text, no logos. Smooth, slow, elegant, premium cinematic motion. Cool silver and white light, deep black, no saturated colors, no red, no flicker, no camera shake, no sudden cuts.
+```
+
+## V4 — Prompt B (variante plus « Amazon », si A est trop sage)
+
+```
+Cinematic logo reveal, 16:9. Start from the provided first frame: the word ORIGIN in bold wide capital letters filled with dark portrait photographs on pure black. A burst of crystal-clear vertical glass shards and light columns crosses the frame from left to right at moderate speed, bending and splitting white light into thin prismatic streaks and lens flares, brightening the portraits inside the letters for a moment. The glass light then converges and focuses on the letters; the portraits fade into polished silver and the word settles to the final frame: solid brushed silver letters, perfectly still, with one last soft glint.
+
+The letters stay perfectly rigid and readable at every moment: no morphing, no warping, no extra text, no logos. Premium, cinematic, elegant. Cool silver-white light, deep black, no red. No camera shake.
+```
+
+## V4 — Prompt C (si l'image de fin n'est pas acceptée : image de début seule)
+
+```
+[Static shot] then a slow [Push in]. The word ORIGIN, in bold wide capital letters filled with dark portrait photographs, sits on a pure black background. Vertical panes of polished glass and prisms of silver-white light sweep slowly across it from left to right, refracting along the letters' thin silver edges. The portraits inside the letters breathe gently with natural micro-movements. In the last two seconds the photographs dissolve into polished brushed silver and the letters rest perfectly still as solid reflective silver metal with a soft glow.
+
+The letters stay perfectly rigid and readable: no morphing, no warping, no extra text, no logos. Smooth, slow, premium cinematic motion. Cool silver and white light, deep black, no red, no flicker, no camera shake.
+```
+
+## V4 — Critères de validation (à vérifier image par image)
+
+- [ ] Le mot reste **ORIGIN**, lisible, sans lettre déformée ou fondue (critère éliminatoire).
+- [ ] Aucun texte ni logo ajouté.
+- [ ] Les visages ne se déforment pas de façon dérangeante.
+- [ ] La fin est un mot argenté **net et immobile**.
+- [ ] La lumière est argent / blanc ; pas de rouge dominant.
+- [ ] Mouvement lent, sans saccade.
+
+## Ce qu'on fait ensuite
+
+Le début (0,5 s de noir et d'un trait de lumière) et la fin (tenue du mot + sortie) sont ajoutés par nous,
+ainsi que le **son**. Si Minimax déforme les lettres malgré tout, plan B : on garde sa lumière de verre en
+fond et on réincruste le mot net par-dessus, en code.
+
+---
+
 > ## ✅ Version 3 (références visuelles du 11/10) — c'est CE prompt qu'il faut utiliser
 > Le niveau visé : des **stills de production** de série ou de film premium. Peau réelle (pores, rides, taches de
 > rousseur, brillance naturelle, sueur ou larmes), colorimétrie naturelle et terreuse, contraste moyen,
