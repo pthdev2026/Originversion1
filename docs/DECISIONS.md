@@ -35,7 +35,8 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Lecteur : hls.js (natif sous Safari) avec contrôles ORIGIN, sans lecteur tiers
 - ✅ Protection V1 : jeton HMAC dans le chemin, 4 h, lié au programme (pas de DRM)
 - ✅ API : Node + Hono, un seul service ; pas de base de données à ce stade
-- ✅ Front sur la branche locale `feature/video-playback`, **non poussée** (le dépôt est relié à Lovable)
+- ✅ Front : design Lovable (106 commits) récupéré le 11/10/2026 ; lecture réelle intégrée dans son lecteur sur la branche locale `integration/lovable-design-video`, **non poussée** (la branche `feature/video-playback`, antérieure au design, est obsolète)
+- ✅ Police : Manrope (choix de Lovable), la question Michroma est close
 - 🟡 4K : réservée plus tard aux Originals / comptes autorisés ; champ « droit de qualité » à prévoir
 - 🟡 Hébergement : Bunny Storage + CDN visé, selon la géographie de l'audience
 - 🟡 Design Lovable à intégrer (attendu), puis fusion avec `feature/video-playback`
