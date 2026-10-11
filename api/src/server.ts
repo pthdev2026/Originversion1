@@ -33,6 +33,14 @@ const server = serve({ fetch: app.fetch, port: PORT, hostname: '127.0.0.1' }, in
   console.log(`ORIGIN API : http://127.0.0.1:${info.port}  (médias : ${STORAGE_DIR})`);
 });
 
+server.on('error', (error: NodeJS.ErrnoException) => {
+  if (error.code === 'EADDRINUSE') {
+    console.log(`L'API tourne déjà sur le port ${PORT} : rien à faire. Pour la relancer, arrêtez d'abord l'instance existante.`);
+    process.exit(0);
+  }
+  throw error;
+});
+
 async function shutdown() {
   server.close();
   await sql.end({ timeout: 5 });
