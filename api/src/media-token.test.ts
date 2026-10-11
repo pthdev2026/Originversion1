@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import path from 'node:path';
 import { createMediaToken, verifyMediaToken } from './media-token.ts';
-import { resolveMediaPath } from './server.ts';
+import { resolveMediaPath } from './app.ts';
 
 describe('jeton de lecture', () => {
   const secret = 'secret-de-test';

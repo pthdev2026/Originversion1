@@ -13,6 +13,8 @@ node encode-hls.mjs <source> <id-programme> --out ../storage/hls [--preset mediu
 - `--preset slow` (défaut) : meilleure qualité par Mo, environ 5× le temps réel pour 4 paliers sur ce Mac. `medium` ≈ 3,7× (mesuré sur une source 1440p de 15 s : 82 s en `slow`, 56 s en `medium`).
 - Sortie : `master.m3u8`, `v0/` à `vN/`, `poster.jpg`, `meta.json`.
 
+Après l'encodage, enregistrer le programme en base : `npm run ingest` dans `../api` (voir son README).
+
 Sur cette machine, FFmpeg 7.1 (avec libx264) est disponible dans `~/Library/Application Support/AutoCut/ffmpeg/`.
 
 ## Limites connues

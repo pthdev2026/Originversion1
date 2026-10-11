@@ -40,3 +40,12 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - 🟡 4K : réservée plus tard aux Originals / comptes autorisés ; champ « droit de qualité » à prévoir
 - 🟡 Hébergement : Bunny Storage + CDN visé, selon la géographie de l'audience
 - 🟡 Design Lovable à intégrer (attendu), puis fusion avec `feature/video-playback`
+
+## Base de données (mission 2, réalisée le 11/10/2026)
+- ✅ PostgreSQL 17 en local via `embedded-postgres` (vrais binaires, port 5433, données dans `storage/pgdata`)
+- ✅ Driver `postgres` (porsager), migrations SQL numérotées maison, tests sur schéma jetable
+- ✅ Tables `programs` et `media_assets` ; la lecture exige un média `ready` avec durée
+- ✅ L'API ne dépend plus du dossier de fichiers pour savoir si un programme est lisible
+- ✅ Ingestion par `npm run ingest` après encodage
+- 🟡 Le catalogue éditorial reste dans le front : à migrer vers l'API si on veut le piloter sans redéployer
+- 🟡 Production : PostgreSQL géré (ou VPS) + sauvegardes à prévoir ; `DATABASE_URL` obligatoire
