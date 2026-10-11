@@ -1,5 +1,55 @@
 # Intro ORIGIN « Prisme » — pack de production (GPT → Minimax)
 
+> ## ✅ Version 5 — format « brief » validé par un exemple Minimax (15 s, 2560×1440, avec son)
+> L'exemple fourni par le client montre ce qui fonctionne : un **brief court** qui nomme le protagoniste
+> (images « originales » fournies), fixe ce qui ne doit pas bouger, donne le style visuel et découpe la vidéo
+> en **4 temps**. Le texte à l'écran est rendu correctement et le produit reste stable.
+> Les prompts V4 (plan image de début / image de fin) restent utilisables ; V5 est à essayer en premier.
+
+## V5 — images à téléverser (références « originales »)
+
+| Ordre | Fichier | Rôle |
+|---|---|---|
+| 1 | `assets/intro/photos/P3.jpg` | Témoignage (podcast) |
+| 2 | `assets/intro/photos/P4.jpg` | Réconciliation (mère et fille) |
+| 3 | `assets/intro/photos/P5.jpg` | Foi (portrait N&B) |
+| 4 | `assets/intro/frames/ORIGIN-silver.png` | Logo : le mot ORIGIN argenté (référence de la fin) |
+
+Ne téléverser **que des images originales** (générées par nous). Les références trouvées ailleurs
+(photos d'auteurs, plans de série) restent hors de Minimax.
+
+## V5 — Prompt 15 secondes (film de marque)
+
+```
+Make a short cinematic brand film for ORIGIN, a premium streaming platform of real human stories, within 15 seconds. The uploaded original portraits (images 1 to 3) are the protagonists: keep the faces, expressions, skin texture and clothing stable and faithful to the originals, no morphing. Image 4 is the ORIGIN logo: reproduce the word exactly as shown for the final lockup.
+
+Visual style: deep black, polished silver and glass with a very faint burgundy tint, panes of glass and prisms of cool silver-white light, fine dust in the light, restrained and premium, natural film-grade skin and colour, no neon, no saturated red.
+
+Express four beats: (1) awakening in the dark: thin vertical light streaks and glass panes sweep through the black; (2) the stories: the three portraits appear one after another inside tall glass panes, each with subtle natural micro-movement (a breath, a blink, a tear), with a short elegant caption in clean wide-spaced capitals ("TÉMOIGNER", "PARDONNER", "CROIRE"); (3) convergence: the glass panes slide together and the portraits become the inside of the letters O-R-I-G-I-N; (4) finalization: the letters turn into polished silver, a single glint passes, and the tagline "LES HISTOIRES MÉRITENT PLUS QU'UN ÉCRAN" fades in under the logo.
+
+Sound: a low cinematic drone, soft glass chimes with each pane, a deep clean hit on the final lockup, then silence. Smooth premium camera movement, no shake, no sudden cuts. The word ORIGIN must stay perfectly readable at every moment.
+```
+
+## V5 — Prompt 5 secondes (intro de l'application)
+
+```
+Make a 5-second cinematic logo reveal for ORIGIN, a premium streaming platform of real human stories. The uploaded original portraits (images 1 to 3) are the protagonists, kept faithful with no morphing. Image 4 is the ORIGIN logo, reproduced exactly.
+
+Style: deep black, polished silver and glass, very faint burgundy tint, cool silver-white prisms of light, restrained and premium, natural film-grade skin, no neon, no saturated red.
+
+Beats: 0-1 s thin vertical light streaks and glass panes sweep through the black; 1-3 s the three portraits flash inside glass panes with subtle micro-movement then slide together and fill the letters O-R-I-G-I-N; 3-5 s the letters become polished silver, one clean glint passes, and the word ORIGIN holds perfectly still.
+
+Sound: short low drone with a soft glass chime and one deep hit on the final word. Smooth premium motion, no shake. The word ORIGIN must stay perfectly readable at every moment. No other text.
+```
+
+## V5 — Après la génération
+
+- Garder la meilleure des 3 versions ; si le son est bon, on le conserve (sinon on le refait nous-mêmes).
+- Pour l'application : version 5 s, ou on extrait la fin (≈ 4 s) de la version 15 s.
+- Le film de 15 s sert aussi de **bande de marque** (réseaux, page de lancement).
+
+---
+
 > ## ✅ Version 4 (modèle Amazon × Marvel) — c'est CE pack qu'il faut utiliser pour Minimax
 > Concept : les lettres **ORIGIN** sont remplies par les portraits (effet « Marvel »), balayées par des prismes
 > de verre et de lumière (effet « Amazon »), puis se fondent en argent poli.
