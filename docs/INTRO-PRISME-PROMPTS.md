@@ -1,5 +1,81 @@
 # Intro ORIGIN « Prisme » — pack de production (GPT → Minimax)
 
+> ## ⚠️ Version 2 (retours du 11/10) — remplace l'étape GPT ci-dessous
+> Retours sur la première génération : contrastes trop forts, rendu « IA », colonnes imparfaites.
+> Nouvelle approche :
+> 1. **GPT ne génère plus que 4 photos séparées** (portrait 2:3), réalistes, avec de vraies émotions humaines.
+> 2. **Nous assemblons K1 nous-mêmes** avec `assets/intro/build_keyframes.py` : colonnes de largeur exactement égale,
+>    contraste adouci, verre discret, aucune couture ni texte parasite.
+> 3. **K2 est généré par le script** (déjà fait : `gpt-output/K2.png`). Plus besoin de GPT pour K2.
+>
+> Les anciens prompts K1 et K2 (section 2) sont conservés pour mémoire mais ne sont plus à utiliser.
+
+## V2 — étape GPT : 4 photos (une génération par photo, sans téléverser de référence)
+
+Réglages : format **portrait 2:3** (1024×1536 ou plus), qualité maximale. Le sujet doit rester dans les
+**60 % centraux** de l'image : chaque colonne finale ne montre qu'une bande verticale étroite.
+
+Bloc de style commun (déjà inclus dans chaque prompt) : photographie documentaire, grain de peau naturel,
+contraste doux, couleurs naturelles, aucune retouche beauté.
+
+### P1 — « L'annonce » (film)
+
+```
+A candid documentary photograph of a man in his mid-30s sitting alone in a parked car at night, both hands resting on the steering wheel, head slightly lowered, eyes red and tired, lost in thought after receiving difficult news. Soft light from a distant streetlamp falls across his face and reflects faintly on the windshield. Real, quiet, human moment.
+
+Photographic style: shot on a full-frame camera, 85mm lens at f/1.8, available light only, natural skin texture with visible pores, fine lines, small imperfections and a slight natural shine, no skin smoothing, no beauty retouching, realistic hair, subtle film grain. Soft natural contrast with lifted blacks and gentle highlights, muted natural colors, no HDR look, no teal-and-orange grading, no glow, no vignette, not CGI, not an illustration. He is a fictional, ordinary-looking person, not a model and not resembling any real person.
+
+Vertical 2:3 portrait. The subject stays within the central 60% of the frame. No text, no logos, no watermark.
+```
+
+### P2 — « Le témoignage » (interview / podcast)
+
+```
+A candid documentary photograph of a woman in her mid-30s speaking from the heart in a real home podcast studio, mid-sentence, her eyes glistening with emotion, one hand resting on her chest. A microphone on a boom arm is in the foreground, slightly out of focus. A warm practical lamp glows softly behind her, with a bookshelf and acoustic panels in the background. A sincere, vulnerable moment of testimony.
+
+Photographic style: shot on a full-frame camera, 85mm lens at f/1.8, available light only, natural skin texture with visible pores, fine lines, small imperfections and a slight natural shine, no skin smoothing, no beauty retouching, realistic hair strands, subtle film grain. Soft natural contrast with lifted blacks and gentle highlights, muted natural colors, no HDR look, no teal-and-orange grading, no glow, no vignette, not CGI, not an illustration. She is a fictional, ordinary-looking person, not a model and not resembling any real person.
+
+Vertical 2:3 portrait. The subject stays within the central 60% of the frame. No text, no logos, no watermark.
+```
+
+### P3 — « La réconciliation » (drame, famille)
+
+```
+A candid documentary photograph of an older mother in her 60s and her adult daughter in her 30s embracing tightly in the doorway of a modest family kitchen, the daughter's face wet with tears, eyes closed, the mother's hand holding the back of her head. Soft daylight from a window, ordinary lived-in home interior with a few everyday objects. A real moment of forgiveness and reunion, tender and unposed.
+
+Photographic style: shot on a full-frame camera, 50mm lens at f/2, available window light only, natural skin texture with visible pores, wrinkles, fine lines and small imperfections, no skin smoothing, no beauty retouching, realistic hair, subtle film grain. Soft natural contrast with lifted blacks and gentle highlights, muted natural colors, no HDR look, no teal-and-orange grading, no glow, no vignette, not CGI, not an illustration. Fictional, ordinary-looking people, not models and not resembling any real person.
+
+Vertical 2:3 portrait. The subjects stay within the central 60% of the frame. No text, no logos, no watermark.
+```
+
+### P4 — « Avant la confrontation » (tension / suspense)
+
+```
+A candid documentary photograph of a young man in his late 20s standing in a dim concrete stairwell, back against the wall, jaw clenched, breathing heavily, knuckles pale as he grips the railing, eyes fixed on something just out of frame. Cold light from a single overhead fixture, deep but readable shadows. The tense second before a difficult confrontation. No violence, no weapons, no blood, no injury.
+
+Photographic style: shot on a full-frame camera, 85mm lens at f/1.8, available light only, natural skin texture with visible pores, stubble, fine lines and small imperfections, no skin smoothing, no beauty retouching, realistic hair, subtle film grain. Soft natural contrast with lifted blacks and gentle highlights (shadows keep detail, nothing crushed to pure black), muted natural colors, no HDR look, no teal-and-orange grading, no glow, no vignette, not CGI, not an illustration. He is a fictional, ordinary-looking person, not a model and not resembling any real person.
+
+Vertical 2:3 portrait. The subject stays within the central 60% of the frame. No text, no logos, no watermark.
+```
+
+### Corrections fréquentes (V2)
+
+| Problème | Message à coller en réponse |
+|---|---|
+| Rendu trop « IA » ou lisse | `More photographic and less processed: visible skin pores, uneven skin tone, natural imperfections, real camera grain. No smoothing.` |
+| Contraste trop fort | `Lower the contrast clearly: lifted blacks, soft highlights, nothing crushed to black, nothing blown out.` |
+| Couleurs trop saturées ou étalonnage cinéma | `Neutral natural colors, like an unedited RAW photo. Remove the teal-and-orange look.` |
+| Le visage est coupé ou trop près des bords | `Keep the subject centered, with generous space on both sides.` |
+| Texte ou logo visible | `Remove all text and logos completely.` |
+
+### Enchaînement
+
+1. Enregistrer les 4 photos dans `ORIGIN-plateforme/assets/intro/photos/` sous les noms `P1.jpg`, `P2.jpg`, `P3.jpg`, `P4.jpg`.
+2. Nous lançons `python3 assets/intro/build_keyframes.py` (je m'en occupe) : cela produit `K1.png` et `K2.png`.
+3. Contrôle de K1, puis envoi à Minimax avec le prompt **M1** ci-dessous (image de début K1, image de fin K2).
+
+---
+
 Objectif : une signature d'ouverture de ~3,5 s. Quatre colonnes de verre montrent les univers d'ORIGIN
 (film, interview, drame, suspense), convergent dans une lumière argentée, puis le mot ORIGIN se forme.
 
