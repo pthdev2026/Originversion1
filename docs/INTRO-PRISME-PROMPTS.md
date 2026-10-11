@@ -399,3 +399,33 @@ Chantal est une personne réelle. Avant d'envoyer son image à un outil de gén�
 1. **Son accord écrit** pour l'usage de son image dans une animation générée par IA.
 2. **Les conditions du service** : certains outils encadrent l'usage de visages réels ; si le rendu est refusé ou altéré, on la place en code (cf. plan B) à partir de la vraie image.
 3. **Cohérence** : ses images viennent d'un tournage réel ; les autres portraits sont générés. L'étalonnage des cadres les rapproche, mais on évite de la montrer en même temps qu'un portrait aux traits proches.
+
+## Prompts complets — film de marque 15 s
+
+### Version 7 images (6 portraits + logo)
+
+Ordre : 1 foi · 2 témoignage · 3 Chantal · 4 réconciliation · 5 jugement · 6 silence · 7 logo ORIGIN argenté.
+
+```
+Make a short cinematic brand film for ORIGIN, a premium streaming platform of real human stories, within 15 seconds. The uploaded original portraits (images 1 to 6) are the protagonists: keep the faces, expressions, skin texture and clothing stable and faithful to the originals, no morphing. Image 3 is the official host of the platform, a real woman: keep her identity, smile and outfit exactly as in the original, and give her the central place in the final composition. Image 7 is the ORIGIN logo: reproduce the word exactly as shown for the final lockup.
+
+Visual style: deep black, polished silver and glass with a very faint burgundy tint, panes of glass and prisms of cool silver-white light, fine dust in the light, restrained and premium, natural film-grade skin and colour, no neon, no saturated red.
+
+Express four beats: (1) awakening in the dark: thin vertical light streaks and glass panes sweep through the black; (2) the stories: the six portraits appear one after another inside tall glass panes, in the order of images 1 to 6, each with subtle natural micro-movement (a breath, a blink, a tear), with a short elegant caption in clean wide-spaced capitals ("CROIRE", "TÉMOIGNER", "ACCUEILLIR", "PARDONNER", "ÊTRE JUGÉ", "SE TAIRE"); (3) convergence: the glass panes slide together and the portraits become the inside of the letters O-R-I-G-I-N; (4) finalization: the letters turn into polished silver, a single glint passes, and the tagline "LES HISTOIRES MÉRITENT PLUS QU'UN ÉCRAN" fades in under the logo.
+
+Sound: a low cinematic drone, soft glass chimes with each pane, a deep clean hit on the final lockup, then silence. Smooth premium camera movement, no shake, no sudden cuts. The word ORIGIN must stay perfectly readable at every moment. No other text than the captions and the tagline.
+```
+
+### Version 5 images (4 portraits + logo), utilisable dès maintenant
+
+Ordre : 1 foi · 2 témoignage · 3 Chantal · 4 réconciliation · 5 logo ORIGIN argenté.
+
+```
+Make a short cinematic brand film for ORIGIN, a premium streaming platform of real human stories, within 15 seconds. The uploaded original portraits (images 1 to 4) are the protagonists: keep the faces, expressions, skin texture and clothing stable and faithful to the originals, no morphing. Image 3 is the official host of the platform, a real woman: keep her identity, smile and outfit exactly as in the original, and give her the central place in the final composition. Image 5 is the ORIGIN logo: reproduce the word exactly as shown for the final lockup.
+
+Visual style: deep black, polished silver and glass with a very faint burgundy tint, panes of glass and prisms of cool silver-white light, fine dust in the light, restrained and premium, natural film-grade skin and colour, no neon, no saturated red.
+
+Express four beats: (1) awakening in the dark: thin vertical light streaks and glass panes sweep through the black; (2) the stories: the four portraits appear one after another inside tall glass panes, in the order of images 1 to 4, each with subtle natural micro-movement (a breath, a blink, a tear), with a short elegant caption in clean wide-spaced capitals ("CROIRE", "TÉMOIGNER", "ACCUEILLIR", "PARDONNER"); (3) convergence: the glass panes slide together and the portraits become the inside of the letters O-R-I-G-I-N; (4) finalization: the letters turn into polished silver, a single glint passes, and the tagline "LES HISTOIRES MÉRITENT PLUS QU'UN ÉCRAN" fades in under the logo.
+
+Sound: a low cinematic drone, soft glass chimes with each pane, a deep clean hit on the final lockup, then silence. Smooth premium camera movement, no shake, no sudden cuts. The word ORIGIN must stay perfectly readable at every moment. No other text than the captions and the tagline.
+```
