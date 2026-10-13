@@ -45,6 +45,20 @@ describe('configuration', () => {
     assert.equal(config.rateLimits.mediaPerMinute, 3000);
   });
 
+  it('exige les paramètres du CDN en mode bunny', () => {
+    assert.throws(() => loadConfig({ DELIVERY_MODE: 'bunny' }), /BUNNY_CDN_URL est obligatoire/);
+    const config = loadConfig({
+      DELIVERY_MODE: 'bunny',
+      BUNNY_CDN_URL: 'https://videos.b-cdn.net/',
+      BUNNY_TOKEN_KEY: 'cle-de-securite-de-test',
+      BUNNY_STORAGE_ZONE: 'ma-zone',
+      BUNNY_STORAGE_KEY: 'cle-de-zone-de-test',
+    });
+    assert.equal(config.delivery.mode, 'bunny');
+    assert.equal(config.delivery.cdnUrl, 'https://videos.b-cdn.net', 'barre finale retirée');
+    assert.equal(config.delivery.storageHost, 'storage.bunnycdn.com');
+  });
+
   it('refuse un secret trop court', () => {
     assert.throws(() => loadConfig({ MEDIA_SECRET: 'court' }), /au moins 32 caractères/);
   });

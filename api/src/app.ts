@@ -20,6 +20,7 @@ import { myListRoutes } from './modules/mylist/routes.ts';
 import { progressRoutes } from './modules/progress/routes.ts';
 import { loadSession } from './modules/identity/middleware.ts';
 import type { IdentityService } from './modules/identity/service.ts';
+import { createOriginSigner, type DeliverySigner } from './modules/playback/delivery.ts';
 import { errors } from './platform/errors.ts';
 import { accessLog, noStore, requestTimeout, requireTrustedOrigin, withCors, withRequestId, withSecurityHeaders } from './platform/http/middleware.ts';
 import { clientIp, rateLimit } from './platform/http/rate-limit.ts';
@@ -47,6 +48,8 @@ export interface AppDependencies {
   playbackRequiresLogin: boolean;
   uploadMaxBytes: number;
   encodePreset: string;
+  /** Façon de signer les URLs de lecture. Par défaut : l'API sert elle-même les fichiers (mode « origin »). */
+  deliverySigner?: DeliverySigner;
 }
 
 export function createApp(deps: AppDependencies): Hono<AppEnv> {
@@ -78,7 +81,11 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
   // Modules fonctionnels. Prévu plus tard : recommendation (voir modules/recommendation/README.md).
   app.route('/', healthRoutes({ sql: deps.sql }));
   app.route('/', catalogRoutes({ sql: deps.sql }));
-  app.route('/', playbackRoutes({ sql: deps.sql, config: { mediaSecret: deps.mediaSecrets[0], ttlSeconds: deps.mediaTtlSeconds }, requireLogin: deps.playbackRequiresLogin }));
+  app.route('/', playbackRoutes({
+    sql: deps.sql,
+    signer: deps.deliverySigner ?? createOriginSigner({ secret: deps.mediaSecrets[0], ttlSeconds: deps.mediaTtlSeconds }),
+    requireLogin: deps.playbackRequiresLogin,
+  }));
   app.route('/', identityRoutes({
     identity: deps.identity,
     cookieSecure: deps.cookieSecure,

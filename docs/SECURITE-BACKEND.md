@@ -55,7 +55,7 @@ et on écrit noir sur blanc ce qui N'est PAS encore couvert.
 | Vérification de l'adresse e-mail | On ne prouve pas que l'adresse appartient à la personne | Plus tard |
 | Authentification à deux facteurs | Un mot de passe volé suffit | Plus tard |
 | Compteurs de limite partagés entre instances | La limite est par instance | Quand on aura plusieurs instances |
-| Jeton d'authentification du CDN | Le jeton actuel est vérifié par l'origine, pas par le CDN | B5 |
+| Jeton du CDN validé sur une vraie zone | Le code suit la documentation Bunny mais n'a pas pu être testé sans compte : `npm run cdn:check` est le juge | À la création du compte |
 | Protection DDoS réseau | Hors de portée de l'application | Fournisseur / CDN |
 | Sauvegardes chiffrées, journal d'audit | Pas encore de données à protéger | B2 / B6 |
 | Chiffrement du contenu (DRM) | Les URLs signées empêchent le partage facile, pas la copie par un spectateur | Si un ayant droit l'exige |
@@ -101,3 +101,16 @@ Données conservées : adresse e-mail, empreinte du mot de passe, nom d'affichag
 | Fichier corrompu qui boucle | Erreur « définitive » détectée dès l'analyse : pas de nouvelle tentative inutile |
 
 À savoir : les envois sont plafonnés mais **l'espace disque libre n'est pas encore vérifié** avant d'accepter un envoi (à ajouter avec la supervision, B6).
+
+## 9. Diffusion par CDN (étape B5)
+
+| Menace | Protection |
+|---|---|
+| Partage d'une URL de lecture | Jeton de répertoire expirant (4 h), vérifié par le CDN ; plus de jeton = plus d'accès |
+| Lecture directe sans jeton | Token Authentication activé sur la Pull Zone (vérifié par `cdn:check`) |
+| Fuite de la clé de stockage | Elle n'existe que dans `api/.env` du travailleur ; l'API n'a besoin que de la clé de jeton |
+| Fichier altéré à l'envoi | Empreinte SHA-256 envoyée avec chaque fichier |
+| Contenu à moitié publié | Dossier versionné, playlist maître envoyée en dernier |
+| Écrasement accidentel | Jamais d'écriture en place : une publication = un nouveau dossier |
+
+Reste vrai : un spectateur autorisé peut enregistrer le flux (aucun DRM). Voir « Ce qui N'EST PAS couvert ».

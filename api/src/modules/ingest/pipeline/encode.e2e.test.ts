@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -15,7 +15,8 @@ import { DEV_DATABASE_URL } from '../../../config/env.ts';
 import { connect, type Sql } from '../../../platform/database/client.ts';
 import { migrate } from '../../../platform/database/migrate.ts';
 import { StorageLayout } from '../../../platform/storage/layout.ts';
-import { LocalMediaStore } from '../../../platform/storage/media-store.ts';
+import { BunnyMediaStore, LocalMediaStore } from '../../../platform/storage/media-store.ts';
+import { createBunnySigner } from '../../playback/delivery.ts';
 import { findPlayableAsset } from '../../playback/repository.ts';
 import { claimNextJob, enqueueJob, getJob } from '../jobs.repository.ts';
 import { processNextJob } from '../worker.ts';
@@ -82,6 +83,34 @@ after(async () => {
 });
 
 describe('pipeline d’encodage (ffmpeg réel)', () => {
+  it('publie vers Bunny (zone simulée) et produit une URL signée par le CDN', async t => {
+    if (!ready) return t.skip('ffmpeg ou PostgreSQL indisponible');
+    const uploaded: string[] = [];
+    const fakeFetch: typeof fetch = async (input, init) => {
+      uploaded.push(`${init?.method} ${new URL(String(input)).pathname}`);
+      return new Response('{}', { status: 201 });
+    };
+    const store = new BunnyMediaStore({ host: 'storage.example', zone: 'zone', accessKey: 'cle-de-zone-de-test', fetchImpl: fakeFetch });
+    const sourcePath = await makeSource('e2e-cdn', 4);
+    const queued = await enqueueJob(sql, {
+      id: randomUUID(), playbackId: 'e2e-cdn', programSlug: 'e2e-cdn', kind: 'film', title: 'CDN', isDemo: true,
+      sourcePath, preset: 'ultrafast', uploadId: null, createdBy: null,
+    });
+    await processNextJob({ sql, logger, layout, store, tools, workerId: 'test', signal: new AbortController().signal });
+    const job = await getJob(sql, queued?.id ?? '');
+    assert.equal(job?.status, 'succeeded', job?.lastError ?? '');
+
+    const asset = await findPlayableAsset(sql, 'e2e-cdn');
+    assert.match(asset?.storagePath ?? '', /^e2e-cdn\/v[0-9a-z]+$/, 'chemin versionné');
+    assert.ok(uploaded.some(line => line.endsWith('/zone/hls/' + (asset?.storagePath ?? '') + '/master.m3u8')));
+    assert.ok(uploaded.every(line => line.startsWith('PUT') || line.startsWith('GET') || line.startsWith('DELETE')));
+
+    const signed = createBunnySigner({ cdnUrl: 'https://videos.b-cdn.net', tokenKey: 'cle-de-securite-de-test', ttlSeconds: 600 })
+      .sign({ playbackId: 'e2e-cdn', storagePath: asset?.storagePath ?? '' }, { publicOrigin: 'http://x' });
+    assert.ok(signed.manifestUrl.endsWith('/hls/' + (asset?.storagePath ?? '') + '/master.m3u8'));
+    await assert.rejects(access(layout.workDir(queued?.id ?? '')), 'dossier de travail supprimé');
+  });
+
   it('encode, contrôle, publie et rend le média lisible', async t => {
     if (!ready) return t.skip('ffmpeg ou PostgreSQL indisponible');
     const sourcePath = await makeSource('e2e-film', 6);

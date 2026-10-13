@@ -11,6 +11,7 @@ import { createLogger } from './platform/logger.ts';
 import { createLogMailer } from './platform/mail.ts';
 import { StorageLayout } from './platform/storage/layout.ts';
 import { createIdentityService } from './modules/identity/service.ts';
+import { createBunnySigner, createOriginSigner } from './modules/playback/delivery.ts';
 
 // 1. Configuration : refus net si elle est invalide.
 let config;
@@ -48,7 +49,13 @@ const identity = createIdentityService({
     publicAppUrl: config.identity.publicAppUrl,
   },
 });
+const deliverySigner =
+  config.delivery.mode === 'bunny' && config.delivery.cdnUrl && config.delivery.tokenKey
+    ? createBunnySigner({ cdnUrl: config.delivery.cdnUrl, tokenKey: config.delivery.tokenKey, ttlSeconds: config.mediaTtlSeconds })
+    : createOriginSigner({ secret: config.mediaSecrets[0], ttlSeconds: config.mediaTtlSeconds });
+logger.info({ mode: config.delivery.mode }, 'mode de diffusion');
 const app = createApp({
+  deliverySigner,
   identity,
   cookieSecure: config.identity.cookieSecure,
   sessionTtlSeconds: config.identity.sessionTtlSeconds,

@@ -55,6 +55,15 @@ const schema = z.object({
   ENCODE_PRESET: z.enum(['ultrafast', 'veryfast', 'fast', 'medium', 'slow', 'slower']).default('medium'),
   /** Taille maximale d'un envoi, en octets (défaut : 60 Go). */
   UPLOAD_MAX_BYTES: z.coerce.number().int().min(1).default(60 * 1024 ** 3),
+  /** Diffusion : `origin` (l'API sert les fichiers) ou `bunny` (CDN Bunny : stockage + jetons). */
+  DELIVERY_MODE: z.enum(['origin', 'bunny']).default('origin'),
+  /** Bunny — API : adresse du CDN (Pull Zone) et clé d'authentification par jeton. */
+  BUNNY_CDN_URL: z.string().url().optional(),
+  BUNNY_TOKEN_KEY: z.string().min(8).optional(),
+  /** Bunny — travailleur : zone de stockage, clé d'accès et hôte régional (Europe : storage.bunnycdn.com). */
+  BUNNY_STORAGE_ZONE: z.string().min(1).optional(),
+  BUNNY_STORAGE_KEY: z.string().min(8).optional(),
+  BUNNY_STORAGE_HOST: z.string().min(1).default('storage.bunnycdn.com'),
   /** Durée de validité d'une URL de lecture, en secondes (1 minute à 24 h). */
   MEDIA_TTL_SECONDS: z.coerce.number().int().min(60).max(86_400).default(4 * 60 * 60),
   /** Origines autorisées pour le navigateur, séparées par des virgules. Vide = localhost uniquement. */
@@ -78,6 +87,14 @@ export interface AppConfig {
   trustProxy: boolean;
   rateLimits: { apiPerMinute: number; mediaPerMinute: number; authPerMinute: number; metricsPerMinute: number };
   media: { ffmpegPath: string; ffprobePath: string; encodePreset: string; uploadMaxBytes: number };
+  delivery: {
+    mode: 'origin' | 'bunny';
+    cdnUrl: string | null;
+    tokenKey: string | null;
+    storageZone: string | null;
+    storageKey: string | null;
+    storageHost: string;
+  };
   identity: {
     registrationMode: 'open' | 'invite';
     sessionTtlSeconds: number;
@@ -109,6 +126,8 @@ export function loadConfig(source: Record<string, string | undefined> = process.
   if (isProduction && !raw.DATABASE_URL) missing.push('DATABASE_URL est obligatoire en production');
   if (isProduction && !raw.MEDIA_SECRET) missing.push('MEDIA_SECRET est obligatoire en production');
   if (isProduction && !raw.CORS_ORIGINS) missing.push('CORS_ORIGINS est obligatoire en production');
+  if (raw.DELIVERY_MODE === 'bunny' && !raw.BUNNY_CDN_URL) missing.push('BUNNY_CDN_URL est obligatoire quand DELIVERY_MODE=bunny');
+  if (raw.DELIVERY_MODE === 'bunny' && !raw.BUNNY_TOKEN_KEY) missing.push('BUNNY_TOKEN_KEY est obligatoire quand DELIVERY_MODE=bunny');
   if (missing.length > 0) throw new ConfigError(missing);
 
   const corsOrigins = raw.CORS_ORIGINS?.split(',').map(origin => origin.trim()).filter(Boolean);
@@ -137,6 +156,14 @@ export function loadConfig(source: Record<string, string | undefined> = process.
       ffprobePath: raw.FFPROBE_PATH,
       encodePreset: raw.ENCODE_PRESET,
       uploadMaxBytes: raw.UPLOAD_MAX_BYTES,
+    },
+    delivery: {
+      mode: raw.DELIVERY_MODE,
+      cdnUrl: raw.BUNNY_CDN_URL?.replace(/\/$/, '') ?? null,
+      tokenKey: raw.BUNNY_TOKEN_KEY ?? null,
+      storageZone: raw.BUNNY_STORAGE_ZONE ?? null,
+      storageKey: raw.BUNNY_STORAGE_KEY ?? null,
+      storageHost: raw.BUNNY_STORAGE_HOST,
     },
     identity: {
       registrationMode: raw.REGISTRATION_MODE,

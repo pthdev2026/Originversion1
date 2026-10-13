@@ -141,13 +141,14 @@ export async function runEncodeJob(job: MediaJob, ctx: JobContext): Promise<void
 
   // 6. Publication, puis 7. inscription en base : à partir d'ici le contenu est lisible.
   await guard(98, 'publication');
-  await ctx.store.publishHls(work, job.playbackId);
+  const version = `v${Date.now().toString(36)}`;
+  const { storagePath } = await ctx.store.publishHls(work, job.playbackId, version);
   await registerAsset(ctx.sql, {
     playbackId: job.playbackId,
     programSlug: job.programSlug,
     kind: job.kind,
     title: job.title,
-    storagePath: job.playbackId,
+    storagePath,
     durationSeconds: info.durationSeconds,
     sourceWidth: info.width,
     sourceHeight: info.height,
@@ -157,6 +158,7 @@ export async function runEncodeJob(job: MediaJob, ctx: JobContext): Promise<void
     encodedAt: meta.encodedAt,
     isDemo: job.isDemo,
   });
-  // 8. Le dossier de travail a été déplacé par la publication : rien d'autre à nettoyer.
-  log.info('contenu publié');
+  // 8. Les anciennes versions sont retirées APRÈS que la nouvelle est lisible (au mieux : une erreur n'est pas fatale).
+  await ctx.store.pruneOldVersions(job.playbackId, storagePath).catch(error => log.warn({ err: error }, 'nettoyage des anciennes versions impossible'));
+  log.info({ storagePath }, 'contenu publié');
 }

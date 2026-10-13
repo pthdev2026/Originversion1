@@ -171,6 +171,19 @@ Trois idées à retenir :
 Reprise : l'encodage se fait **qualité par qualité** ; chaque qualité terminée et validée est un point de reprise.
 Après une panne, on repart à la qualité suivante (on perd au plus une qualité, pas tout le film).
 
+## 7 quater. La diffusion : origine ou CDN
+
+Un seul point de bascule : `DELIVERY_MODE`.
+
+| | `origin` (développement) | `bunny` (production) |
+|---|---|---|
+| Qui sert les fichiers | Notre API (`/media/...`) | Le CDN Bunny |
+| Qui vérifie l'autorisation | Notre API (jeton signé) | Le CDN lui-même (jeton de répertoire) |
+| Où le travailleur publie | Déplacement de dossier | Envoi vers Bunny Storage |
+| Ce qui change dans le code | Rien : `DeliverySigner` et `MediaStore` sont des interfaces | |
+
+Chaque publication a son **dossier versionné** (`hls/<id>/<version>/`) : on n'écrase jamais, donc cache long et retour arrière possibles.
+
 ## 8. Commandes
 
 ```bash

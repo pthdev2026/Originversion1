@@ -13,7 +13,8 @@
     "postinstall": "cd node_modules/@embedded-postgres/darwin-arm64 2>/dev/null && node scripts/hydrate-symlinks.js || true",
     "user:create-admin": "node scripts/create-admin.ts",
     "worker": "node --env-file-if-exists=.env scripts/worker.ts",
-    "media:enqueue": "node --env-file-if-exists=.env scripts/enqueue.ts"
+    "media:enqueue": "node --env-file-if-exists=.env scripts/enqueue.ts",
+    "cdn:check": "node --env-file-if-exists=.env scripts/cdn-check.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.0",

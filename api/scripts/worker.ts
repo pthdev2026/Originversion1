@@ -5,7 +5,7 @@ import { checkTools } from '../src/modules/ingest/pipeline/ffmpeg.ts';
 import { connect } from '../src/platform/database/client.ts';
 import { createLogger } from '../src/platform/logger.ts';
 import { StorageLayout } from '../src/platform/storage/layout.ts';
-import { LocalMediaStore } from '../src/platform/storage/media-store.ts';
+import { BunnyMediaStore, LocalMediaStore } from '../src/platform/storage/media-store.ts';
 
 const config = loadConfig();
 const logger = createLogger({ level: config.logLevel, pretty: !config.isProduction });
@@ -27,7 +27,18 @@ try {
 }
 
 const layout = new StorageLayout(config.storageRoot);
-const worker = startWorker({ sql, logger, layout, store: new LocalMediaStore(layout), tools });
+let store;
+if (config.delivery.mode === 'bunny') {
+  if (!config.delivery.storageZone || !config.delivery.storageKey) {
+    logger.fatal('DELIVERY_MODE=bunny : BUNNY_STORAGE_ZONE et BUNNY_STORAGE_KEY sont obligatoires pour le travailleur.');
+    process.exit(1);
+  }
+  store = new BunnyMediaStore({ host: config.delivery.storageHost, zone: config.delivery.storageZone, accessKey: config.delivery.storageKey });
+  logger.info({ zone: config.delivery.storageZone, host: config.delivery.storageHost }, 'publication vers Bunny Storage');
+} else {
+  store = new LocalMediaStore(layout);
+}
+const worker = startWorker({ sql, logger, layout, store, tools });
 
 async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, 'arrêt demandé : la tâche en cours est remise en file');

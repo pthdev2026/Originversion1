@@ -42,6 +42,7 @@ Programmes ayant au moins un média prêt.
 `404 {"error":"not_available","message":"…"}` : aucun média prêt. **Ce n'est pas une erreur technique** : afficher « pas encore disponible ».
 
 Règles pour le front :
+- En production (mode CDN), ces URLs pointent vers le domaine du CDN (`*.b-cdn.net`) : **ne jamais supposer le domaine ni le format**. Le lecteur n'a besoin que de l'URL.
 - `manifestUrl` et `posterUrl` sont **opaques** : ne jamais les construire ni les analyser, ne pas les mettre en cache au-delà de `expiresAt`.
 - Redemander `/playback` si `expiresAt` est dépassé (ou erreur 403 sur un segment).
 - Lecture : hls.js (`Hls.isSupported()`), sinon lecture native HLS (Safari / iOS).

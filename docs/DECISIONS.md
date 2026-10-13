@@ -67,3 +67,6 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Mesure : 15 s de 1440p encodés en ~32 s (4 qualités, preset medium) → ≈ 2,1× la durée ; film de 2 h ≈ 4 à 5 h sur ce Mac
 - 🟡 Reprise à la granularité d'une qualité ; une reprise par tranches de 10 min est possible plus tard si les films de 2 h sont fréquents
 - 🟡 Espace disque libre non vérifié avant un envoi (B6)
+- ✅ Étape B5 réalisée côté code : abstraction `DeliverySigner`/`MediaStore`, publication vers Bunny Storage (versionnée, contrôle d'intégrité, reprise), jetons CDN de répertoire, script de vérification `cdn:check`
+- 🟡 En attente du propriétaire : création du compte Bunny, de la zone de stockage et de la Pull Zone (voir `docs/GUIDE-BUNNY.md`) ; le format du jeton CDN reste à valider sur la vraie zone
+- ✅ Région de stockage : Falkenstein (Europe) ; réseau Standard
