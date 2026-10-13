@@ -32,6 +32,19 @@ describe('configuration', () => {
     assert.deepEqual(config.corsOrigins, ['https://origin.example', 'https://www.origin.example']);
   });
 
+  it('accepte une rotation de secret et des limites personnalisées', () => {
+    const config = loadConfig({
+      MEDIA_SECRET: 'n'.repeat(40),
+      MEDIA_SECRET_PREVIOUS: 'o'.repeat(40),
+      TRUST_PROXY: 'true',
+      RATE_LIMIT_API_PER_MIN: '30',
+    });
+    assert.equal(config.mediaSecrets.length, 2);
+    assert.equal(config.trustProxy, true);
+    assert.equal(config.rateLimits.apiPerMinute, 30);
+    assert.equal(config.rateLimits.mediaPerMinute, 3000);
+  });
+
   it('refuse un secret trop court', () => {
     assert.throws(() => loadConfig({ MEDIA_SECRET: 'court' }), /au moins 32 caractères/);
   });

@@ -113,9 +113,11 @@ describe('API de lecture', () => {
       sql,
       logger: pino({ level: 'silent' }),
       storage,
-      mediaSecret: 'secret-test-secret-test-secret-test!!',
+      mediaSecrets: ['secret-test-secret-test-secret-test!!'],
       mediaTtlSeconds: 60,
       corsOrigins: undefined,
+      trustProxy: false,
+      rateLimits: { apiPerMinute: 1000, mediaPerMinute: 1000 },
     });
 
     const missing = await app.request('/api/programs/inconnu/playback');
@@ -145,17 +147,55 @@ describe('API de lecture', () => {
     // Un chemin qui tente de sortir du dossier du média n'est jamais servi.
     assert.equal((await app.request(`${base}..%2F..%2F..%2Fetc%2Fpasswd`)).status, 404);
     assert.equal((await app.request(`${base}..%2Fautre%2Fmaster.m3u8`)).status, 404);
+    // Pourcentage mal formé : erreur 400 propre, pas une panne 500.
+    const malformed = await app.request(`${base}%E0%A4%A`);
+    assert.equal(malformed.status, 400);
     // Les erreurs inconnues deviennent un 404 JSON propre, pas une page d'erreur.
     const unknown = await app.request('/nimporte/quoi');
     assert.equal(unknown.status, 404);
     assert.equal(((await unknown.json()) as { error: string }).error, 'not_found');
   });
 
+  it('applique les protections de sécurité', async t => {
+    if (!available) return t.skip('PostgreSQL injoignable');
+    const app = createApp({
+      sql, logger: pino({ level: 'silent' }), storage: new StorageLayout(storageRoot),
+      mediaSecrets: ['secret-test-secret-test-secret-test!!'], mediaTtlSeconds: 60, corsOrigins: undefined,
+      trustProxy: false, rateLimits: { apiPerMinute: 3, mediaPerMinute: 1000 },
+    });
+    const first = await app.request('/api/programs/film-test/playback');
+    assert.equal(first.status, 200);
+    assert.equal(first.headers.get('cache-control'), 'no-store', 'les URLs signées ne se mettent pas en cache');
+    assert.equal(first.headers.get('x-content-type-options'), 'nosniff');
+    assert.equal(first.headers.get('referrer-policy'), 'no-referrer');
+    assert.equal(first.headers.get('ratelimit-limit'), '3');
+    await app.request('/api/programs/film-test/playback');
+    await app.request('/api/programs/film-test/playback');
+    const limited = await app.request('/api/programs/film-test/playback');
+    assert.equal(limited.status, 429);
+    assert.equal(((await limited.json()) as { error: string }).error, 'rate_limited');
+    // La santé n'est jamais limitée : la supervision doit toujours pouvoir interroger le service.
+    assert.equal((await app.request('/health')).status, 200);
+  });
+
+  it('refuse les corps trop volumineux sur l’API', async t => {
+    if (!available) return t.skip('PostgreSQL injoignable');
+    const app = createApp({
+      sql, logger: pino({ level: 'silent' }), storage: new StorageLayout(storageRoot),
+      mediaSecrets: ['secret-test-secret-test-secret-test!!'], mediaTtlSeconds: 60, corsOrigins: undefined,
+      trustProxy: false, rateLimits: { apiPerMinute: 1000, mediaPerMinute: 1000 },
+    });
+    const big = 'x'.repeat(70 * 1024);
+    const response = await app.request('/api/programs/film-test/playback', { method: 'POST', body: big });
+    assert.ok([404, 413].includes(response.status));
+  });
+
   it('expose l’état de santé', async t => {
     if (!available) return t.skip('PostgreSQL injoignable');
     const app = createApp({
       sql, logger: pino({ level: 'silent' }), storage: new StorageLayout(storageRoot),
-      mediaSecret: 'secret-test-secret-test-secret-test!!', mediaTtlSeconds: 60, corsOrigins: undefined,
+      mediaSecrets: ['secret-test-secret-test-secret-test!!'], mediaTtlSeconds: 60, corsOrigins: undefined,
+      trustProxy: false, rateLimits: { apiPerMinute: 1000, mediaPerMinute: 1000 },
     });
     const response = await app.request('/health');
     assert.equal(response.status, 200);

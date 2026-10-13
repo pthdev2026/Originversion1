@@ -27,3 +27,13 @@ describe('jeton de lecture', () => {
     assert.equal(verifyMediaToken(secret, 'deux-fois-oui', 'n-importe-quoi'), false);
   });
 });
+
+describe('rotation du secret', () => {
+  it('accepte un jeton signé avec l’ancien secret tant qu’il figure dans la liste', () => {
+    const oldSecret = 'ancien-secret-ancien-secret-ancien-12';
+    const newSecret = 'nouveau-secret-nouveau-secret-nouv-34';
+    const { token } = createMediaToken(oldSecret, 'film', 60);
+    assert.equal(verifyMediaToken([newSecret, oldSecret], 'film', token), true);
+    assert.equal(verifyMediaToken([newSecret], 'film', token), false);
+  });
+});

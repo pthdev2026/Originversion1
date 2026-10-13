@@ -24,14 +24,14 @@ const CONTENT_TYPES: Record<string, string> = {
   '.json': 'application/json',
 };
 
-export function mediaRoutes(deps: { sql: Sql; storage: StorageLayout; mediaSecret: string }): Hono {
+export function mediaRoutes(deps: { sql: Sql; storage: StorageLayout; mediaSecrets: readonly string[] }): Hono {
   const routes = new Hono();
 
   routes.get('/media/:token/:id/*', async c => {
     const { token, id: playbackId } = c.req.param();
 
     // 1. Autorisation : le jeton doit être valide, non expiré, et émis pour CE média.
-    if (!isValidId(playbackId) || !verifyMediaToken(deps.mediaSecret, playbackId, token)) throw errors.forbidden();
+    if (!isValidId(playbackId) || !verifyMediaToken(deps.mediaSecrets, playbackId, token)) throw errors.forbidden();
 
     // 2. Le média doit exister et être prêt.
     const asset = await findPlayableAsset(deps.sql, playbackId);
@@ -39,7 +39,12 @@ export function mediaRoutes(deps: { sql: Sql; storage: StorageLayout; mediaSecre
 
     // 3. Résolution du fichier, sans jamais sortir du dossier du média.
     const prefix = `/media/${token}/${playbackId}/`;
-    const requested = decodeURIComponent(new URL(c.req.url).pathname.slice(prefix.length));
+    let requested: string;
+    try {
+      requested = decodeURIComponent(new URL(c.req.url).pathname.slice(prefix.length));
+    } catch {
+      throw errors.badRequest('Chemin invalide.'); // pourcentage mal formé : ce n'est pas une panne
+    }
     const filePath = deps.storage.resolveHlsFile(asset.storagePath, requested);
     if (!filePath) throw errors.notFound();
 

@@ -1,6 +1,8 @@
 # ORIGIN — Contrat d'API (v0.1, 13/10/2026)
 
 Propriétaire : l'agent back-end. Toute modification est annoncée ici avant d'être déployée.
+Limites : 120 requêtes par minute et par adresse IP sur `/api/*` ; en-têtes `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
+Les réponses de `/api/*` ne doivent pas être mises en cache (`Cache-Control: no-store`).
 Base : variable `VITE_API_URL` côté front (défaut local : `http://127.0.0.1:4000`). Réponses en JSON UTF-8.
 
 ## Convention d'identifiant de lecture (`playbackId`)
@@ -56,6 +58,8 @@ Toute réponse d'erreur a la forme `{ "error": "<code>", "message": "<texte>", "
 |---|---|---|
 | 404 `not_available` | `{error,message}` | « Pas encore disponible » |
 | 403 | `{error:"forbidden"}` | Redemander la lecture une fois, puis message d'erreur |
+| 429 `rate_limited` | `{error,message,requestId}` + en-tête `Retry-After` (secondes) | Patienter `Retry-After` secondes puis réessayer ; ne pas boucler |
+| 400 `bad_request` | `{error,message,requestId}` | Chemin ou requête invalide : ne pas réessayer |
 | 5xx / réseau | — | « Service momentanément indisponible » + Réessayer |
 
 ## Prévu (pas encore disponible — ne pas le simuler)

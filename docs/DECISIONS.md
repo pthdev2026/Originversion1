@@ -58,3 +58,4 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Architecture back-end : monolithe modulaire, couches routes → service → repository, socle `platform/`
 - ✅ Rangement des fichiers : par type puis par identifiant (`storage/videos/hls/<id>`), thèmes dans la base
 - ✅ Étape B0 (hygiène) réalisée : configuration validée, journaux structurés, erreurs cohérentes, types stricts, CI
+- ✅ Étape B1 (sécurité) réalisée : limitation de débit, délai et taille maximaux, rotation de secret, `no-store`, en-têtes, audit propre

@@ -29,6 +29,13 @@ const schema = z.object({
   STORAGE_ROOT: z.string().min(1).optional(),
   /** Secret de signature des URLs de lecture. Obligatoire en production (32 caractères minimum). */
   MEDIA_SECRET: z.string().min(32, 'MEDIA_SECRET doit faire au moins 32 caractères').optional(),
+  /** Ancien secret, accepté en vérification pendant une rotation (changer MEDIA_SECRET sans couper les lectures en cours). */
+  MEDIA_SECRET_PREVIOUS: z.string().min(32, 'MEDIA_SECRET_PREVIOUS doit faire au moins 32 caractères').optional(),
+  /** À « true » UNIQUEMENT derrière un proxy de confiance (Caddy, CDN) : l'IP client est lue dans X-Forwarded-For. */
+  TRUST_PROXY: z.enum(['true', 'false']).default('false'),
+  /** Requêtes autorisées par minute et par adresse IP : API (/api/*) et fichiers de lecture (/media/*). */
+  RATE_LIMIT_API_PER_MIN: z.coerce.number().int().min(1).max(100_000).default(120),
+  RATE_LIMIT_MEDIA_PER_MIN: z.coerce.number().int().min(1).max(1_000_000).default(3000),
   /** Durée de validité d'une URL de lecture, en secondes (1 minute à 24 h). */
   MEDIA_TTL_SECONDS: z.coerce.number().int().min(60).max(86_400).default(4 * 60 * 60),
   /** Origines autorisées pour le navigateur, séparées par des virgules. Vide = localhost uniquement. */
@@ -43,11 +50,14 @@ export interface AppConfig {
   logLevel: string;
   databaseUrl: string;
   storageRoot: string;
-  mediaSecret: string;
+  /** Secrets de signature : le premier signe, tous servent à vérifier (rotation). */
+  mediaSecrets: [string, ...string[]];
   /** Vrai si le secret a été généré au lancement (développement) : les jetons expirent au redémarrage. */
   mediaSecretIsEphemeral: boolean;
   mediaTtlSeconds: number;
   corsOrigins: string[] | undefined;
+  trustProxy: boolean;
+  rateLimits: { apiPerMinute: number; mediaPerMinute: number };
 }
 
 export class ConfigError extends Error {
@@ -84,9 +94,11 @@ export function loadConfig(source: Record<string, string | undefined> = process.
     logLevel: raw.LOG_LEVEL,
     databaseUrl: raw.DATABASE_URL ?? DEV_DATABASE_URL,
     storageRoot: path.resolve(raw.STORAGE_ROOT ?? path.join(PROJECT_ROOT, 'storage')),
-    mediaSecret: raw.MEDIA_SECRET ?? randomBytes(32).toString('hex'),
+    mediaSecrets: [raw.MEDIA_SECRET ?? randomBytes(32).toString('hex'), ...(raw.MEDIA_SECRET_PREVIOUS ? [raw.MEDIA_SECRET_PREVIOUS] : [])],
     mediaSecretIsEphemeral: raw.MEDIA_SECRET === undefined,
     mediaTtlSeconds: raw.MEDIA_TTL_SECONDS,
     corsOrigins: corsOrigins && corsOrigins.length > 0 ? corsOrigins : undefined,
+    trustProxy: raw.TRUST_PROXY === 'true',
+    rateLimits: { apiPerMinute: raw.RATE_LIMIT_API_PER_MIN, mediaPerMinute: raw.RATE_LIMIT_MEDIA_PER_MIN },
   };
 }

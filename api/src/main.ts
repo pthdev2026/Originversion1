@@ -40,9 +40,11 @@ const app = createApp({
   sql,
   logger,
   storage,
-  mediaSecret: config.mediaSecret,
+  mediaSecrets: config.mediaSecrets,
   mediaTtlSeconds: config.mediaTtlSeconds,
   corsOrigins: config.corsOrigins,
+  trustProxy: config.trustProxy,
+  rateLimits: config.rateLimits,
 });
 
 const server = serve({ fetch: app.fetch, port: config.port, hostname: config.host }, info => {

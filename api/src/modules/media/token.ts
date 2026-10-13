@@ -19,12 +19,21 @@ export function createMediaToken(secret: string, programId: string, ttlSeconds: 
   return { token: `${expiresAt}.${sign(secret, programId, expiresAt)}`, expiresAt };
 }
 
-export function verifyMediaToken(secret: string, programId: string, token: string, now = Date.now()): boolean {
+/**
+ * Vérifie un jeton. `secrets` peut contenir plusieurs secrets : le courant et l'ancien, le temps d'une rotation.
+ * Pour changer de secret sans couper les lectures en cours : mettre le nouveau dans MEDIA_SECRET, l'ancien dans
+ * MEDIA_SECRET_PREVIOUS, redéployer, puis retirer l'ancien après la durée de validité des jetons.
+ */
+export function verifyMediaToken(secrets: string | readonly string[], programId: string, token: string, now = Date.now()): boolean {
   const [expRaw, signature, ...rest] = token.split('.');
   if (!expRaw || !signature || rest.length > 0) return false;
   const expiresAt = Number(expRaw);
   if (!Number.isInteger(expiresAt) || expiresAt < Math.floor(now / 1000)) return false;
-  const expected = Buffer.from(sign(secret, programId, expiresAt));
   const received = Buffer.from(signature);
-  return expected.length === received.length && timingSafeEqual(expected, received);
+  const candidates = typeof secrets === 'string' ? [secrets] : secrets;
+  // Comparaison en temps constant : ne révèle rien par le temps de réponse.
+  return candidates.some(secret => {
+    const expected = Buffer.from(sign(secret, programId, expiresAt));
+    return expected.length === received.length && timingSafeEqual(expected, received);
+  });
 }

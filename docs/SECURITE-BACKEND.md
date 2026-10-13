@@ -1,0 +1,69 @@
+# Sécurité du back-end ORIGIN (étape B1)
+
+Principe : on protège d'abord ce qui compte (la lecture, les comptes à venir, les secrets), on vérifie par des tests,
+et on écrit noir sur blanc ce qui N'est PAS encore couvert.
+
+## 1. Ce qu'on protège et contre quoi
+
+| Ce qu'on protège | Menace | Protection en place | Où |
+|---|---|---|---|
+| Les vidéos (accès non autorisé) | Deviner ou copier une URL de lecture | Jeton signé (HMAC), lié au média, expirant (4 h par défaut) ; comparaison en temps constant | `modules/media/token.ts` |
+| Les fichiers du serveur | Lire hors du dossier (`../../etc/passwd`, `%2e%2e`) | Identifiants bornés, `resolveInside`, pourcentage mal formé refusé | `platform/storage/layout.ts`, `modules/media/routes.ts` |
+| La disponibilité | Un script qui martèle l'API | Limitation de débit par IP (429 + `Retry-After`) ; mémoire bornée | `platform/http/rate-limit.ts` |
+| La disponibilité | Requête qui traîne, gros corps | Délai maximal de 10 s sur l'API ; corps limité à 64 Ko | `platform/http/middleware.ts`, `app.ts` |
+| Les secrets | Fuite dans le dépôt ou les journaux | Aucun secret dans le code ; jetons masqués dans les journaux ; secret obligatoire en production | `config/env.ts`, `redactPath` |
+| Les secrets | Secret compromis | Rotation sans coupure (`MEDIA_SECRET_PREVIOUS`) | `config/env.ts`, `token.ts` |
+| Les réponses | Mise en cache d'URLs signées par un intermédiaire | `Cache-Control: no-store` sur `/api/*` | `middleware.ts` |
+| Le navigateur | Détournement de contenu, fuite de l'origine | `nosniff`, `Referrer-Policy: no-referrer`, CORS limité aux origines déclarées | `middleware.ts` |
+| La traçabilité | Incident sans piste | Identifiant de requête dans chaque réponse et chaque ligne de journal | `middleware.ts` |
+
+## 2. Réglages (variables d'environnement)
+
+| Variable | Défaut | Rôle |
+|---|---|---|
+| `MEDIA_SECRET` | généré (dev) / **obligatoire** (prod, 32 caractères min.) | Signe les URLs de lecture |
+| `MEDIA_SECRET_PREVIOUS` | — | Ancien secret, accepté le temps d'une rotation |
+| `MEDIA_TTL_SECONDS` | 14400 (4 h) | Durée de validité d'une URL |
+| `RATE_LIMIT_API_PER_MIN` | 120 | Requêtes `/api/*` par minute et par IP |
+| `RATE_LIMIT_MEDIA_PER_MIN` | 3000 | Fichiers `/media/*` par minute et par IP (large : plusieurs foyers peuvent partager une IP) |
+| `TRUST_PROXY` | `false` | `true` uniquement derrière un proxy de confiance : lit l'IP dans `X-Forwarded-For` |
+| `CORS_ORIGINS` | localhost | **Obligatoire en production** |
+
+⚠️ `TRUST_PROXY=true` sans proxy devant l'API permettrait à n'importe qui de falsifier son adresse et de contourner la limite.
+
+## 3. Rotation d'un secret (sans couper les lectures en cours)
+
+1. Mettre l'ancien secret dans `MEDIA_SECRET_PREVIOUS`, un nouveau dans `MEDIA_SECRET`.
+2. Redéployer : les anciens jetons restent valides, les nouveaux sont signés avec le nouveau secret.
+3. Après la durée de validité des jetons (4 h), retirer `MEDIA_SECRET_PREVIOUS`.
+
+## 4. Vérifications faites (13/10/2026)
+
+| Contrôle | Résultat |
+|---|---|
+| Audit des dépendances (`npm audit`) | 0 vulnérabilité |
+| Recherche de secrets dans le dépôt | Aucun trouvé ; aucun `.env` suivi par git |
+| Tests de sécurité automatisés | 26 tests : jeton, expiration, falsification, rotation, sortie de dossier, pourcentage mal formé, limitation de débit, en-têtes, corps trop gros |
+| Type strict | `tsc` sans erreur |
+
+## 5. Ce qui N'EST PAS couvert (à traiter)
+
+| Manque | Pourquoi c'est un risque | Quand |
+|---|---|---|
+| Authentification et droits | N'importe qui peut obtenir une URL de lecture | B2 |
+| Compteurs de limite partagés entre instances | La limite est par instance | Quand on aura plusieurs instances |
+| Jeton d'authentification du CDN | Le jeton actuel est vérifié par l'origine, pas par le CDN | B5 |
+| Protection DDoS réseau | Hors de portée de l'application | Fournisseur / CDN |
+| Sauvegardes chiffrées, journal d'audit | Pas encore de données à protéger | B2 / B6 |
+| Chiffrement du contenu (DRM) | Les URLs signées empêchent le partage facile, pas la copie par un spectateur | Si un ayant droit l'exige |
+| HTTPS | Fourni par le reverse proxy en production | B8 |
+
+## 6. Liste de contrôle avant la mise en ligne
+
+- [ ] `NODE_ENV=production`, `MEDIA_SECRET` (≥ 32 caractères, aléatoire), `DATABASE_URL`, `CORS_ORIGINS` définis
+- [ ] `TRUST_PROXY=true` seulement si un proxy de confiance est devant l'API
+- [ ] HTTPS partout ; l'API n'est joignable que par le proxy
+- [ ] Base de données non exposée sur Internet, mot de passe fort
+- [ ] Sauvegardes testées (restauration complète)
+- [ ] `npm audit` propre le jour du déploiement
+- [ ] Journaux vérifiés : aucun jeton, aucun secret
