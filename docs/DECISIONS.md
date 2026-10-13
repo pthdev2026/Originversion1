@@ -70,3 +70,5 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Étape B5 réalisée côté code : abstraction `DeliverySigner`/`MediaStore`, publication vers Bunny Storage (versionnée, contrôle d'intégrité, reprise), jetons CDN de répertoire, script de vérification `cdn:check`
 - 🟡 En attente du propriétaire : création du compte Bunny, de la zone de stockage et de la Pull Zone (voir `docs/GUIDE-BUNNY.md`) ; le format du jeton CDN reste à valider sur la vraie zone
 - ✅ Région de stockage : Falkenstein (Europe) ; réseau Standard
+- ✅ Étape B6 réalisée : sauvegarde logique chiffrée + rotation + test de restauration, /ready, /metrics (jeton), tableau de bord administrateur, garde-fou d'espace disque, chien de garde avec alertes, runbooks (`docs/EXPLOITATION.md`)
+- 🟡 Sauvegarde hors site à prévoir (second lieu) ; planification réelle (cron) à activer par le propriétaire ; webhook d'alerte à choisir

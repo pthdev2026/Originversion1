@@ -1,4 +1,4 @@
-# ORIGIN — Contrat d'API (v0.4, 13/10/2026)
+# ORIGIN — Contrat d'API (v0.5, 13/10/2026)
 
 Propriétaire : l'agent back-end. Toute modification est annoncée ici avant d'être déployée.
 Limites : 120 requêtes par minute et par adresse IP sur `/api/*` ; en-têtes `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
@@ -15,6 +15,9 @@ Base : variable `VITE_API_URL` côté front (défaut local : `http://127.0.0.1:4
 Expression régulière : `^[a-z0-9][a-z0-9-]*$`.
 
 ## Routes disponibles
+
+### `GET /ready`
+`200 {"status":"ready","checks":{database,storage,disk}}` · `503 {"status":"not_ready",...}` — le service peut-il travailler (base, stockage, espace disque) ? Pour la supervision, pas pour l'interface.
 
 ### `GET /health`
 `200 {"status":"ok","database":"ok"}` · `503 {"status":"degraded","database":"unreachable"}`
@@ -154,7 +157,7 @@ Toutes les requêtes portent `Tus-Resumable: 1.0.0` et le cookie de session (`cr
 | `DELETE /uploads/:id` | — | `204` |
 
 Métadonnées : `playbackId` suit la convention d'identifiant de lecture ; `kind` ∈ `film | serie | documentaire` ; formats acceptés `.mp4 .mov .m4v .mkv .webm .avi .mxf` ; taille maximale 60 Go.
-Au dernier octet, le serveur range la source et crée **automatiquement** la tâche d'encodage.
+`503` à la création si l'espace disque est insuffisant (message explicite à afficher). Au dernier octet, le serveur range la source et crée **automatiquement** la tâche d'encodage.
 
 | Route | Réponse |
 |---|---|
@@ -162,6 +165,8 @@ Au dernier octet, le serveur range la source et crée **automatiquement** la tâ
 | `GET /api/admin/jobs/:id` | une tâche (même forme) |
 | `POST /api/admin/jobs/:id/cancel` | `204` · `409` |
 | `POST /api/admin/jobs/:id/retry` | `204` (tâche échouée ou annulée) · `409` |
+
+`GET /api/admin/system` (administrateur) : `{ready, checks, uptimeSeconds, jobs, runningJobs, users, migrationsApplied, lastBackup}` — pour un tableau de bord d'exploitation.
 
 `status` ∈ `queued | running | succeeded | failed | canceled`. `progress` : 0 à 100. Interroger toutes les 5 à 10 s.
 Le contenu devient lisible (`GET /api/programs/:id/playback` ≠ 404) **uniquement** quand `status` vaut `succeeded`.

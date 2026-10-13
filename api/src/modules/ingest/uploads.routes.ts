@@ -25,6 +25,7 @@ import type { Sql } from '../../platform/database/client.ts';
 import { AppError, errors } from '../../platform/errors.ts';
 import type { AppEnv } from '../../platform/http/types.ts';
 import { isValidId, type StorageLayout } from '../../platform/storage/layout.ts';
+import { freeBytesOf, type FreeBytes } from '../../platform/system/health.ts';
 import { requireAdmin } from '../identity/middleware.ts';
 import { enqueueJob } from './jobs.repository.ts';
 import { findUpload, insertUpload, setUploadOffset, setUploadStatus, type UploadMetadata } from './uploads.repository.ts';
@@ -60,6 +61,9 @@ export interface UploadRoutesDeps {
   layout: StorageLayout;
   maxBytes: number;
   preset: string;
+  /** Espace libre à CONSERVER après l'envoi et l'encodage. */
+  minFreeBytes?: number;
+  freeBytes?: FreeBytes;
 }
 
 export function uploadRoutes(deps: UploadRoutesDeps): Hono<AppEnv> {
@@ -80,6 +84,13 @@ export function uploadRoutes(deps: UploadRoutesDeps): Hono<AppEnv> {
     const length = Number(c.req.header('upload-length'));
     if (!Number.isInteger(length) || length <= 0) throw errors.badRequest('Upload-Length requis (octets).');
     if (length > deps.maxBytes) throw errors.tooLarge(`Fichier trop volumineux (maximum ${Math.floor(deps.maxBytes / 1024 ** 3)} Go).`);
+
+    // Espace disque : la source (1×) + le dossier d'encodage (≈ 0,6×) + la marge de sécurité configurée.
+    const free = await (deps.freeBytes ?? freeBytesOf)(deps.layout.root).catch(() => null);
+    const needed = Math.ceil(length * 1.6) + (deps.minFreeBytes ?? 0);
+    if (free !== null && free < needed) {
+      throw new AppError('unavailable', 503, `Espace disque insuffisant : ${(needed / 1024 ** 3).toFixed(1)} Go nécessaires, ${(free / 1024 ** 3).toFixed(1)} Go libres.`);
+    }
 
     const parsed = metadataSchema.safeParse(parseUploadMetadata(c.req.header('upload-metadata')));
     if (!parsed.success) throw errors.badRequest(parsed.error.issues[0]?.message ?? 'Métadonnées invalides.');

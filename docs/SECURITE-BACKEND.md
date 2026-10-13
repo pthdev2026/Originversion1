@@ -100,7 +100,7 @@ Données conservées : adresse e-mail, empreinte du mot de passe, nom d'affichag
 | Vidéo incomplète publiée | Contrôle qualité fichier par fichier avant la publication atomique |
 | Fichier corrompu qui boucle | Erreur « définitive » détectée dès l'analyse : pas de nouvelle tentative inutile |
 
-À savoir : les envois sont plafonnés mais **l'espace disque libre n'est pas encore vérifié** avant d'accepter un envoi (à ajouter avec la supervision, B6).
+L'espace disque libre est vérifié avant d'accepter un envoi (source + encodage + marge configurée) : un envoi qui ne peut pas aboutir est refusé tout de suite.
 
 ## 9. Diffusion par CDN (étape B5)
 
@@ -114,3 +114,18 @@ Données conservées : adresse e-mail, empreinte du mot de passe, nom d'affichag
 | Écrasement accidentel | Jamais d'écriture en place : une publication = un nouveau dossier |
 
 Reste vrai : un spectateur autorisé peut enregistrer le flux (aucun DRM). Voir « Ce qui N'EST PAS couvert ».
+
+## 10. Exploitation (étape B6)
+
+| Menace | Protection |
+|---|---|
+| Perte de la base | Sauvegarde quotidienne, rotation, **test de restauration automatisé** |
+| Vol d'une sauvegarde | Chiffrement AES-256-GCM (phrase secrète conservée à part) ; fichiers en droits 600 |
+| Sauvegarde falsifiée ou tronquée | Empreinte SHA-256 par fichier + authentification GCM ; restauration en transaction (tout ou rien) |
+| Restauration par erreur sur une base en service | Refus si la base cible n'est pas vide ; option `--yes` obligatoire |
+| Suppression accidentelle d'une source | La copie de sauvegarde ne supprime jamais |
+| Fuite via la supervision | `/metrics` désactivé sans jeton, jeton comparé en temps constant, aucune donnée personnelle exposée |
+| Panne silencieuse | Chien de garde + alertes sur changement d'état |
+
+Reste à faire : envoyer aussi la sauvegarde **hors du site** (second lieu physique ou stockage distant) : un disque externe branché
+au même ordinateur ne protège pas d'un vol ou d'un incendie.

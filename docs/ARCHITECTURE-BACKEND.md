@@ -38,6 +38,7 @@ api/
 │   │   └── storage/layout.ts   Plan de rangement des fichiers (vidéos, images, sous-titres).
 │   └── modules/                Le « métier », un dossier par domaine.
 │       ├── health/             Le service est-il vivant ?
+│       ├── ops/                Disponibilité (/ready), supervision (/metrics), tableau de bord administrateur.
 │       ├── catalog/            Quels programmes sont lisibles ?
 │       ├── playback/           « Je veux regarder » → URL signée.
 │       ├── media/              Jetons de lecture et distribution des fichiers HLS.
@@ -183,6 +184,15 @@ Un seul point de bascule : `DELIVERY_MODE`.
 | Ce qui change dans le code | Rien : `DeliverySigner` et `MediaStore` sont des interfaces | |
 
 Chaque publication a son **dossier versionné** (`hls/<id>/<version>/`) : on n'écrase jamais, donc cache long et retour arrière possibles.
+
+## 7 quinquies. Sauvegardes : pourquoi « logiques » et pas un simple dossier
+
+Copier le dossier de la base pendant qu'elle tourne donne une copie incohérente. On lit donc la base dans une
+**transaction instantanée** (cohérente même si l'application écrit en même temps), table par table, en CSV compressé et
+chiffré, avec une empreinte par fichier. La **structure** vient des migrations (source de vérité unique) : la sauvegarde ne
+contient que les données, ce qui la rend lisible, vérifiable et indépendante de la version de PostgreSQL.
+Principe d'or : **une sauvegarde qu'on n'a jamais restaurée n'existe pas** : `npm run backup:verify` la restaure pour de vrai
+dans un schéma temporaire et compare chaque nombre de lignes.
 
 ## 8. Commandes
 

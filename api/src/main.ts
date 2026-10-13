@@ -60,6 +60,7 @@ const app = createApp({
   cookieSecure: config.identity.cookieSecure,
   sessionTtlSeconds: config.identity.sessionTtlSeconds,
   playbackRequiresLogin: config.identity.playbackRequiresLogin,
+  ops: { backupDir: config.ops.backupDir, minFreeBytes: config.ops.minFreeBytes, metricsToken: config.ops.metricsToken },
   uploadMaxBytes: config.media.uploadMaxBytes,
   encodePreset: config.media.encodePreset,
   sql,

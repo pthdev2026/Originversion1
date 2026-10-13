@@ -64,6 +64,14 @@ const schema = z.object({
   BUNNY_STORAGE_ZONE: z.string().min(1).optional(),
   BUNNY_STORAGE_KEY: z.string().min(8).optional(),
   BUNNY_STORAGE_HOST: z.string().min(1).default('storage.bunnycdn.com'),
+  /** Exploitation : dossier des sauvegardes (idéalement un AUTRE disque), phrase secrète de chiffrement, seuil d'espace disque. */
+  BACKUP_DIR: z.string().min(1).optional(),
+  BACKUP_PASSPHRASE: z.string().min(16, 'BACKUP_PASSPHRASE doit faire au moins 16 caractères').optional(),
+  MIN_FREE_GB: z.coerce.number().min(0).max(100_000).default(20),
+  /** Jeton (Bearer) donnant accès à /metrics pour la supervision. Absent : /metrics est désactivé. */
+  METRICS_TOKEN: z.string().min(24, 'METRICS_TOKEN doit faire au moins 24 caractères').optional(),
+  /** Adresse d'un webhook (Slack, Discord, ntfy…) où le « chien de garde » envoie les alertes. */
+  ALERT_WEBHOOK_URL: z.string().url().optional(),
   /** Durée de validité d'une URL de lecture, en secondes (1 minute à 24 h). */
   MEDIA_TTL_SECONDS: z.coerce.number().int().min(60).max(86_400).default(4 * 60 * 60),
   /** Origines autorisées pour le navigateur, séparées par des virgules. Vide = localhost uniquement. */
@@ -87,6 +95,13 @@ export interface AppConfig {
   trustProxy: boolean;
   rateLimits: { apiPerMinute: number; mediaPerMinute: number; authPerMinute: number; metricsPerMinute: number };
   media: { ffmpegPath: string; ffprobePath: string; encodePreset: string; uploadMaxBytes: number };
+  ops: {
+    backupDir: string;
+    backupPassphrase: string | null;
+    minFreeBytes: number;
+    metricsToken: string | null;
+    alertWebhookUrl: string | null;
+  };
   delivery: {
     mode: 'origin' | 'bunny';
     cdnUrl: string | null;
@@ -156,6 +171,13 @@ export function loadConfig(source: Record<string, string | undefined> = process.
       ffprobePath: raw.FFPROBE_PATH,
       encodePreset: raw.ENCODE_PRESET,
       uploadMaxBytes: raw.UPLOAD_MAX_BYTES,
+    },
+    ops: {
+      backupDir: path.resolve(raw.BACKUP_DIR ?? path.join(PROJECT_ROOT, 'backups')),
+      backupPassphrase: raw.BACKUP_PASSPHRASE ?? null,
+      minFreeBytes: Math.round(raw.MIN_FREE_GB * 1024 ** 3),
+      metricsToken: raw.METRICS_TOKEN ?? null,
+      alertWebhookUrl: raw.ALERT_WEBHOOK_URL ?? null,
     },
     delivery: {
       mode: raw.DELIVERY_MODE,

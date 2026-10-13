@@ -14,6 +14,9 @@ import { bodyLimit } from 'hono/body-limit';
 import type { AppEnv } from './platform/http/types.ts';
 import { analyticsRoutes } from './modules/analytics/routes.ts';
 import { jobRoutes } from './modules/ingest/jobs.routes.ts';
+import { opsRoutes } from './modules/ops/routes.ts';
+import { createMetrics } from './platform/http/metrics.ts';
+import type { FreeBytes } from './platform/system/health.ts';
 import { uploadRoutes } from './modules/ingest/uploads.routes.ts';
 import { identityRoutes } from './modules/identity/routes.ts';
 import { myListRoutes } from './modules/mylist/routes.ts';
@@ -50,6 +53,8 @@ export interface AppDependencies {
   encodePreset: string;
   /** Façon de signer les URLs de lecture. Par défaut : l'API sert elle-même les fichiers (mode « origin »). */
   deliverySigner?: DeliverySigner;
+  /** Exploitation (valeurs par défaut sûres si absentes). */
+  ops?: { backupDir: string; minFreeBytes: number; metricsToken: string | null; freeBytes?: FreeBytes };
 }
 
 export function createApp(deps: AppDependencies): Hono<AppEnv> {
@@ -57,6 +62,8 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
 
   // L'ordre compte : l'identifiant de requête d'abord, pour que tout le reste puisse l'utiliser.
   app.use('*', withRequestId);
+  const metrics = createMetrics();
+  app.use('*', metrics.middleware);
   app.use('*', accessLog(deps.logger));
   app.use('*', withSecurityHeaders);
   app.use('*', withCors(deps.corsOrigins));
@@ -96,8 +103,24 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
   app.route('/', progressRoutes({ sql: deps.sql }));
   app.route('/', myListRoutes({ sql: deps.sql }));
   app.route('/', analyticsRoutes({ sql: deps.sql }));
+  app.route('/', opsRoutes({
+    sql: deps.sql,
+    metrics,
+    storageRoot: deps.storage.root,
+    backupDir: deps.ops?.backupDir ?? `${deps.storage.root}/backups`,
+    minFreeBytes: deps.ops?.minFreeBytes ?? 0,
+    metricsToken: deps.ops?.metricsToken ?? null,
+    ...(deps.ops?.freeBytes ? { freeBytes: deps.ops.freeBytes } : {}),
+  }));
   app.route('/', jobRoutes({ sql: deps.sql }));
-  app.route('/', uploadRoutes({ sql: deps.sql, layout: deps.storage, maxBytes: deps.uploadMaxBytes, preset: deps.encodePreset }));
+  app.route('/', uploadRoutes({
+    sql: deps.sql,
+    layout: deps.storage,
+    maxBytes: deps.uploadMaxBytes,
+    preset: deps.encodePreset,
+    minFreeBytes: deps.ops?.minFreeBytes ?? 0,
+    ...(deps.ops?.freeBytes ? { freeBytes: deps.ops.freeBytes } : {}),
+  }));
   app.route('/', mediaRoutes({ sql: deps.sql, storage: deps.storage, mediaSecrets: deps.mediaSecrets }));
 
   registerErrorHandlers(app, deps.logger);
