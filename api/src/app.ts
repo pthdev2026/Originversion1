@@ -12,7 +12,10 @@ import { Hono } from 'hono';
 import { registerErrorHandlers } from './platform/http/error-handler.ts';
 import { bodyLimit } from 'hono/body-limit';
 import type { AppEnv } from './platform/http/types.ts';
+import { analyticsRoutes } from './modules/analytics/routes.ts';
 import { identityRoutes } from './modules/identity/routes.ts';
+import { myListRoutes } from './modules/mylist/routes.ts';
+import { progressRoutes } from './modules/progress/routes.ts';
 import { loadSession } from './modules/identity/middleware.ts';
 import type { IdentityService } from './modules/identity/service.ts';
 import { errors } from './platform/errors.ts';
@@ -35,7 +38,7 @@ export interface AppDependencies {
   mediaTtlSeconds: number;
   corsOrigins: string[] | undefined;
   trustProxy: boolean;
-  rateLimits: { apiPerMinute: number; mediaPerMinute: number; authPerMinute: number };
+  rateLimits: { apiPerMinute: number; mediaPerMinute: number; authPerMinute: number; metricsPerMinute: number };
   identity: IdentityService;
   cookieSecure: boolean;
   sessionTtlSeconds: number;
@@ -57,12 +60,13 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
   app.use('/api/*', rateLimit({ windowMs: minute, max: deps.rateLimits.apiPerMinute, keyOf: c => `api:${byIp(c)}` }));
   app.use('/api/*', requireTrustedOrigin(deps.corsOrigins));
   app.use('/api/*', loadSession({ identity: deps.identity, cookieSecure: deps.cookieSecure }));
+  app.use('/api/playback-sessions', rateLimit({ windowMs: minute, max: deps.rateLimits.metricsPerMinute, keyOf: c => `metrics:${byIp(c)}` }));
   app.use('/api/*', bodyLimit({ maxSize: 64 * 1024, onError: () => { throw errors.tooLarge(); } }));
   app.use('/api/*', requestTimeout(10_000));
   app.use('/api/*', noStore);
   app.use('/media/*', rateLimit({ windowMs: minute, max: deps.rateLimits.mediaPerMinute, keyOf: c => `media:${byIp(c)}` }));
 
-  // Modules fonctionnels. Prévus plus tard : identity, recommendation, analytics (voir modules/*/README.md).
+  // Modules fonctionnels. Prévu plus tard : recommendation (voir modules/recommendation/README.md).
   app.route('/', healthRoutes({ sql: deps.sql }));
   app.route('/', catalogRoutes({ sql: deps.sql }));
   app.route('/', playbackRoutes({ sql: deps.sql, config: { mediaSecret: deps.mediaSecrets[0], ttlSeconds: deps.mediaTtlSeconds }, requireLogin: deps.playbackRequiresLogin }));
@@ -73,6 +77,9 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
     authPerMinute: deps.rateLimits.authPerMinute,
     clientKey: byIp,
   }));
+  app.route('/', progressRoutes({ sql: deps.sql }));
+  app.route('/', myListRoutes({ sql: deps.sql }));
+  app.route('/', analyticsRoutes({ sql: deps.sql }));
   app.route('/', mediaRoutes({ sql: deps.sql, storage: deps.storage, mediaSecrets: deps.mediaSecrets }));
 
   registerErrorHandlers(app, deps.logger);

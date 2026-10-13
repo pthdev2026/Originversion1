@@ -1,4 +1,4 @@
-# ORIGIN — Contrat d'API (v0.2, 13/10/2026)
+# ORIGIN — Contrat d'API (v0.3, 13/10/2026)
 
 Propriétaire : l'agent back-end. Toute modification est annoncée ici avant d'être déployée.
 Limites : 120 requêtes par minute et par adresse IP sur `/api/*` ; en-têtes `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
@@ -90,11 +90,59 @@ Inscription : `REGISTRATION_MODE=open` (défaut) ou `invite`. Lecture : `PLAYBAC
 Lien de réinitialisation : `{PUBLIC_APP_URL}/reinitialiser?token=<jeton>` → le front doit fournir cette page.
 Toute écriture depuis un navigateur est refusée (`403`) si son en-tête `Origin` n'est pas dans `CORS_ORIGINS`.
 
+## Reprise de lecture et « Ma liste » (disponible — étape B3)
+
+Toutes ces routes exigent un compte connecté (`401` sinon) et `credentials: 'include'`.
+
+| Route | Corps / paramètres | Réponses |
+|---|---|---|
+| `PUT /api/me/progress/:playbackId` | `{positionSeconds, durationSeconds?, sentAt?}` | `200 {playbackId, positionSeconds, durationSeconds, completed, updatedAt}` |
+| `GET /api/me/progress/:playbackId` | — | `200` (même forme) · `404` = jamais commencé |
+| `DELETE /api/me/progress/:playbackId` | — | `204` (retire de « Reprendre ») |
+| `GET /api/me/continue-watching?limit=20` | — | `200 {items:[{playbackId, programSlug, title, kind, positionSeconds, durationSeconds, progressRatio, completed, updatedAt}]}` |
+| `GET /api/me/list` | — | `200 {items:[{slug, addedAt}]}` (récents d'abord) |
+| `PUT /api/me/list/:slug` | — | `204` (idempotent, 500 contenus au plus) |
+| `DELETE /api/me/list/:slug` | — | `204` |
+
+Règles de la reprise :
+- Envoyer la position **toutes les 10 à 15 s** pendant la lecture, **à la pause**, **à la fermeture** (`fetch` avec `keepalive: true`).
+- `sentAt` : horodatage du navigateur en millisecondes (`Date.now()`). Un envoi plus ancien qu'un envoi déjà reçu est ignoré.
+- La durée de référence est celle du média côté serveur ; `durationSeconds` n'est utilisé que si le média est inconnu.
+- `completed: true` à 95 % ou à moins de 30 s de la fin (contenus ≥ 2 min) : le contenu quitte « Reprendre ». Sous 10 s de lecture, il n'y est pas non plus.
+- À l'ouverture du lecteur : `GET /api/me/progress/:playbackId`. Si `completed` est `true`, recommencer à 0. `404` : commencer à 0.
+- `slug` d'une liste = identifiant du contenu côté front (`^[a-z0-9][a-z0-9-]*$`), il n'a pas besoin d'être lisible.
+
+## Mesure de lecture (disponible — étape B3)
+
+| Route | Accès | Réponses |
+|---|---|---|
+| `POST /api/playback-sessions` | Public (anonyme) | `204` · `400` |
+| `GET /api/admin/metrics/playback?days=7&playbackId=` | Administrateur | `200` synthèse (démarrage p50/p75/p95, ratio de coupures, taux d'erreurs, qualités regardées, objectifs) |
+
+Corps (JSON, peut être envoyé en `text/plain` avec `keepalive: true`) — rapport **cumulatif** de la session, toutes les ~15 s et à la fermeture :
+```json
+{
+  "id": "uuid-v4 généré par le navigateur, un par session de lecture",
+  "playbackId": "tout-recommencer",
+  "startupMs": 820,
+  "rebufferCount": 1, "rebufferMs": 1400,
+  "watchSeconds": 312.5,
+  "levelSeconds": { "480": 40, "720": 272.5 },
+  "maxHeight": 720,
+  "fatalError": null,
+  "device": "mobile | tablet | desktop",
+  "browser": "Chrome",
+  "engine": "hlsjs | native",
+  "connection": "4g"
+}
+```
+Définitions : `startupMs` = de l'ouverture du lecteur à la première image jouée ; coupure = arrêt pour manque de données hors déplacement manuel.
+Aucune donnée personnelle n'est conservée (ni adresse IP, ni compte, ni user-agent brut). Objectifs : démarrage < 2 s (p75), coupures < 1 %, erreurs < 1 %.
+Limite : 120 rapports par minute et par adresse IP.
+
 ## Prévu (pas encore disponible — ne pas le simuler)
 
 | Domaine | Routes prévues | État |
 |---|---|---|
-| Reprise | `PUT /api/me/progress/:playbackId`, `GET /api/me/continue-watching` | Étape B3 |
-| Ma liste | `GET/PUT/DELETE /api/me/list/:slug` | Étape B3 |
-| Mesure | `POST /api/playback-sessions` (rapport cumulatif toutes les 15 s) | Étape B3 (branche `wip/playback-metrics`) |
-| Catalogue | `GET /api/catalog/*` | Plus tard (hors périmètre actuel) |
+| Catalogue | `GET /api/catalog/*` (thèmes, collections, fiches) | Plus tard (hors périmètre actuel) |
+| Recommandation | `GET /api/me/recommendations` (avec la raison de chaque proposition) | Après catalogue et données |

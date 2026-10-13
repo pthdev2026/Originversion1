@@ -83,7 +83,7 @@ function makeApp(overrides: Partial<AppDependencies> = {}) {
     mediaTtlSeconds: 60,
     corsOrigins: undefined,
     trustProxy: false,
-    rateLimits: { apiPerMinute: 1000, mediaPerMinute: 1000, authPerMinute: 1000 },
+    rateLimits: { apiPerMinute: 1000, mediaPerMinute: 1000, authPerMinute: 1000, metricsPerMinute: 1000 },
     identity,
     cookieSecure: false,
     sessionTtlSeconds: 3600,
@@ -178,7 +178,7 @@ describe('API de lecture', () => {
 
   it('applique les protections de sécurité', async t => {
     if (!available) return t.skip('PostgreSQL injoignable');
-    const app = makeApp({ rateLimits: { apiPerMinute: 3, mediaPerMinute: 1000, authPerMinute: 1000 } });
+    const app = makeApp({ rateLimits: { apiPerMinute: 3, mediaPerMinute: 1000, authPerMinute: 1000, metricsPerMinute: 1000 } });
     const first = await app.request('/api/programs/film-test/playback');
     assert.equal(first.status, 200);
     assert.equal(first.headers.get('cache-control'), 'no-store', 'les URLs signées ne se mettent pas en cache');

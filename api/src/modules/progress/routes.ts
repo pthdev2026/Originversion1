@@ -1,0 +1,83 @@
+/** Module « progress » — routes HTTP (voir docs/API-CONTRACT.md). Toutes exigent un compte connecté. */
+import { Hono } from 'hono';
+import { z } from 'zod';
+import type { Sql } from '../../platform/database/client.ts';
+import { errors } from '../../platform/errors.ts';
+import type { AppEnv } from '../../platform/http/types.ts';
+import { isValidId } from '../../platform/storage/layout.ts';
+import { requireUser } from '../identity/middleware.ts';
+import { deleteProgress, findProgress, listContinueWatching, type Progress } from './repository.ts';
+import { saveProgress } from './service.ts';
+
+const bodySchema = z.object({
+  positionSeconds: z.number({ required_error: 'positionSeconds requis.' }).finite().min(0).max(86_400),
+  durationSeconds: z.number().finite().positive().max(86_400).optional(),
+  /** Horodatage du navigateur (ms) : sert à ignorer un envoi arrivé en retard. */
+  sentAt: z.number().int().nonnegative().optional(),
+});
+
+const present = (progress: Progress) => ({
+  playbackId: progress.playbackId,
+  positionSeconds: progress.positionSeconds,
+  durationSeconds: progress.durationSeconds,
+  completed: progress.completed,
+  updatedAt: progress.updatedAt.toISOString(),
+});
+
+function playbackIdOf(raw: string): string {
+  if (!isValidId(raw)) throw errors.badRequest('Identifiant de lecture invalide.');
+  return raw;
+}
+
+export function progressRoutes(deps: { sql: Sql }): Hono<AppEnv> {
+  const routes = new Hono<AppEnv>();
+
+  routes.put('/api/me/progress/:playbackId', async c => {
+    const user = requireUser(c);
+    const playbackId = playbackIdOf(c.req.param('playbackId'));
+    let raw: unknown;
+    try { raw = await c.req.json(); } catch { throw errors.badRequest('Corps JSON invalide.'); }
+    const parsed = bodySchema.safeParse(raw);
+    if (!parsed.success) throw errors.badRequest(parsed.error.issues[0]?.message ?? 'Requête invalide.');
+
+    const saved = await saveProgress(deps.sql, {
+      userId: user.id,
+      playbackId,
+      positionSeconds: parsed.data.positionSeconds,
+      reportedDurationSeconds: parsed.data.durationSeconds ?? null,
+      clientTs: parsed.data.sentAt ?? Date.now(),
+    });
+    return c.json(present(saved));
+  });
+
+  // Où reprendre ce contenu ? 404 = jamais commencé.
+  routes.get('/api/me/progress/:playbackId', async c => {
+    const user = requireUser(c);
+    const progress = await findProgress(deps.sql, user.id, playbackIdOf(c.req.param('playbackId')));
+    if (!progress) throw errors.notFound('Aucune progression pour ce contenu.');
+    return c.json(present(progress));
+  });
+
+  routes.delete('/api/me/progress/:playbackId', async c => {
+    const user = requireUser(c);
+    await deleteProgress(deps.sql, user.id, playbackIdOf(c.req.param('playbackId')));
+    return c.body(null, 204);
+  });
+
+  routes.get('/api/me/continue-watching', async c => {
+    const user = requireUser(c);
+    const limit = Math.min(Math.max(Number(c.req.query('limit') ?? 20) || 20, 1), 50);
+    const items = await listContinueWatching(deps.sql, user.id, limit);
+    return c.json({
+      items: items.map(item => ({
+        ...present(item),
+        programSlug: item.programSlug,
+        title: item.title,
+        kind: item.kind,
+        progressRatio: item.durationSeconds ? Math.min(1, Math.round((item.positionSeconds / item.durationSeconds) * 1000) / 1000) : null,
+      })),
+    });
+  });
+
+  return routes;
+}

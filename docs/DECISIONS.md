@@ -62,3 +62,4 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Étape B2 (comptes maison) réalisée : argon2id, sessions en cookie httpOnly, verrouillage, réinitialisation, suppression (RGPD), invitations, rôles, CSRF
 - ✅ Lecture : ouverte par défaut ; exiger un compte = un réglage (`PLAYBACK_REQUIRES_LOGIN`)
 - 🟡 À faire avant l'ouverture : envoi réel des e-mails, vérification de l'adresse, double authentification (plus tard)
+- ✅ Étape B3 réalisée : reprise de lecture (durée de référence côté serveur, fin à 95 %/30 s, envois hors ordre ignorés), « Ma liste », mesure de lecture anonyme + synthèse administrateur

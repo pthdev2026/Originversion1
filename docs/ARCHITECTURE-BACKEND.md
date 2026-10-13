@@ -43,8 +43,10 @@ api/
 │       ├── media/              Jetons de lecture et distribution des fichiers HLS.
 │       ├── ingest/             Inscrire un média encodé en base.
 │       ├── identity/           Comptes, sessions, droits, invitations, journal d'audit.
-│       ├── recommendation/     (à construire) que proposer à cette personne ?
-│       └── analytics/          (à construire) mesure de la qualité de lecture.
+│       ├── progress/           Reprise de lecture (« Reprendre »).
+│       ├── mylist/             « Ma liste ».
+│       ├── analytics/          Mesure de la qualité de lecture.
+│       └── recommendation/     (à construire) que proposer à cette personne ?
 ├── migrations/                 Évolutions de la base, en SQL numéroté (001_, 002_…).
 ├── scripts/                    Commandes d'administration : db:start, db:migrate, ingest.
 └── tsconfig.json               Règles strictes de TypeScript (vérifiées par `npm run typecheck`).
@@ -140,6 +142,13 @@ Exemple : « Ma liste ».
 4. **Contrat** : documenter la route dans `docs/API-CONTRACT.md` AVANT de la déployer.
 5. **Tests** : au minimum le cas nominal, le cas « non autorisé » et le cas « entrée invalide ».
 6. `npm run typecheck && npm test`.
+
+## 7 bis. Quand une couche « service » est-elle utile ?
+
+Pas toujours. Le module `mylist` n'a que des lectures/écritures simples : `routes → repository` suffit.
+Le module `progress` a des **règles** (terminé à 95 %, durée de référence côté serveur, position bornée) :
+il a donc un `service.ts`. Règle pratique : dès qu'il y a une décision à prendre, elle va dans un service,
+jamais dans une route ni dans du SQL.
 
 ## 8. Commandes
 
