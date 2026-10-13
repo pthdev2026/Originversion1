@@ -1,4 +1,4 @@
-# ORIGIN — Contrat d'API (v0, 13/10/2026)
+# ORIGIN — Contrat d'API (v0.1, 13/10/2026)
 
 Propriétaire : l'agent back-end. Toute modification est annoncée ici avant d'être déployée.
 Base : variable `VITE_API_URL` côté front (défaut local : `http://127.0.0.1:4000`). Réponses en JSON UTF-8.
@@ -48,6 +48,9 @@ Règles pour le front :
 Géré par hls.js ; `Range` supporté. `403` : jeton invalide ou expiré. `404` : fichier absent.
 
 ## Erreurs
+
+Toute réponse d'erreur a la forme `{ "error": "<code>", "message": "<texte>", "requestId": "<id>" }`.
+`requestId` (aussi dans l'en-tête `X-Request-Id`) permet de retrouver la requête dans les journaux : à afficher dans les écrans d'erreur techniques.
 
 | Statut | Corps | Attitude du front |
 |---|---|---|

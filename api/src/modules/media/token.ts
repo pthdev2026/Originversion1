@@ -1,3 +1,9 @@
+/**
+ * Module « media » — jetons de lecture.
+ *
+ * Un jeton prouve « cette URL a été autorisée pour CE média jusqu'à CETTE date ». Il est signé avec
+ * un secret du serveur (HMAC) : impossible à fabriquer ou à modifier sans ce secret.
+ */
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
 // Jeton de lecture : "<expiration>.<signature>", signé sur "<programId>.<expiration>".

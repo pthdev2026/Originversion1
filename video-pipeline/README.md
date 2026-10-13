@@ -5,7 +5,7 @@ Transforme une vidéo source en HLS multi-débits (segments fMP4 de 4 s, H.264 +
 ```bash
 export FFMPEG_PATH="/chemin/vers/ffmpeg"    # sinon "ffmpeg" du PATH
 export FFPROBE_PATH="/chemin/vers/ffprobe"  # sinon "ffprobe" du PATH
-node encode-hls.mjs <source> <id-programme> --out ../storage/hls [--preset medium] [--max-seconds 60]
+node encode-hls.mjs <source> <id-programme> --out ../storage/videos/hls [--preset medium] [--max-seconds 60]
 ```
 
 - `id-programme` : minuscules, chiffres et tirets ; doit correspondre à l'`id` du programme dans le front.

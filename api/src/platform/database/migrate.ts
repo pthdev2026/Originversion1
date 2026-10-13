@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import type { Sql } from './client.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-export const MIGRATIONS_DIR = path.resolve(here, '..', '..', 'migrations');
+export const MIGRATIONS_DIR = path.resolve(here, '..', '..', '..', 'migrations');
 
 /** Applique les migrations SQL non encore passées, dans l'ordre des noms de fichiers, chacune dans une transaction. */
 export async function migrate(sql: Sql, dir = MIGRATIONS_DIR): Promise<string[]> {

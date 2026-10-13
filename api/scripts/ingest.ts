@@ -1,38 +1,40 @@
-// Enregistre dans la base un programme déjà encodé par video-pipeline.
-// Usage : npm run ingest -- <dossier-hls> --kind film|serie|documentaire --title "Titre" [--program <slug>] [--demo]
-//   <dossier-hls> = nom du dossier dans storage/hls (= identifiant de lecture)
-//   --program     slug du programme (défaut : identifiant de lecture)
+// Enregistre dans la base un programme déjà encodé par video-pipeline/.
+// Usage : npm run ingest -- <playbackId> --kind film|serie|documentaire --title "Titre" [--program <slug>] [--demo]
+//   <playbackId>  nom du dossier dans storage/videos/hls/ (= identifiant de lecture)
+//   --program     slug du programme (défaut : le playbackId)
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { registerAsset } from '../src/catalog.ts';
-import { connect } from '../src/db/client.ts';
-
-const here = path.dirname(fileURLToPath(import.meta.url));
-const storageDir = path.resolve(process.env.STORAGE_DIR ?? path.join(here, '..', '..', 'storage', 'hls'));
+import { loadConfig } from '../src/config/env.ts';
+import { registerAsset } from '../src/modules/ingest/repository.ts';
+import { connect } from '../src/platform/database/client.ts';
+import { StorageLayout } from '../src/platform/storage/layout.ts';
 
 const args = process.argv.slice(2);
-const flag = (name: string) => {
+const flag = (name: string): string | undefined => {
   const index = args.indexOf(`--${name}`);
   return index >= 0 ? args[index + 1] : undefined;
 };
-const playbackId = args.find(arg => !arg.startsWith('--') && args[args.indexOf(arg) - 1]?.startsWith('--') !== true);
+const playbackId = args.find((arg, index) => !arg.startsWith('--') && !args[index - 1]?.startsWith('--'));
 const kind = flag('kind');
 const title = flag('title');
 if (!playbackId || !title || !['film', 'serie', 'documentaire'].includes(kind ?? '')) {
-  console.error('Usage : npm run ingest -- <dossier-hls> --kind film|serie|documentaire --title "Titre" [--program <slug>] [--demo]');
+  console.error('Usage : npm run ingest -- <playbackId> --kind film|serie|documentaire --title "Titre" [--program <slug>] [--demo]');
   process.exit(1);
 }
 
-const meta = JSON.parse(await readFile(path.join(storageDir, playbackId, 'meta.json'), 'utf8')) as {
+const config = loadConfig();
+const storage = new StorageLayout(config.storageRoot);
+
+interface EncodeMeta {
   source: { width: number; height: number; durationSeconds: number };
   renditions: { name: string; height: number; videoKbps: number }[];
   preset?: string;
   encodeSeconds?: number;
   encodedAt?: string;
-};
+}
+const meta = JSON.parse(await readFile(path.join(storage.hlsDir(playbackId), 'meta.json'), 'utf8')) as EncodeMeta;
 
-const sql = connect();
+const sql = connect(config.databaseUrl);
 try {
   await registerAsset(sql, {
     playbackId,

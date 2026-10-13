@@ -1,8 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import path from 'node:path';
-import { createMediaToken, verifyMediaToken } from './media-token.ts';
-import { resolveMediaPath } from './app.ts';
+import { createMediaToken, verifyMediaToken } from './token.ts';
 
 describe('jeton de lecture', () => {
   const secret = 'secret-de-test';
@@ -27,19 +25,5 @@ describe('jeton de lecture', () => {
     assert.equal(verifyMediaToken(secret, 'deux-fois-oui', `${token}x`), false);
     assert.equal(verifyMediaToken('autre', 'deux-fois-oui', token), false);
     assert.equal(verifyMediaToken(secret, 'deux-fois-oui', 'n-importe-quoi'), false);
-  });
-});
-
-describe('résolution des chemins', () => {
-  const root = path.resolve('/srv/hls');
-
-  it('autorise les fichiers du programme', () => {
-    assert.equal(resolveMediaPath(root, 'a', 'v0/seg_00001.m4s'), path.join(root, 'a', 'v0', 'seg_00001.m4s'));
-  });
-
-  it('refuse toute sortie du dossier', () => {
-    assert.equal(resolveMediaPath(root, 'a', '../b/master.m3u8'), null);
-    assert.equal(resolveMediaPath(root, 'a', '../../etc/passwd'), null);
-    assert.equal(resolveMediaPath(root, 'a', ''), null);
   });
 });

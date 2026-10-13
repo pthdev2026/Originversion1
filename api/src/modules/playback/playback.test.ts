@@ -1,19 +1,26 @@
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
-import { createApp } from './app.ts';
-import { findPlayableAsset, listPlayablePrograms, registerAsset, type IngestInput } from './catalog.ts';
-import { connect, databaseUrl, type Sql } from './db/client.ts';
-import { migrate } from './db/migrate.ts';
+import pino from 'pino';
+import { createApp } from '../../app.ts';
+import { DEV_DATABASE_URL } from '../../config/env.ts';
+import { connect, type Sql } from '../../platform/database/client.ts';
+import { migrate } from '../../platform/database/migrate.ts';
+import { StorageLayout } from '../../platform/storage/layout.ts';
+import { registerAsset, type IngestInput } from '../ingest/repository.ts';
+import { findPlayableAsset } from './repository.ts';
+import { listPlayablePrograms } from '../catalog/repository.ts';
 
 // Chaque exécution travaille dans un schéma PostgreSQL jetable : la base de développement n'est pas touchée.
+// Si PostgreSQL n'est pas démarré, les tests concernés sont SAUTÉS (et non « réussis »).
+const databaseUrl = process.env['DATABASE_URL'] ?? DEV_DATABASE_URL;
 const schema = `test_${randomBytes(6).toString('hex')}`;
 let admin: Sql;
 let sql: Sql;
-let storageDir: string;
+let storageRoot: string;
 let available = true;
 
 const asset = (overrides: Partial<IngestInput> = {}): IngestInput => ({
@@ -34,7 +41,7 @@ const asset = (overrides: Partial<IngestInput> = {}): IngestInput => ({
 });
 
 before(async () => {
-  admin = connect(databaseUrl(), { max: 1 });
+  admin = connect(databaseUrl, { max: 1 });
   try {
     await admin`SELECT 1`;
   } catch {
@@ -43,9 +50,9 @@ before(async () => {
     return;
   }
   await admin.unsafe(`CREATE SCHEMA ${schema}`);
-  sql = connect(databaseUrl(), { max: 2, connection: { search_path: schema } });
+  sql = connect(databaseUrl, { max: 2, connection: { search_path: schema } });
   await migrate(sql);
-  storageDir = await mkdtemp(path.join(tmpdir(), 'origin-hls-'));
+  storageRoot = await mkdtemp(path.join(tmpdir(), 'origin-storage-'));
 });
 
 after(async () => {
@@ -53,10 +60,10 @@ after(async () => {
   await sql.end();
   await admin.unsafe(`DROP SCHEMA ${schema} CASCADE`);
   await admin.end();
-  await rm(storageDir, { recursive: true, force: true });
+  await rm(storageRoot, { recursive: true, force: true });
 });
 
-describe('catalogue en base', { skip: process.env.CI ? false : undefined }, () => {
+describe('catalogue en base', () => {
   it('migre le schéma et ne rejoue pas les migrations', async t => {
     if (!available) return t.skip('PostgreSQL injoignable (npm run db:start)');
     assert.deepEqual(await migrate(sql), []);
@@ -97,17 +104,30 @@ describe('catalogue en base', { skip: process.env.CI ? false : undefined }, () =
 describe('API de lecture', () => {
   it('sert la lecture signée d’un média prêt, refuse le reste', async t => {
     if (!available) return t.skip('PostgreSQL injoignable');
-    await mkdir(path.join(storageDir, 'film-test', 'v0'), { recursive: true });
-    await writeFile(path.join(storageDir, 'film-test', 'master.m3u8'), '#EXTM3U\n');
-    await writeFile(path.join(storageDir, 'film-test', 'v0', 'seg_00000.m4s'), Buffer.from('0123456789'));
-    const app = createApp({ sql, storageDir, mediaSecret: 'secret-test', ttlSeconds: 60 });
+    const storage = new StorageLayout(storageRoot);
+    await mkdir(path.join(storage.hlsDir('film-test'), 'v0'), { recursive: true });
+    await writeFile(path.join(storage.hlsDir('film-test'), 'master.m3u8'), '#EXTM3U\n');
+    await writeFile(path.join(storage.hlsDir('film-test'), 'v0', 'seg_00000.m4s'), Buffer.from('0123456789'));
+
+    const app = createApp({
+      sql,
+      logger: pino({ level: 'silent' }),
+      storage,
+      mediaSecret: 'secret-test-secret-test-secret-test!!',
+      mediaTtlSeconds: 60,
+      corsOrigins: undefined,
+    });
 
     const missing = await app.request('/api/programs/inconnu/playback');
     assert.equal(missing.status, 404);
+    const missingBody = (await missing.json()) as { error: string; requestId: string };
+    assert.equal(missingBody.error, 'not_available');
+    assert.ok(missingBody.requestId, 'la réponse d’erreur porte un identifiant de requête');
     assert.equal((await app.request('/api/programs/Mauvais_ID/playback')).status, 404);
 
     const playback = await app.request('/api/programs/film-test/playback');
     assert.equal(playback.status, 200);
+    assert.ok(playback.headers.get('x-request-id'));
     const body = (await playback.json()) as { manifestUrl: string; durationSeconds: number };
     assert.equal(body.durationSeconds, 20);
 
@@ -122,8 +142,23 @@ describe('API de lecture', () => {
     assert.equal(await partial.text(), '2345');
 
     assert.equal((await app.request('/media/1.signature/film-test/master.m3u8')).status, 403);
-    // Un chemin qui tente de sortir du dossier du programme n'est jamais servi.
+    // Un chemin qui tente de sortir du dossier du média n'est jamais servi.
     assert.equal((await app.request(`${base}..%2F..%2F..%2Fetc%2Fpasswd`)).status, 404);
     assert.equal((await app.request(`${base}..%2Fautre%2Fmaster.m3u8`)).status, 404);
+    // Les erreurs inconnues deviennent un 404 JSON propre, pas une page d'erreur.
+    const unknown = await app.request('/nimporte/quoi');
+    assert.equal(unknown.status, 404);
+    assert.equal(((await unknown.json()) as { error: string }).error, 'not_found');
+  });
+
+  it('expose l’état de santé', async t => {
+    if (!available) return t.skip('PostgreSQL injoignable');
+    const app = createApp({
+      sql, logger: pino({ level: 'silent' }), storage: new StorageLayout(storageRoot),
+      mediaSecret: 'secret-test-secret-test-secret-test!!', mediaTtlSeconds: 60, corsOrigins: undefined,
+    });
+    const response = await app.request('/health');
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { status: 'ok', database: 'ok' });
   });
 });

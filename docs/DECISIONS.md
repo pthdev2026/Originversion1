@@ -49,3 +49,12 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Ingestion par `npm run ingest` après encodage
 - 🟡 Le catalogue éditorial reste dans le front : à migrer vers l'API si on veut le piloter sans redéployer
 - 🟡 Production : PostgreSQL géré (ou VPS) + sauvegardes à prévoir ; `DATABASE_URL` obligatoire
+
+## Décisions du 13/10/2026
+- ✅ Audience principale : **France et Belgique**, puis Europe du Sud (Espagne) → CDN Europe (Bunny Standard ≈ 0,01 $/Go)
+- ✅ Accès : **gratuit et ouvert à tous** pour la première version ; passage à l'invitation prévu plus tard (champ prévu dans le module identity)
+- ✅ Objectif : 1 000 personnes, jusqu'à 2 h de lecture chacune
+- ✅ Deux agents : back-end (cet agent) et front-end (autre agent), contrat dans `docs/API-CONTRACT.md`
+- ✅ Architecture back-end : monolithe modulaire, couches routes → service → repository, socle `platform/`
+- ✅ Rangement des fichiers : par type puis par identifiant (`storage/videos/hls/<id>`), thèmes dans la base
+- ✅ Étape B0 (hygiène) réalisée : configuration validée, journaux structurés, erreurs cohérentes, types stricts, CI
