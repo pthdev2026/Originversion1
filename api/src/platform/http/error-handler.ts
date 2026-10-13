@@ -6,10 +6,11 @@
  * la requête dans les journaux quand quelqu'un signale un problème.
  */
 import type { Hono } from 'hono';
+import type { AppEnv } from './types.ts';
 import type { Logger } from '../logger.ts';
 import { AppError } from '../errors.ts';
 
-export function registerErrorHandlers(app: Hono, logger: Logger): void {
+export function registerErrorHandlers(app: Hono<AppEnv>, logger: Logger): void {
   app.onError((error, c) => {
     const requestId = c.get('requestId');
     if (error instanceof AppError) {

@@ -50,7 +50,10 @@ et on écrit noir sur blanc ce qui N'est PAS encore couvert.
 
 | Manque | Pourquoi c'est un risque | Quand |
 |---|---|---|
-| Authentification et droits | N'importe qui peut obtenir une URL de lecture | B2 |
+| Lecture réservée aux comptes | Par défaut la lecture reste ouverte (`PLAYBACK_REQUIRES_LOGIN=false`) : n'importe qui peut obtenir une URL | Un réglage, à activer quand le front a son écran de connexion |
+| Envoi réel des e-mails | La réinitialisation écrit le lien dans les journaux, aucun e-mail n'est envoyé | À brancher avant l'ouverture |
+| Vérification de l'adresse e-mail | On ne prouve pas que l'adresse appartient à la personne | Plus tard |
+| Authentification à deux facteurs | Un mot de passe volé suffit | Plus tard |
 | Compteurs de limite partagés entre instances | La limite est par instance | Quand on aura plusieurs instances |
 | Jeton d'authentification du CDN | Le jeton actuel est vérifié par l'origine, pas par le CDN | B5 |
 | Protection DDoS réseau | Hors de portée de l'application | Fournisseur / CDN |
@@ -67,3 +70,19 @@ et on écrit noir sur blanc ce qui N'est PAS encore couvert.
 - [ ] Sauvegardes testées (restauration complète)
 - [ ] `npm audit` propre le jour du déploiement
 - [ ] Journaux vérifiés : aucun jeton, aucun secret
+
+## 7. Comptes (étape B2) — protections ajoutées
+
+| Menace | Protection |
+|---|---|
+| Vol de la base de données | Mots de passe en **argon2id** (sel unique) ; jetons de session stockés **uniquement sous forme d'empreinte** |
+| Devinettes de mots de passe | Limite de 10 tentatives/min par IP, verrouillage du compte 15 min après 5 échecs, mots de passe courants refusés |
+| Savoir qui a un compte | Message de connexion unique, temps de calcul identique, « mot de passe oublié » toujours en 202 |
+| Vol de session par script | Cookie `httpOnly` ; `Secure` et préfixe `__Host-` en production |
+| Requête forgée depuis un autre site (CSRF) | `SameSite=Lax` + contrôle de l'en-tête `Origin` sur toute écriture |
+| Réutilisation d'un lien de réinitialisation | Usage unique, valable 1 h, toutes les sessions sont coupées après usage |
+| Appareil perdu | Changement de mot de passe : les autres appareils sont déconnectés |
+| Droit à l'effacement (RGPD) | `POST /api/me/delete` supprime le compte et ses sessions ; le journal d'audit est anonymisé |
+| Accès administrateur | Rôle `admin` vérifié côté serveur sur chaque route ; création par script, jamais par l'API publique |
+
+Données conservées : adresse e-mail, empreinte du mot de passe, nom d'affichage facultatif, dates. **Aucune adresse IP ni user-agent n'est stocké.**

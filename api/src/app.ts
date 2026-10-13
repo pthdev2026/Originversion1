@@ -11,8 +11,12 @@
 import { Hono } from 'hono';
 import { registerErrorHandlers } from './platform/http/error-handler.ts';
 import { bodyLimit } from 'hono/body-limit';
+import type { AppEnv } from './platform/http/types.ts';
+import { identityRoutes } from './modules/identity/routes.ts';
+import { loadSession } from './modules/identity/middleware.ts';
+import type { IdentityService } from './modules/identity/service.ts';
 import { errors } from './platform/errors.ts';
-import { accessLog, noStore, requestTimeout, withCors, withRequestId, withSecurityHeaders } from './platform/http/middleware.ts';
+import { accessLog, noStore, requestTimeout, requireTrustedOrigin, withCors, withRequestId, withSecurityHeaders } from './platform/http/middleware.ts';
 import { clientIp, rateLimit } from './platform/http/rate-limit.ts';
 import type { Sql } from './platform/database/client.ts';
 import type { Logger } from './platform/logger.ts';
@@ -31,11 +35,15 @@ export interface AppDependencies {
   mediaTtlSeconds: number;
   corsOrigins: string[] | undefined;
   trustProxy: boolean;
-  rateLimits: { apiPerMinute: number; mediaPerMinute: number };
+  rateLimits: { apiPerMinute: number; mediaPerMinute: number; authPerMinute: number };
+  identity: IdentityService;
+  cookieSecure: boolean;
+  sessionTtlSeconds: number;
+  playbackRequiresLogin: boolean;
 }
 
-export function createApp(deps: AppDependencies): Hono {
-  const app = new Hono();
+export function createApp(deps: AppDependencies): Hono<AppEnv> {
+  const app = new Hono<AppEnv>();
 
   // L'ordre compte : l'identifiant de requête d'abord, pour que tout le reste puisse l'utiliser.
   app.use('*', withRequestId);
@@ -47,6 +55,8 @@ export function createApp(deps: AppDependencies): Hono {
   const minute = 60_000;
   const byIp = (c: Parameters<typeof clientIp>[0]) => clientIp(c, deps.trustProxy);
   app.use('/api/*', rateLimit({ windowMs: minute, max: deps.rateLimits.apiPerMinute, keyOf: c => `api:${byIp(c)}` }));
+  app.use('/api/*', requireTrustedOrigin(deps.corsOrigins));
+  app.use('/api/*', loadSession({ identity: deps.identity, cookieSecure: deps.cookieSecure }));
   app.use('/api/*', bodyLimit({ maxSize: 64 * 1024, onError: () => { throw errors.tooLarge(); } }));
   app.use('/api/*', requestTimeout(10_000));
   app.use('/api/*', noStore);
@@ -55,7 +65,14 @@ export function createApp(deps: AppDependencies): Hono {
   // Modules fonctionnels. Prévus plus tard : identity, recommendation, analytics (voir modules/*/README.md).
   app.route('/', healthRoutes({ sql: deps.sql }));
   app.route('/', catalogRoutes({ sql: deps.sql }));
-  app.route('/', playbackRoutes({ sql: deps.sql, config: { mediaSecret: deps.mediaSecrets[0], ttlSeconds: deps.mediaTtlSeconds } }));
+  app.route('/', playbackRoutes({ sql: deps.sql, config: { mediaSecret: deps.mediaSecrets[0], ttlSeconds: deps.mediaTtlSeconds }, requireLogin: deps.playbackRequiresLogin }));
+  app.route('/', identityRoutes({
+    identity: deps.identity,
+    cookieSecure: deps.cookieSecure,
+    sessionTtlSeconds: deps.sessionTtlSeconds,
+    authPerMinute: deps.rateLimits.authPerMinute,
+    clientKey: byIp,
+  }));
   app.route('/', mediaRoutes({ sql: deps.sql, storage: deps.storage, mediaSecrets: deps.mediaSecrets }));
 
   registerErrorHandlers(app, deps.logger);

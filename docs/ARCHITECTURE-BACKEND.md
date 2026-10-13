@@ -42,7 +42,7 @@ api/
 │       ├── playback/           « Je veux regarder » → URL signée.
 │       ├── media/              Jetons de lecture et distribution des fichiers HLS.
 │       ├── ingest/             Inscrire un média encodé en base.
-│       ├── identity/           (à construire) comptes, sessions, droits.
+│       ├── identity/           Comptes, sessions, droits, invitations, journal d'audit.
 │       ├── recommendation/     (à construire) que proposer à cette personne ?
 │       └── analytics/          (à construire) mesure de la qualité de lecture.
 ├── migrations/                 Évolutions de la base, en SQL numéroté (001_, 002_…).

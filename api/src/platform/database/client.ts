@@ -9,6 +9,9 @@ import postgres from 'postgres';
 
 export type Sql = postgres.Sql;
 
+/** Accepte la connexion normale OU une transaction : pour les fonctions de repository utilisables dans les deux cas. */
+export type Executor = postgres.Sql | postgres.TransactionSql;
+
 export function connect(url: string, options: postgres.Options<Record<string, postgres.PostgresType>> = {}): Sql {
   return postgres(url, { max: 10, idle_timeout: 20, onnotice: () => undefined, ...options });
 }

@@ -26,6 +26,7 @@ export function withCors(allowedOrigins: string[] | undefined): MiddlewareHandle
   return cors({
     origin: origin => (allowedOrigins ? (allowedOrigins.includes(origin) ? origin : null) : LOCAL_ORIGIN.test(origin) ? origin : null),
     allowHeaders: ['Range', 'Content-Type'],
+    credentials: true, // le navigateur peut joindre le cookie de session (origines explicitement autorisées seulement)
     exposeHeaders: ['Content-Length', 'Content-Range', 'Accept-Ranges', 'X-Request-Id'],
     maxAge: 600,
   });
@@ -77,5 +78,22 @@ export function requestTimeout(ms: number): MiddlewareHandler {
     } finally {
       clearTimeout(timer);
     }
+  };
+}
+
+/**
+ * Protection contre le CSRF (requête forgée depuis un autre site) pour les actions qui modifient des données.
+ * Un navigateur envoie l'en-tête `Origin` sur ces requêtes : s'il n'est pas dans la liste autorisée, on refuse.
+ * Sans en-tête `Origin` (script, curl), la requête ne peut pas utiliser le cookie d'un navigateur : on laisse passer.
+ */
+export function requireTrustedOrigin(allowedOrigins: string[] | undefined): MiddlewareHandler {
+  return async (c, next) => {
+    const method = c.req.method;
+    if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+      const origin = c.req.header('origin');
+      const trusted = !origin || (allowedOrigins ? allowedOrigins.includes(origin) : LOCAL_ORIGIN.test(origin));
+      if (!trusted) throw errors.forbidden('Origine non autorisée.');
+    }
+    await next();
   };
 }

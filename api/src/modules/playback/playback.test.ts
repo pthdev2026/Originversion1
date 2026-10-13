@@ -11,6 +11,8 @@ import { connect, type Sql } from '../../platform/database/client.ts';
 import { migrate } from '../../platform/database/migrate.ts';
 import { StorageLayout } from '../../platform/storage/layout.ts';
 import { registerAsset, type IngestInput } from '../ingest/repository.ts';
+import { createIdentityService } from '../identity/service.ts';
+import type { AppDependencies } from '../../app.ts';
 import { findPlayableAsset } from './repository.ts';
 import { listPlayablePrograms } from '../catalog/repository.ts';
 
@@ -63,6 +65,33 @@ after(async () => {
   await rm(storageRoot, { recursive: true, force: true });
 });
 
+const testLogger = pino({ level: 'silent' });
+
+/** Application de test : base jetable, secrets fixes, limites larges (surchargeables). */
+function makeApp(overrides: Partial<AppDependencies> = {}) {
+  const identity = createIdentityService({
+    sql,
+    logger: testLogger,
+    mailer: { async send() {} },
+    config: { registrationMode: 'open', sessionTtlSeconds: 3600, publicAppUrl: 'http://localhost:3210' },
+  });
+  return createApp({
+    sql,
+    logger: testLogger,
+    storage: new StorageLayout(storageRoot),
+    mediaSecrets: ['secret-test-secret-test-secret-test!!'],
+    mediaTtlSeconds: 60,
+    corsOrigins: undefined,
+    trustProxy: false,
+    rateLimits: { apiPerMinute: 1000, mediaPerMinute: 1000, authPerMinute: 1000 },
+    identity,
+    cookieSecure: false,
+    sessionTtlSeconds: 3600,
+    playbackRequiresLogin: false,
+    ...overrides,
+  });
+}
+
 describe('catalogue en base', () => {
   it('migre le schéma et ne rejoue pas les migrations', async t => {
     if (!available) return t.skip('PostgreSQL injoignable (npm run db:start)');
@@ -109,16 +138,7 @@ describe('API de lecture', () => {
     await writeFile(path.join(storage.hlsDir('film-test'), 'master.m3u8'), '#EXTM3U\n');
     await writeFile(path.join(storage.hlsDir('film-test'), 'v0', 'seg_00000.m4s'), Buffer.from('0123456789'));
 
-    const app = createApp({
-      sql,
-      logger: pino({ level: 'silent' }),
-      storage,
-      mediaSecrets: ['secret-test-secret-test-secret-test!!'],
-      mediaTtlSeconds: 60,
-      corsOrigins: undefined,
-      trustProxy: false,
-      rateLimits: { apiPerMinute: 1000, mediaPerMinute: 1000 },
-    });
+    const app = makeApp({ storage });
 
     const missing = await app.request('/api/programs/inconnu/playback');
     assert.equal(missing.status, 404);
@@ -158,11 +178,7 @@ describe('API de lecture', () => {
 
   it('applique les protections de sécurité', async t => {
     if (!available) return t.skip('PostgreSQL injoignable');
-    const app = createApp({
-      sql, logger: pino({ level: 'silent' }), storage: new StorageLayout(storageRoot),
-      mediaSecrets: ['secret-test-secret-test-secret-test!!'], mediaTtlSeconds: 60, corsOrigins: undefined,
-      trustProxy: false, rateLimits: { apiPerMinute: 3, mediaPerMinute: 1000 },
-    });
+    const app = makeApp({ rateLimits: { apiPerMinute: 3, mediaPerMinute: 1000, authPerMinute: 1000 } });
     const first = await app.request('/api/programs/film-test/playback');
     assert.equal(first.status, 200);
     assert.equal(first.headers.get('cache-control'), 'no-store', 'les URLs signées ne se mettent pas en cache');
@@ -180,11 +196,7 @@ describe('API de lecture', () => {
 
   it('refuse les corps trop volumineux sur l’API', async t => {
     if (!available) return t.skip('PostgreSQL injoignable');
-    const app = createApp({
-      sql, logger: pino({ level: 'silent' }), storage: new StorageLayout(storageRoot),
-      mediaSecrets: ['secret-test-secret-test-secret-test!!'], mediaTtlSeconds: 60, corsOrigins: undefined,
-      trustProxy: false, rateLimits: { apiPerMinute: 1000, mediaPerMinute: 1000 },
-    });
+    const app = makeApp();
     const big = 'x'.repeat(70 * 1024);
     const response = await app.request('/api/programs/film-test/playback', { method: 'POST', body: big });
     assert.ok([404, 413].includes(response.status));
@@ -192,11 +204,7 @@ describe('API de lecture', () => {
 
   it('expose l’état de santé', async t => {
     if (!available) return t.skip('PostgreSQL injoignable');
-    const app = createApp({
-      sql, logger: pino({ level: 'silent' }), storage: new StorageLayout(storageRoot),
-      mediaSecrets: ['secret-test-secret-test-secret-test!!'], mediaTtlSeconds: 60, corsOrigins: undefined,
-      trustProxy: false, rateLimits: { apiPerMinute: 1000, mediaPerMinute: 1000 },
-    });
+    const app = makeApp();
     const response = await app.request('/health');
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), { status: 'ok', database: 'ok' });

@@ -34,6 +34,7 @@ export class AppError extends Error {
 /** Fabriques d'erreurs : un seul endroit où se décident le code et le statut HTTP. */
 export const errors = {
   badRequest: (message = 'Requête invalide.') => new AppError('bad_request', 400, message),
+  unauthorized: (message = 'Connexion requise.') => new AppError('unauthorized', 401, message),
   forbidden: (message = 'Accès refusé.') => new AppError('forbidden', 403, message),
   notFound: (message = 'Ressource introuvable.') => new AppError('not_found', 404, message),
   /** Contenu connu mais pas encore lisible : ce n'est pas une panne. */

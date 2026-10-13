@@ -59,3 +59,6 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Rangement des fichiers : par type puis par identifiant (`storage/videos/hls/<id>`), thèmes dans la base
 - ✅ Étape B0 (hygiène) réalisée : configuration validée, journaux structurés, erreurs cohérentes, types stricts, CI
 - ✅ Étape B1 (sécurité) réalisée : limitation de débit, délai et taille maximaux, rotation de secret, `no-store`, en-têtes, audit propre
+- ✅ Étape B2 (comptes maison) réalisée : argon2id, sessions en cookie httpOnly, verrouillage, réinitialisation, suppression (RGPD), invitations, rôles, CSRF
+- ✅ Lecture : ouverte par défaut ; exiger un compte = un réglage (`PLAYBACK_REQUIRES_LOGIN`)
+- 🟡 À faire avant l'ouverture : envoi réel des e-mails, vérification de l'adresse, double authentification (plus tard)

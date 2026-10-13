@@ -36,6 +36,16 @@ const schema = z.object({
   /** Requêtes autorisées par minute et par adresse IP : API (/api/*) et fichiers de lecture (/media/*). */
   RATE_LIMIT_API_PER_MIN: z.coerce.number().int().min(1).max(100_000).default(120),
   RATE_LIMIT_MEDIA_PER_MIN: z.coerce.number().int().min(1).max(1_000_000).default(3000),
+  /** Inscription : `open` (ouverte à tous) ou `invite` (code d'invitation obligatoire). */
+  REGISTRATION_MODE: z.enum(['open', 'invite']).default('open'),
+  /** Durée d'une session de connexion, en jours. */
+  SESSION_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+  /** À « true » : la lecture exige un compte connecté. Par défaut, la lecture reste ouverte. */
+  PLAYBACK_REQUIRES_LOGIN: z.enum(['true', 'false']).default('false'),
+  /** Adresse publique du site : sert à construire le lien de réinitialisation du mot de passe. */
+  PUBLIC_APP_URL: z.string().url().default('http://localhost:3210'),
+  /** Tentatives de connexion / inscription par minute et par adresse IP. */
+  RATE_LIMIT_AUTH_PER_MIN: z.coerce.number().int().min(1).max(10_000).default(10),
   /** Durée de validité d'une URL de lecture, en secondes (1 minute à 24 h). */
   MEDIA_TTL_SECONDS: z.coerce.number().int().min(60).max(86_400).default(4 * 60 * 60),
   /** Origines autorisées pour le navigateur, séparées par des virgules. Vide = localhost uniquement. */
@@ -57,7 +67,14 @@ export interface AppConfig {
   mediaTtlSeconds: number;
   corsOrigins: string[] | undefined;
   trustProxy: boolean;
-  rateLimits: { apiPerMinute: number; mediaPerMinute: number };
+  rateLimits: { apiPerMinute: number; mediaPerMinute: number; authPerMinute: number };
+  identity: {
+    registrationMode: 'open' | 'invite';
+    sessionTtlSeconds: number;
+    playbackRequiresLogin: boolean;
+    publicAppUrl: string;
+    cookieSecure: boolean;
+  };
 }
 
 export class ConfigError extends Error {
@@ -99,6 +116,17 @@ export function loadConfig(source: Record<string, string | undefined> = process.
     mediaTtlSeconds: raw.MEDIA_TTL_SECONDS,
     corsOrigins: corsOrigins && corsOrigins.length > 0 ? corsOrigins : undefined,
     trustProxy: raw.TRUST_PROXY === 'true',
-    rateLimits: { apiPerMinute: raw.RATE_LIMIT_API_PER_MIN, mediaPerMinute: raw.RATE_LIMIT_MEDIA_PER_MIN },
+    rateLimits: {
+      apiPerMinute: raw.RATE_LIMIT_API_PER_MIN,
+      mediaPerMinute: raw.RATE_LIMIT_MEDIA_PER_MIN,
+      authPerMinute: raw.RATE_LIMIT_AUTH_PER_MIN,
+    },
+    identity: {
+      registrationMode: raw.REGISTRATION_MODE,
+      sessionTtlSeconds: raw.SESSION_TTL_DAYS * 86_400,
+      playbackRequiresLogin: raw.PLAYBACK_REQUIRES_LOGIN === 'true',
+      publicAppUrl: raw.PUBLIC_APP_URL.replace(/\/$/, ''),
+      cookieSecure: isProduction,
+    },
   };
 }

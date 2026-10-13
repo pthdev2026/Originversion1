@@ -8,7 +8,9 @@ import { ConfigError, loadConfig } from './config/env.ts';
 import { connect } from './platform/database/client.ts';
 import { migrate } from './platform/database/migrate.ts';
 import { createLogger } from './platform/logger.ts';
+import { createLogMailer } from './platform/mail.ts';
 import { StorageLayout } from './platform/storage/layout.ts';
+import { createIdentityService } from './modules/identity/service.ts';
 
 // 1. Configuration : refus net si elle est invalide.
 let config;
@@ -36,7 +38,21 @@ try {
 
 // 3. Application et serveur.
 const storage = new StorageLayout(config.storageRoot);
+const identity = createIdentityService({
+  sql,
+  logger,
+  mailer: createLogMailer(logger),
+  config: {
+    registrationMode: config.identity.registrationMode,
+    sessionTtlSeconds: config.identity.sessionTtlSeconds,
+    publicAppUrl: config.identity.publicAppUrl,
+  },
+});
 const app = createApp({
+  identity,
+  cookieSecure: config.identity.cookieSecure,
+  sessionTtlSeconds: config.identity.sessionTtlSeconds,
+  playbackRequiresLogin: config.identity.playbackRequiresLogin,
   sql,
   logger,
   storage,
@@ -58,6 +74,12 @@ server.on('error', (error: NodeJS.ErrnoException) => {
   }
   throw error;
 });
+
+// Entretien : retire les sessions expirées une fois par heure.
+const purgeTimer = setInterval(() => {
+  identity.purgeSessions().then(count => count > 0 && logger.info({ count }, 'sessions expirées supprimées'), error => logger.error({ err: error }, 'purge des sessions impossible'));
+}, 60 * 60 * 1000);
+purgeTimer.unref();
 
 // 4. Arrêt propre : on finit les requêtes en cours, puis on ferme la base.
 let stopping = false;
