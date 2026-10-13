@@ -33,6 +33,7 @@ function makeApp(options: { registrationMode?: 'open' | 'invite'; playbackRequir
     mediaSecrets: ['secret-test-secret-test-secret-test!!'], mediaTtlSeconds: 60, corsOrigins: undefined, trustProxy: false,
     rateLimits: { apiPerMinute: 10_000, mediaPerMinute: 10_000, authPerMinute: 10_000, metricsPerMinute: 10_000 },
     identity, cookieSecure: false, sessionTtlSeconds: 3600, playbackRequiresLogin: options.playbackRequiresLogin ?? false,
+    uploadMaxBytes: 1024 ** 3, encodePreset: 'ultrafast',
   });
 }
 

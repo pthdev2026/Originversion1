@@ -13,6 +13,8 @@ import { registerErrorHandlers } from './platform/http/error-handler.ts';
 import { bodyLimit } from 'hono/body-limit';
 import type { AppEnv } from './platform/http/types.ts';
 import { analyticsRoutes } from './modules/analytics/routes.ts';
+import { jobRoutes } from './modules/ingest/jobs.routes.ts';
+import { uploadRoutes } from './modules/ingest/uploads.routes.ts';
 import { identityRoutes } from './modules/identity/routes.ts';
 import { myListRoutes } from './modules/mylist/routes.ts';
 import { progressRoutes } from './modules/progress/routes.ts';
@@ -43,6 +45,8 @@ export interface AppDependencies {
   cookieSecure: boolean;
   sessionTtlSeconds: number;
   playbackRequiresLogin: boolean;
+  uploadMaxBytes: number;
+  encodePreset: string;
 }
 
 export function createApp(deps: AppDependencies): Hono<AppEnv> {
@@ -64,6 +68,11 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
   app.use('/api/*', bodyLimit({ maxSize: 64 * 1024, onError: () => { throw errors.tooLarge(); } }));
   app.use('/api/*', requestTimeout(10_000));
   app.use('/api/*', noStore);
+  // Envois de fichiers : pas de limite de taille de corps ni de délai de 10 s (un envoi peut durer),
+  // mais réservés aux administrateurs et soumis à la même protection d'origine et de session.
+  app.use('/uploads/*', requireTrustedOrigin(deps.corsOrigins));
+  app.use('/uploads/*', loadSession({ identity: deps.identity, cookieSecure: deps.cookieSecure }));
+  app.use('/uploads/*', rateLimit({ windowMs: minute, max: 600, keyOf: c => `uploads:${byIp(c)}` }));
   app.use('/media/*', rateLimit({ windowMs: minute, max: deps.rateLimits.mediaPerMinute, keyOf: c => `media:${byIp(c)}` }));
 
   // Modules fonctionnels. Prévu plus tard : recommendation (voir modules/recommendation/README.md).
@@ -80,6 +89,8 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
   app.route('/', progressRoutes({ sql: deps.sql }));
   app.route('/', myListRoutes({ sql: deps.sql }));
   app.route('/', analyticsRoutes({ sql: deps.sql }));
+  app.route('/', jobRoutes({ sql: deps.sql }));
+  app.route('/', uploadRoutes({ sql: deps.sql, layout: deps.storage, maxBytes: deps.uploadMaxBytes, preset: deps.encodePreset }));
   app.route('/', mediaRoutes({ sql: deps.sql, storage: deps.storage, mediaSecrets: deps.mediaSecrets }));
 
   registerErrorHandlers(app, deps.logger);

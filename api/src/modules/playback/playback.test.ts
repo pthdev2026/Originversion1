@@ -88,6 +88,8 @@ function makeApp(overrides: Partial<AppDependencies> = {}) {
     cookieSecure: false,
     sessionTtlSeconds: 3600,
     playbackRequiresLogin: false,
+    uploadMaxBytes: 1024 ** 3,
+    encodePreset: 'ultrafast',
     ...overrides,
   });
 }

@@ -41,7 +41,7 @@ api/
 │       ├── catalog/            Quels programmes sont lisibles ?
 │       ├── playback/           « Je veux regarder » → URL signée.
 │       ├── media/              Jetons de lecture et distribution des fichiers HLS.
-│       ├── ingest/             Inscrire un média encodé en base.
+│       ├── ingest/             Envoi reprenable, file de tâches, encodage, contrôle qualité, publication.
 │       ├── identity/           Comptes, sessions, droits, invitations, journal d'audit.
 │       ├── progress/           Reprise de lecture (« Reprendre »).
 │       ├── mylist/             « Ma liste ».
@@ -150,6 +150,27 @@ Le module `progress` a des **règles** (terminé à 95 %, durée de référence 
 il a donc un `service.ts`. Règle pratique : dès qu'il y a une décision à prendre, elle va dans un service,
 jamais dans une route ni dans du SQL.
 
+## 7 ter. Le pipeline vidéo (module `ingest`), pas à pas
+
+```
+ envoi reprenable ──▶ fichier « source » ──▶ tâche en file ──▶ travailleur ──▶ contrôle ──▶ publication ──▶ lisible
+ (tus, /uploads)       videos/sources/…       (table media_jobs)  (processus     qualité      (déplacement    (media_assets
+                                                                   séparé)                     atomique)       « ready »)
+```
+
+Trois idées à retenir :
+
+1. **Le travailleur est un processus séparé de l'API** (`npm run worker`). Un encodage de plusieurs heures ne
+   ralentit jamais les spectateurs, et redémarrer l'API n'interrompt pas l'encodage.
+2. **La file est dans PostgreSQL, avec un « bail »** : un travailleur réserve une tâche pour 90 s et la renouvelle.
+   S'il disparaît, le bail expire et un autre la reprend. `FOR UPDATE SKIP LOCKED` empêche deux travailleurs
+   de prendre la même tâche.
+3. **Rien n'est visible avant la fin** : l'encodage se fait dans `videos/work/<tâche>/`, est contrôlé, puis déplacé
+   d'un bloc dans `videos/hls/`. Un échec ne peut donc jamais publier une vidéo incomplète.
+
+Reprise : l'encodage se fait **qualité par qualité** ; chaque qualité terminée et validée est un point de reprise.
+Après une panne, on repart à la qualité suivante (on perd au plus une qualité, pas tout le film).
+
 ## 8. Commandes
 
 ```bash
@@ -157,7 +178,8 @@ npm run db:start     # PostgreSQL local (127.0.0.1:5433)
 npm run dev          # API (127.0.0.1:4000), redémarre à chaque modification
 npm run typecheck    # vérification stricte des types
 npm test             # tests (base jetable)
-npm run ingest -- <playbackId> --kind film --title "Titre"
+npm run worker       # travailleur d'encodage (processus séparé)
+npm run media:enqueue -- /chemin/film.mp4 --id mon-film --kind film --title "Mon film"
 ```
 
 ## 9. Glossaire

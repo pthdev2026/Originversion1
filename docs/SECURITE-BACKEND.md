@@ -86,3 +86,18 @@ et on écrit noir sur blanc ce qui N'est PAS encore couvert.
 | Accès administrateur | Rôle `admin` vérifié côté serveur sur chaque route ; création par script, jamais par l'API publique |
 
 Données conservées : adresse e-mail, empreinte du mot de passe, nom d'affichage facultatif, dates. **Aucune adresse IP ni user-agent n'est stocké.**
+
+## 8. Envoi de fichiers (étape B4)
+
+| Menace | Protection |
+|---|---|
+| N'importe qui envoie des fichiers | Réservé aux administrateurs ; contrôle d'origine et de session comme le reste |
+| Fichier géant qui remplit le disque | Taille annoncée plafonnée (60 Go) ; plus d'octets que la taille annoncée = refus (413) |
+| Fichier déguisé (exécutable…) | Liste blanche d'extensions vidéo ; le contenu est de toute façon relu par ffprobe avant tout encodage |
+| Chemin piégé (`../`) | Identifiants bornés (`a-z`, `0-9`, `-`) ; dossiers calculés par `StorageLayout`, jamais composés à la main |
+| Injection de commande | `ffmpeg`/`ffprobe` lancés avec une liste d'arguments, jamais via un shell |
+| Deux envois simultanés du même fichier | Verrou par envoi (409) |
+| Vidéo incomplète publiée | Contrôle qualité fichier par fichier avant la publication atomique |
+| Fichier corrompu qui boucle | Erreur « définitive » détectée dès l'analyse : pas de nouvelle tentative inutile |
+
+À savoir : les envois sont plafonnés mais **l'espace disque libre n'est pas encore vérifié** avant d'accepter un envoi (à ajouter avec la supervision, B6).

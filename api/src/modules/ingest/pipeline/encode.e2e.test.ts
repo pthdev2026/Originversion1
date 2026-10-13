@@ -1,0 +1,168 @@
+/**
+ * Test de bout en bout avec un VRAI ffmpeg : source synthétique de 6 s → encodage → contrôle → publication → base.
+ * Sauté automatiquement si ffmpeg ou PostgreSQL ne sont pas disponibles.
+ */
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { randomBytes, randomUUID } from 'node:crypto';
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { after, before, describe, it } from 'node:test';
+import pino from 'pino';
+import { DEV_DATABASE_URL } from '../../../config/env.ts';
+import { connect, type Sql } from '../../../platform/database/client.ts';
+import { migrate } from '../../../platform/database/migrate.ts';
+import { StorageLayout } from '../../../platform/storage/layout.ts';
+import { LocalMediaStore } from '../../../platform/storage/media-store.ts';
+import { findPlayableAsset } from '../../playback/repository.ts';
+import { claimNextJob, enqueueJob, getJob } from '../jobs.repository.ts';
+import { processNextJob } from '../worker.ts';
+import { JobAbortedError } from './errors.ts';
+import { checkTools, type Tools } from './ffmpeg.ts';
+import { runEncodeJob } from './run-job.ts';
+import { validateRendition } from './qc.ts';
+
+const candidates = [
+  process.env['FFMPEG_PATH'],
+  '/Users/easycash/Library/Application Support/AutoCut/ffmpeg/ffmpeg',
+  'ffmpeg',
+].filter((value): value is string => Boolean(value));
+const ffmpeg = candidates.find(candidate => spawnSync(candidate, ['-version']).status === 0);
+const ffprobeCandidates = [
+  process.env['FFPROBE_PATH'],
+  ffmpeg ? path.join(path.dirname(ffmpeg), 'ffprobe') : undefined,
+  'ffprobe',
+].filter((value): value is string => Boolean(value));
+const ffprobe = ffprobeCandidates.find(candidate => spawnSync(candidate, ['-version']).status === 0);
+
+const databaseUrl = process.env['DATABASE_URL'] ?? DEV_DATABASE_URL;
+const schema = `test_${randomBytes(6).toString('hex')}`;
+let admin: Sql;
+let sql: Sql;
+let root: string;
+let layout: StorageLayout;
+let tools: Tools;
+let ready = true;
+const logger = pino({ level: 'silent' });
+
+async function makeSource(name: string, seconds: number, size = '1280x720'): Promise<string> {
+  const file = path.join(layout.sourcesRoot, name, 'original.mp4');
+  await mkdir(path.dirname(file), { recursive: true });
+  const result = spawnSync(tools.ffmpeg, [
+    '-hide_banner', '-loglevel', 'error', '-y',
+    '-f', 'lavfi', '-i', `testsrc=duration=${seconds}:size=${size}:rate=24`,
+    '-f', 'lavfi', '-i', `sine=frequency=440:duration=${seconds}`,
+    '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', file,
+  ]);
+  assert.equal(result.status, 0, String(result.stderr));
+  return path.join(name, 'original.mp4');
+}
+
+before(async () => {
+  if (!ffmpeg || !ffprobe) { ready = false; return; }
+  tools = { ffmpeg, ffprobe };
+  admin = connect(databaseUrl, { max: 1 });
+  try { await admin`SELECT 1`; } catch { ready = false; await admin.end(); return; }
+  await admin.unsafe(`CREATE SCHEMA ${schema}`);
+  sql = connect(databaseUrl, { max: 4, connection: { search_path: schema } });
+  await migrate(sql);
+  root = await mkdtemp(path.join(tmpdir(), 'origin-e2e-'));
+  layout = new StorageLayout(root);
+  await checkTools(tools);
+});
+
+after(async () => {
+  if (!ready) return;
+  await sql.end();
+  await admin.unsafe(`DROP SCHEMA ${schema} CASCADE`);
+  await admin.end();
+  await rm(root, { recursive: true, force: true });
+});
+
+describe('pipeline d’encodage (ffmpeg réel)', () => {
+  it('encode, contrôle, publie et rend le média lisible', async t => {
+    if (!ready) return t.skip('ffmpeg ou PostgreSQL indisponible');
+    const sourcePath = await makeSource('e2e-film', 6);
+    const queued = await enqueueJob(sql, {
+      id: randomUUID(), playbackId: 'e2e-film', programSlug: 'e2e-film', kind: 'film', title: 'Film de test', isDemo: true,
+      sourcePath, preset: 'ultrafast', uploadId: null, createdBy: null,
+    });
+    assert.ok(queued);
+
+    const worked = await processNextJob({ sql, logger, layout, store: new LocalMediaStore(layout), tools, workerId: 'test', signal: new AbortController().signal, leaseSeconds: 30 });
+    assert.equal(worked, true);
+
+    const finished = await getJob(sql, queued?.id ?? '');
+    assert.equal(finished?.status, 'succeeded', finished?.lastError ?? '');
+    assert.equal(finished?.progress, 100);
+
+    const asset = await findPlayableAsset(sql, 'e2e-film');
+    assert.ok(asset, 'le média est lisible en base');
+    assert.ok(Math.abs((asset?.durationSeconds ?? 0) - 6) < 0.5);
+    assert.deepEqual(asset?.renditions.map(item => item.name), ['720p', '480p', '360p'], 'pas de sur-échantillonnage');
+
+    const hls = layout.hlsDir('e2e-film');
+    const master = await readFile(path.join(hls, 'master.m3u8'), 'utf8');
+    assert.match(master, /RESOLUTION=1280x720/);
+    assert.match(master, /CODECS="avc1\.[0-9a-f]{6},mp4a\.40\.2"/);
+    for (const rung of ['720p', '480p', '360p']) await validateRendition(path.join(hls, rung), 6);
+    assert.ok((await stat(path.join(hls, 'poster.jpg'))).size > 0);
+    assert.equal(existsSyncSafe(layout.workDir(queued?.id ?? '')), false, 'dossier de travail déplacé à la publication');
+  });
+
+  it('reprend après une interruption sans refaire les qualités terminées', async t => {
+    if (!ready) return t.skip('ffmpeg ou PostgreSQL indisponible');
+    const sourcePath = await makeSource('e2e-reprise', 6);
+    const queued = await enqueueJob(sql, {
+      id: randomUUID(), playbackId: 'e2e-reprise', programSlug: 'e2e-reprise', kind: 'film', title: 'Reprise', isDemo: true,
+      sourcePath, preset: 'ultrafast', uploadId: null, createdBy: null,
+    });
+    const claimed = await claimNextJob(sql, 'w1', 60);
+    assert.equal(claimed?.id, queued?.id);
+
+    // Première tentative : « panne » juste après la première qualité terminée (le rapport refuse de continuer).
+    let savedState: { completedRungs?: string[] } = {};
+    const context = (state: { completedRungs?: string[] }) => ({
+      sql, logger, layout, store: new LocalMediaStore(layout), tools, signal: new AbortController().signal,
+      report: async (_progress: number, _step: string, newState?: { completedRungs?: string[] }) => {
+        if (newState) { savedState = newState; return (newState.completedRungs?.length ?? 0) < 1; } // coupe dès la 1re qualité validée
+        return true;
+      },
+    });
+    await assert.rejects(runEncodeJob({ ...(claimed as NonNullable<typeof claimed>) }, context({})), JobAbortedError);
+    assert.deepEqual(savedState.completedRungs, ['720p']);
+
+    const firstPlaylist = path.join(layout.workDir(claimed?.id ?? ''), '720p', 'index.m3u8');
+    const before = (await stat(firstPlaylist)).mtimeMs;
+
+    // Seconde tentative avec les points de reprise : la qualité 720p n'est PAS ré-encodée.
+    const resumed = { ...(claimed as NonNullable<typeof claimed>), state: savedState };
+    await runEncodeJob(resumed, { ...context(savedState), report: async () => true });
+    assert.ok(await findPlayableAsset(sql, 'e2e-reprise'));
+    const published = path.join(layout.hlsDir('e2e-reprise'), '720p', 'index.m3u8');
+    assert.equal((await stat(published)).mtimeMs, before, 'qualité conservée telle quelle, non ré-encodée');
+  });
+
+  it('rejette un fichier illisible de façon définitive, sans rien publier', async t => {
+    if (!ready) return t.skip('ffmpeg ou PostgreSQL indisponible');
+    const relative = path.join('e2e-casse', 'original.mp4');
+    await mkdir(path.join(layout.sourcesRoot, 'e2e-casse'), { recursive: true });
+    await writeFile(path.join(layout.sourcesRoot, relative), 'ceci n’est pas une vidéo');
+    const queued = await enqueueJob(sql, {
+      id: randomUUID(), playbackId: 'e2e-casse', programSlug: 'e2e-casse', kind: 'film', title: 'Cassé', isDemo: true,
+      sourcePath: relative, preset: 'ultrafast', uploadId: null, createdBy: null,
+    });
+    await processNextJob({ sql, logger, layout, store: new LocalMediaStore(layout), tools, workerId: 'test', signal: new AbortController().signal });
+    const job = await getJob(sql, queued?.id ?? '');
+    assert.equal(job?.status, 'failed');
+    assert.equal(job?.attempts, 1, 'erreur définitive : aucune nouvelle tentative inutile');
+    assert.match(job?.lastError ?? '', /illisible|vidéo/i);
+    assert.equal(await findPlayableAsset(sql, 'e2e-casse'), null);
+  });
+});
+
+function existsSyncSafe(file: string): boolean {
+  return existsSync(file);
+}

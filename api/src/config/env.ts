@@ -48,6 +48,13 @@ const schema = z.object({
   RATE_LIMIT_AUTH_PER_MIN: z.coerce.number().int().min(1).max(10_000).default(10),
   /** Rapports de mesure de lecture par minute et par adresse IP (un lecteur en envoie ~4 par minute). */
   RATE_LIMIT_METRICS_PER_MIN: z.coerce.number().int().min(1).max(100_000).default(120),
+  /** Chemin des outils d'encodage (par défaut : `ffmpeg` et `ffprobe` du PATH). */
+  FFMPEG_PATH: z.string().min(1).default('ffmpeg'),
+  FFPROBE_PATH: z.string().min(1).default('ffprobe'),
+  /** Préréglage x264 : `slow` (meilleure qualité par Mo) … `ultrafast` (tests). */
+  ENCODE_PRESET: z.enum(['ultrafast', 'veryfast', 'fast', 'medium', 'slow', 'slower']).default('medium'),
+  /** Taille maximale d'un envoi, en octets (défaut : 60 Go). */
+  UPLOAD_MAX_BYTES: z.coerce.number().int().min(1).default(60 * 1024 ** 3),
   /** Durée de validité d'une URL de lecture, en secondes (1 minute à 24 h). */
   MEDIA_TTL_SECONDS: z.coerce.number().int().min(60).max(86_400).default(4 * 60 * 60),
   /** Origines autorisées pour le navigateur, séparées par des virgules. Vide = localhost uniquement. */
@@ -70,6 +77,7 @@ export interface AppConfig {
   corsOrigins: string[] | undefined;
   trustProxy: boolean;
   rateLimits: { apiPerMinute: number; mediaPerMinute: number; authPerMinute: number; metricsPerMinute: number };
+  media: { ffmpegPath: string; ffprobePath: string; encodePreset: string; uploadMaxBytes: number };
   identity: {
     registrationMode: 'open' | 'invite';
     sessionTtlSeconds: number;
@@ -123,6 +131,12 @@ export function loadConfig(source: Record<string, string | undefined> = process.
       mediaPerMinute: raw.RATE_LIMIT_MEDIA_PER_MIN,
       authPerMinute: raw.RATE_LIMIT_AUTH_PER_MIN,
       metricsPerMinute: raw.RATE_LIMIT_METRICS_PER_MIN,
+    },
+    media: {
+      ffmpegPath: raw.FFMPEG_PATH,
+      ffprobePath: raw.FFPROBE_PATH,
+      encodePreset: raw.ENCODE_PRESET,
+      uploadMaxBytes: raw.UPLOAD_MAX_BYTES,
     },
     identity: {
       registrationMode: raw.REGISTRATION_MODE,

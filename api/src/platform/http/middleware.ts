@@ -25,9 +25,9 @@ export const withSecurityHeaders: MiddlewareHandler = secureHeaders({
 export function withCors(allowedOrigins: string[] | undefined): MiddlewareHandler {
   return cors({
     origin: origin => (allowedOrigins ? (allowedOrigins.includes(origin) ? origin : null) : LOCAL_ORIGIN.test(origin) ? origin : null),
-    allowHeaders: ['Range', 'Content-Type'],
+    allowHeaders: ['Range', 'Content-Type', 'Tus-Resumable', 'Upload-Length', 'Upload-Offset', 'Upload-Metadata'],
     credentials: true, // le navigateur peut joindre le cookie de session (origines explicitement autorisées seulement)
-    exposeHeaders: ['Content-Length', 'Content-Range', 'Accept-Ranges', 'X-Request-Id'],
+    exposeHeaders: ['Content-Length', 'Content-Range', 'Accept-Ranges', 'X-Request-Id', 'Upload-Offset', 'Upload-Length', 'Location', 'Tus-Resumable', 'Tus-Version'],
     maxAge: 600,
   });
 }

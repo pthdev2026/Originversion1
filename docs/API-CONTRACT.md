@@ -1,4 +1,4 @@
-# ORIGIN — Contrat d'API (v0.3, 13/10/2026)
+# ORIGIN — Contrat d'API (v0.4, 13/10/2026)
 
 Propriétaire : l'agent back-end. Toute modification est annoncée ici avant d'être déployée.
 Limites : 120 requêtes par minute et par adresse IP sur `/api/*` ; en-têtes `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
@@ -139,6 +139,31 @@ Corps (JSON, peut être envoyé en `text/plain` avec `keepalive: true`) — rapp
 Définitions : `startupMs` = de l'ouverture du lecteur à la première image jouée ; coupure = arrêt pour manque de données hors déplacement manuel.
 Aucune donnée personnelle n'est conservée (ni adresse IP, ni compte, ni user-agent brut). Objectifs : démarrage < 2 s (p75), coupures < 1 %, erreurs < 1 %.
 Limite : 120 rapports par minute et par adresse IP.
+
+## Envoi de fichiers et tâches d'encodage (disponible — étape B4, **administrateur uniquement**)
+
+Envoi **reprenable** selon le protocole tus 1.0.0 (https://tus.io). Compatible avec `tus-js-client` (`endpoint: <API>/uploads`, `chunkSize` conseillé : 50 Mio).
+Toutes les requêtes portent `Tus-Resumable: 1.0.0` et le cookie de session (`credentials: 'include'`).
+
+| Requête | En-têtes | Réponse |
+|---|---|---|
+| `POST /uploads` | `Upload-Length: <octets>`, `Upload-Metadata: filename <b64>, playbackId <b64>, kind <b64>, title <b64>[, programSlug <b64>, demo <b64>]` | `201` + `Location: /uploads/<id>` |
+| `HEAD /uploads/:id` | — | `Upload-Offset`, `Upload-Length` |
+| `PATCH /uploads/:id` | `Content-Type: application/offset+octet-stream`, `Upload-Offset: <octets>` | `204` + `Upload-Offset` · `409` (décalage incorrect : refaire un HEAD) |
+| `DELETE /uploads/:id` | — | `204` |
+
+Métadonnées : `playbackId` suit la convention d'identifiant de lecture ; `kind` ∈ `film | serie | documentaire` ; formats acceptés `.mp4 .mov .m4v .mkv .webm .avi .mxf` ; taille maximale 60 Go.
+Au dernier octet, le serveur range la source et crée **automatiquement** la tâche d'encodage.
+
+| Route | Réponse |
+|---|---|
+| `GET /api/admin/jobs?limit=30` | `{jobs:[{id, playbackId, title, status, step, progress, attempts, maxAttempts, lastError, createdAt, startedAt, finishedAt}]}` |
+| `GET /api/admin/jobs/:id` | une tâche (même forme) |
+| `POST /api/admin/jobs/:id/cancel` | `204` · `409` |
+| `POST /api/admin/jobs/:id/retry` | `204` (tâche échouée ou annulée) · `409` |
+
+`status` ∈ `queued | running | succeeded | failed | canceled`. `progress` : 0 à 100. Interroger toutes les 5 à 10 s.
+Le contenu devient lisible (`GET /api/programs/:id/playback` ≠ 404) **uniquement** quand `status` vaut `succeeded`.
 
 ## Prévu (pas encore disponible — ne pas le simuler)
 

@@ -63,3 +63,7 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Lecture : ouverte par défaut ; exiger un compte = un réglage (`PLAYBACK_REQUIRES_LOGIN`)
 - 🟡 À faire avant l'ouverture : envoi réel des e-mails, vérification de l'adresse, double authentification (plus tard)
 - ✅ Étape B3 réalisée : reprise de lecture (durée de référence côté serveur, fin à 95 %/30 s, envois hors ordre ignorés), « Ma liste », mesure de lecture anonyme + synthèse administrateur
+- ✅ Étape B4 réalisée : envoi reprenable (tus), file de tâches PostgreSQL avec bail, travailleur séparé, encodage par qualité avec points de reprise, contrôle qualité avant publication atomique
+- ✅ Mesure : 15 s de 1440p encodés en ~32 s (4 qualités, preset medium) → ≈ 2,1× la durée ; film de 2 h ≈ 4 à 5 h sur ce Mac
+- 🟡 Reprise à la granularité d'une qualité ; une reprise par tranches de 10 min est possible plus tard si les films de 2 h sont fréquents
+- 🟡 Espace disque libre non vérifié avant un envoi (B6)

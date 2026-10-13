@@ -14,7 +14,22 @@ npm run typecheck     # types stricts
 npm test              # tests (schéma PostgreSQL jetable)
 ```
 
-## Ajouter un programme lisible
+## Ajouter une vidéo (jusqu'à 2 h et plus)
+
+```bash
+# Terminal 3 : le travailleur d'encodage (laisser tourner)
+FFMPEG_PATH=/chemin/ffmpeg FFPROBE_PATH=/chemin/ffprobe npm run worker
+
+# Mettre un fichier en file depuis le disque
+npm run media:enqueue -- /chemin/film.mp4 --id mon-film --kind film --title "Mon film"
+
+# ou : envoi depuis le navigateur (administrateur) via /uploads (protocole tus, reprenable)
+```
+
+Suivi : `GET /api/admin/jobs`. Le contenu devient lisible quand la tâche est `succeeded`.
+Après une panne, l'encodage reprend à la qualité suivante ; une vidéo incomplète n'est jamais publiée.
+
+## Ajouter un programme déjà encodé (ancien chemin, manuel)
 
 ```bash
 node ../video-pipeline/encode-hls.mjs source.mp4 mon-film --out ../storage/videos/hls
