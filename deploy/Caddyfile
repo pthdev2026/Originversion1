@@ -1,0 +1,21 @@
+# Caddy : reçoit le trafic Internet, obtient et renouvelle seul le certificat HTTPS (Let's Encrypt),
+# puis transmet à l'API. Seul service exposé sur Internet (ports 80 et 443).
+{$API_DOMAIN} {
+	encode zstd gzip
+
+	# Les fichiers vidéo (.m4s) sont déjà compressés ; Caddy ne compresse que les types texte par défaut.
+	reverse_proxy api:4000 {
+		# Flux vidéo / envois longs : pas de mise en tampon des réponses.
+		flush_interval -1
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

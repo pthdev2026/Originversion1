@@ -86,3 +86,11 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Le CDN est **obligatoire** : l'origine sature vers 100–160 spectateurs simultanés
 - ✅ Hachage argon2 limité à 2 simultanés + `UV_THREADPOOL_SIZE=16` pour qu'une rafale de connexions ne bloque pas la lecture
 - 🟡 Test à refaire depuis une machine distincte contre le vrai CDN après B5/B8
+
+## Déploiement (14/10/2026, B8)
+- ✅ Une machine (VPS Europe), Docker Compose : caddy (HTTPS auto) · api · worker · backup · watchdog · postgres 17
+- ✅ Une seule image pour tous les rôles ; PostgreSQL officiel en production (embedded-postgres reste réservé au développement)
+- ✅ Sauvegarde nocturne et chien de garde intégrés au compose ; base non exposée
+- ✅ Front et API sur le même domaine enregistrable (cookie de session SameSite=Lax)
+- 🟡 Images non construites localement (pas de Docker sur le Mac) : validées par la CI et le premier déploiement
+- 🟡 Choix du fournisseur VPS, du domaine, copie hors site, envoi d'e-mails : à ta décision

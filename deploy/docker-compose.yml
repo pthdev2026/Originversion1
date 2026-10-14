@@ -1,0 +1,82 @@
+# Production ORIGIN : une machine (VPS), cinq services. Lancer depuis ce dossier :
+#   docker compose --env-file .env.production up -d --build
+name: origin
+
+x-api: &api
+  build: ../api
+  restart: unless-stopped
+  env_file: .env.production
+  environment:
+    DATABASE_URL: postgres://origin:${POSTGRES_PASSWORD}@postgres:5432/origin
+  volumes:
+    - data:/data
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  # Seul service exposé : HTTPS automatique.
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ['80:80', '443:443']
+    environment:
+      API_DOMAIN: ${API_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [api]
+
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: origin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: origin
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U origin -d origin']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    # Aucun port publié : la base n'est joignable que par les autres services.
+
+  api:
+    <<: *api
+    environment:
+      DATABASE_URL: postgres://origin:${POSTGRES_PASSWORD}@postgres:5432/origin
+      TRUST_PROXY: 'true'
+    command: ['node', 'src/main.ts']
+
+  # Encodage vidéo : peut saturer le processeur, donc séparé de l'API.
+  worker:
+    <<: *api
+    command: ['node', 'scripts/worker.ts']
+    healthcheck:
+      disable: true
+
+  # Sauvegarde chiffrée chaque nuit (puis rotation). Premier passage 1 minute après le démarrage.
+  backup:
+    <<: *api
+    command: ['sh', '-c', 'sleep 60; while true; do node scripts/backup.ts || true; sleep 86400; done']
+    healthcheck:
+      disable: true
+
+  # Chien de garde : contrôle toutes les 5 minutes, alerte sur changement d'état (webhook).
+  watchdog:
+    <<: *api
+    environment:
+      DATABASE_URL: postgres://origin:${POSTGRES_PASSWORD}@postgres:5432/origin
+      WATCHDOG_API_URL: http://api:4000
+    command: ['sh', '-c', 'sleep 90; while true; do node scripts/watchdog.ts || true; sleep 300; done']
+    healthcheck:
+      disable: true
+
+volumes:
+  data:
+  pgdata:
+  caddy_data:
+  caddy_config:

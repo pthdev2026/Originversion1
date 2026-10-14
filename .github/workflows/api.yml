@@ -34,3 +34,10 @@ jobs:
       - run: npm test
         env:
           DATABASE_URL: postgres://origin:origin_dev@127.0.0.1:5433/origin
+
+  docker:
+    # Vérifie que l'image de production se construit (Dockerfile + dépendances de production).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t origin-api api
