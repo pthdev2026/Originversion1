@@ -110,3 +110,11 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Une piste WebVTT par (média, langue), fichier dans `storage/subtitles/<playbackId>/<lang>.vtt`, métadonnées en base, incluse dans les sauvegardes (vérifié par restauration d'essai)
 - ✅ Exposée dans la réponse de lecture (`subtitles`) ; dépôt administrateur sous `/files/subtitles/…` (limite de 1 Mo, validation WebVTT)
 - 🟡 Pas de conversion SRT→VTT côté serveur (le fichier doit déjà être en WebVTT)
+
+## Robustesse (15/10/2026)
+- ✅ Migrations sérialisées par verrou consultatif (deux instances simultanées : chaque migration appliquée une fois) — un vrai défaut trouvé et corrigé par test (création concurrente de `schema_migrations`)
+- ✅ Pannes de base traduites en 503 + `Retry-After` (doublon 409, référence 400) au lieu de 500
+- ✅ Délai maximal de 15 s par requête SQL et coupure des transactions oubliées (30 s) sur la connexion de l'API ; migrations sur une connexion séparée sans délai
+- ✅ Écritures éditoriales simultanées sérialisées par verrou (programme, collection) ; `uncaughtException` → arrêt propre et relance
+- ✅ Tests de robustesse : concurrence, entrées hostiles (injection, chemins, Unicode, JSON malformé), panne de base en cours de service
+- ✅ Tableau de bord éditorial : audience, achèvement, qualité par programme, santé du catalogue

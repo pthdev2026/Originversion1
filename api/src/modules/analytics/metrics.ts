@@ -186,3 +186,114 @@ export async function summarizePlayback(sql: Sql, days = 7, playbackId: string |
     },
   };
 }
+
+// ---- Tableau de bord éditorial : « qu'est-ce qui est regardé, et jusqu'où ? » ---------------------------------------
+
+export interface ProgramMetrics {
+  slug: string;
+  title: string;
+  kind: string;
+  /** Lectures réelles : sessions d'au moins 10 s (une ouverture accidentelle ne compte pas). */
+  views: number;
+  watchHours: number;
+  /** Durée moyenne regardée par lecture, en minutes. */
+  avgWatchMinutes: number | null;
+  /** Comptes distincts ayant avancé dans ce programme sur la période. */
+  viewers: number;
+  /** Part de ces comptes qui l'ont terminé (95 % / 30 s). */
+  completionRate: number | null;
+  startupP75Ms: number | null;
+  errorRate: number | null;
+  rebufferRatio: number | null;
+}
+
+export interface EditorialDashboard {
+  periodDays: number;
+  totals: { accounts: number; newAccounts: number; activeViewers: number; views: number; watchHours: number };
+  programs: ProgramMetrics[];
+  catalogHealth: { published: number; playable: number; publishedWithoutMedia: string[] };
+}
+
+export async function editorialDashboard(sql: Sql, days = 30, limit = 50): Promise<EditorialDashboard> {
+  const since = new Date(Date.now() - days * 86_400_000);
+
+  const rows = await sql<{
+    slug: string; title: string; kind: string; views: string; watch_s: string; rebuffer_ms: string; errors: string; sessions: string; p75: string | null;
+  }[]>`
+    SELECT p.slug, p.title, p.kind,
+           count(*) FILTER (WHERE s.watch_seconds >= 10)::text AS views,
+           coalesce(sum(s.watch_seconds), 0)::text AS watch_s,
+           coalesce(sum(s.rebuffer_ms), 0)::text AS rebuffer_ms,
+           count(*) FILTER (WHERE s.fatal_error IS NOT NULL)::text AS errors,
+           count(*)::text AS sessions,
+           percentile_cont(0.75) WITHIN GROUP (ORDER BY s.startup_ms)::text AS p75
+    FROM playback_sessions s
+    JOIN media_assets m ON m.playback_id = s.playback_id
+    JOIN programs p ON p.slug = m.program_slug AND p.kind <> 'brand'
+    WHERE s.started_at >= ${since}
+    GROUP BY p.slug, p.title, p.kind
+    ORDER BY count(*) FILTER (WHERE s.watch_seconds >= 10) DESC, coalesce(sum(s.watch_seconds), 0) DESC
+    LIMIT ${limit}`;
+
+  const progress = await sql<{ slug: string; viewers: string; completed: string }[]>`
+    SELECT COALESCE(wp.program_slug, m.program_slug) AS slug,
+           count(DISTINCT wp.user_id)::text AS viewers,
+           count(DISTINCT wp.user_id) FILTER (WHERE wp.completed)::text AS completed
+    FROM watch_progress wp
+    LEFT JOIN media_assets m ON m.playback_id = wp.playback_id
+    WHERE wp.updated_at >= ${since}
+    GROUP BY 1`;
+  const progressBySlug = new Map(progress.map(row => [row.slug, row]));
+
+  const [totals] = await sql<{ accounts: string; new_accounts: string; active: string }[]>`
+    SELECT (SELECT count(*) FROM users WHERE status = 'active')::text AS accounts,
+           (SELECT count(*) FROM users WHERE created_at >= ${since})::text AS new_accounts,
+           (SELECT count(DISTINCT user_id) FROM watch_progress WHERE updated_at >= ${since})::text AS active`;
+
+  const [health] = await sql<{ published: string; playable: string }[]>`
+    SELECT count(*)::text AS published,
+           count(*) FILTER (WHERE EXISTS (SELECT 1 FROM media_assets m WHERE m.program_slug = p.slug AND m.status = 'ready'))::text AS playable
+    FROM programs p WHERE p.published AND p.kind <> 'brand'`;
+  const missing = await sql<{ slug: string }[]>`
+    SELECT p.slug FROM programs p
+    WHERE p.published AND p.kind <> 'brand' AND NOT p.is_demo
+      AND NOT EXISTS (SELECT 1 FROM media_assets m WHERE m.program_slug = p.slug AND m.status = 'ready')
+    ORDER BY p.slug LIMIT 100`;
+
+  const programs: ProgramMetrics[] = rows.map(row => {
+    const views = Number(row.views);
+    const watchSeconds = Number(row.watch_s);
+    const sessions = Number(row.sessions);
+    const rebufferMs = Number(row.rebuffer_ms);
+    const playedMs = watchSeconds * 1000 + rebufferMs;
+    const reached = progressBySlug.get(row.slug);
+    const viewers = Number(reached?.viewers ?? 0);
+    return {
+      slug: row.slug, title: row.title, kind: row.kind, views,
+      watchHours: Math.round((watchSeconds / 3600) * 100) / 100,
+      avgWatchMinutes: views > 0 ? Math.round((watchSeconds / views / 60) * 10) / 10 : null,
+      viewers,
+      completionRate: viewers > 0 ? Math.round((Number(reached?.completed ?? 0) / viewers) * 1000) / 1000 : null,
+      startupP75Ms: round(row.p75),
+      errorRate: sessions > 0 ? Math.round((Number(row.errors) / sessions) * 10_000) / 10_000 : null,
+      rebufferRatio: playedMs > 0 ? Math.round((rebufferMs / playedMs) * 10_000) / 10_000 : null,
+    };
+  });
+
+  return {
+    periodDays: days,
+    totals: {
+      accounts: Number(totals?.accounts ?? 0),
+      newAccounts: Number(totals?.new_accounts ?? 0),
+      activeViewers: Number(totals?.active ?? 0),
+      views: programs.reduce((sum, program) => sum + program.views, 0),
+      watchHours: Math.round(programs.reduce((sum, program) => sum + program.watchHours, 0) * 100) / 100,
+    },
+    programs,
+    catalogHealth: {
+      published: Number(health?.published ?? 0),
+      playable: Number(health?.playable ?? 0),
+      publishedWithoutMedia: missing.map(row => row.slug),
+    },
+  };
+}

@@ -28,14 +28,23 @@ if (config.mediaSecretIsEphemeral) {
 }
 
 // 2. Base de données et migrations.
-const sql = connect(config.databaseUrl);
+// Les migrations utilisent une connexion à part, SANS délai maximal (une migration peut légitimement durer).
+const migrationSql = connect(config.databaseUrl, { max: 1 });
 try {
-  const applied = await migrate(sql);
+  const applied = await migrate(migrationSql);
   if (applied.length > 0) logger.info({ applied }, 'migrations appliquées');
 } catch (error) {
-  logger.fatal({ err: error }, 'base de données injoignable : lancez « npm run db:start »');
+  logger.fatal({ err: error }, 'base de données injoignable ou migration en échec : lancez « npm run db:start » ou consultez l’erreur');
   process.exit(1);
+} finally {
+  await migrationSql.end({ timeout: 5 }).catch(() => undefined);
 }
+
+// Connexion de l'API : une requête SQL ne peut pas dépasser 15 s (une base lente ne doit pas figer les spectateurs),
+// et une transaction oubliée ouverte est coupée au bout de 30 s (elle bloquerait les autres).
+const sql = connect(config.databaseUrl, {
+  connection: { statement_timeout: 15_000, idle_in_transaction_session_timeout: 30_000 },
+});
 
 // 3. Application et serveur.
 const storage = new StorageLayout(config.storageRoot);
@@ -112,6 +121,10 @@ async function shutdown(signal: string): Promise<void> {
 }
 process.on('SIGINT', () => void shutdown('SIGINT'));
 process.on('SIGTERM', () => void shutdown('SIGTERM'));
+process.on('uncaughtException', error => {
+  logger.fatal({ err: error }, 'exception non interceptée');
+  process.exit(1); // l'orchestrateur (Docker, restart: unless-stopped) relance un processus sain
+});
 process.on('unhandledRejection', reason => {
   logger.fatal({ err: reason }, 'promesse rejetée non gérée');
   process.exit(1);

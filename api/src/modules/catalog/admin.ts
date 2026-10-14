@@ -46,6 +46,8 @@ export interface ProgramInput {
 /** Crée ou remplace un programme, ses saisons/épisodes et ses thèmes. Les médias (media_assets) ne sont jamais touchés. */
 export async function upsertProgram(sql: Sql, slug: string, input: ProgramInput): Promise<'created' | 'updated'> {
   return sql.begin(async tx => {
+    // Deux administrateurs qui enregistrent le même programme en même temps : le second attend le premier.
+    await tx`SELECT pg_advisory_xact_lock(hashtext(${'program:' + slug}))`;
     const [existing] = await tx`SELECT 1 FROM programs WHERE slug = ${slug}`;
     await tx`
       INSERT INTO programs (slug, kind, title, title_lines, tagline, synopsis, category, duration_label, year, language, rating,
@@ -151,6 +153,7 @@ export interface CollectionInput {
 
 export async function upsertCollection(sql: Sql, slug: string, input: CollectionInput): Promise<void> {
   await sql.begin(async tx => {
+    await tx`SELECT pg_advisory_xact_lock(hashtext(${'collection:' + slug}))`;
     await tx`
       INSERT INTO collections (slug, title, layout, badge, view_all_url, home_position, published)
       VALUES (${slug}, ${input.title}, ${input.layout}, ${input.badge}, ${input.viewAllUrl}, ${input.homePosition}, ${input.published})

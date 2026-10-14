@@ -1,4 +1,4 @@
-# ORIGIN — Contrat d'API (v0.8, 15/10/2026)
+# ORIGIN — Contrat d'API (v0.9, 15/10/2026)
 
 Propriétaire : l'agent back-end. Toute modification est annoncée ici avant d'être déployée.
 Limites : 120 requêtes par minute et par adresse IP sur `/api/*` ; en-têtes `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
@@ -309,6 +309,22 @@ La réponse de `GET /api/programs/:id/playback` contient désormais **`subtitles
   (1 Mo au plus, doit commencer par `WEBVTT`) → `204` · `400` fichier invalide · `404` média inconnu · `413` trop gros.
   Suppression : `DELETE /files/subtitles/:playbackId/:lang` → `204` · `404`.
 - `lang` : `fr`, `en`, `es`, `pt-BR`…
+
+## Tableau de bord éditorial (disponible — v0.9, administrateur uniquement)
+
+`GET /api/admin/metrics/programs?days=30&limit=50` →
+```json
+{ "periodDays": 30,
+  "totals": { "accounts": 120, "newAccounts": 14, "activeViewers": 38, "views": 210, "watchHours": 96.4 },
+  "programs": [ { "slug": "…", "title": "…", "kind": "film", "views": 80, "watchHours": 41.2, "avgWatchMinutes": 31.0,
+                  "viewers": 30, "completionRate": 0.43, "startupP75Ms": 910, "errorRate": 0.0, "rebufferRatio": 0.001 } ],
+  "catalogHealth": { "published": 36, "playable": 2, "publishedWithoutMedia": ["…"] } }
+```
+Une « lecture » = session d'au moins 10 s. Agrégats uniquement : aucun identifiant de compte ni e-mail.
+
+## Erreurs de disponibilité (v0.9)
+Une panne ou une saturation de la base répond **`503 {"error":"unavailable"}` avec `Retry-After: 5`** (jamais une 500) :
+le front doit afficher « Service momentanément indisponible » et proposer de réessayer. Un doublon répond `409 conflict`.
 
 ## Prévu (pas encore disponible — ne pas le simuler)
 

@@ -5,7 +5,7 @@ import { errors } from '../../platform/errors.ts';
 import type { AppEnv } from '../../platform/http/types.ts';
 import { isValidId } from '../../platform/storage/layout.ts';
 import { requireAdmin } from '../identity/middleware.ts';
-import { parseSessionReport, saveSessionReport, summarizePlayback } from './metrics.ts';
+import { editorialDashboard, parseSessionReport, saveSessionReport, summarizePlayback } from './metrics.ts';
 
 export function analyticsRoutes(deps: { sql: Sql }): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
@@ -33,6 +33,14 @@ export function analyticsRoutes(deps: { sql: Sql }): Hono<AppEnv> {
     const playbackId = c.req.query('playbackId') ?? null;
     if (playbackId !== null && !isValidId(playbackId)) throw errors.badRequest('Identifiant de lecture invalide.');
     return c.json(await summarizePlayback(deps.sql, days, playbackId));
+  });
+
+  // Tableau de bord éditorial : audience et achèvement par programme (agrégats, aucun identifiant de compte).
+  routes.get('/api/admin/metrics/programs', async c => {
+    requireAdmin(c);
+    const days = Math.min(Math.max(Number(c.req.query('days') ?? 30) || 30, 1), 365);
+    const limit = Math.min(Math.max(Number(c.req.query('limit') ?? 50) || 50, 1), 200);
+    return c.json(await editorialDashboard(deps.sql, days, limit));
   });
 
   return routes;
