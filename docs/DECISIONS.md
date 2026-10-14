@@ -105,3 +105,8 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ E-mails : fournisseur Resend par HTTP (sans dépendance) ; réponses de « mot de passe oublié » uniformes même en cas de panne ; corps des e-mails non journalisés en production
 - ✅ Garde-fous d'architecture en test (pas de cycle, socle indépendant, SQL localisé)
 - 🟡 Compte Resend, domaine d'envoi vérifié (SPF/DKIM) et page front `/reinitialiser` à fournir
+
+## Sous-titres (15/10/2026)
+- ✅ Une piste WebVTT par (média, langue), fichier dans `storage/subtitles/<playbackId>/<lang>.vtt`, métadonnées en base, incluse dans les sauvegardes (vérifié par restauration d'essai)
+- ✅ Exposée dans la réponse de lecture (`subtitles`) ; dépôt administrateur sous `/files/subtitles/…` (limite de 1 Mo, validation WebVTT)
+- 🟡 Pas de conversion SRT→VTT côté serveur (le fichier doit déjà être en WebVTT)

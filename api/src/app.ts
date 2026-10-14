@@ -34,6 +34,7 @@ import { catalogRoutes } from './modules/catalog/routes.ts';
 import { healthRoutes } from './modules/health/routes.ts';
 import { mediaRoutes } from './modules/media/routes.ts';
 import { recommendationRoutes } from './modules/recommendation/routes.ts';
+import { subtitleRoutes } from './modules/subtitles/routes.ts';
 import { imageRoutes } from './modules/catalog/images.ts';
 import { playbackRoutes } from './modules/playback/routes.ts';
 
@@ -87,7 +88,12 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
   app.use('/uploads/*', requireTrustedOrigin(deps.corsOrigins));
   app.use('/uploads/*', loadSession({ identity: deps.identity, cookieSecure: deps.cookieSecure }));
   app.use('/uploads/*', rateLimit({ windowMs: minute, max: 600, keyOf: c => `uploads:${byIp(c)}` }));
+  app.use('/subtitles/*', rateLimit({ windowMs: minute, max: deps.rateLimits.mediaPerMinute, keyOf: c => `subtitles:${byIp(c)}` }));
   app.use('/images/*', rateLimit({ windowMs: minute, max: deps.rateLimits.mediaPerMinute, keyOf: c => `images:${byIp(c)}` }));
+  // Dépôts de petits fichiers administrés (sous-titres) : même protection que les envois, limite de taille propre à la route.
+  app.use('/files/*', requireTrustedOrigin(deps.corsOrigins));
+  app.use('/files/*', loadSession({ identity: deps.identity, cookieSecure: deps.cookieSecure }));
+  app.use('/files/*', rateLimit({ windowMs: minute, max: 120, keyOf: c => `files:${byIp(c)}` }));
   app.use('/media/*', rateLimit({ windowMs: minute, max: deps.rateLimits.mediaPerMinute, keyOf: c => `media:${byIp(c)}` }));
 
   // Modules fonctionnels. Recommandations : voir modules/recommendation/README.md.
@@ -129,6 +135,7 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
     ...(deps.ops?.freeBytes ? { freeBytes: deps.ops.freeBytes } : {}),
   }));
   app.route('/', imageRoutes({ storage: deps.storage }));
+  app.route('/', subtitleRoutes({ sql: deps.sql, storage: deps.storage }));
   app.route('/', mediaRoutes({ sql: deps.sql, storage: deps.storage, mediaSecrets: deps.mediaSecrets }));
 
   registerErrorHandlers(app, deps.logger);

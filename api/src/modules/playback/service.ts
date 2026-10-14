@@ -11,6 +11,7 @@ import { findProgress, hasProgressInProgram, hasProgressInSeason } from '../prog
 import type { DeliverySigner } from './delivery.ts';
 import { decideIdent, parsePlaybackId, type IdentPolicy, type IdentReason } from './ident-policy.ts';
 import { findPlayableAsset } from '../ingest/repository.ts';
+import { listTracks } from '../subtitles/repository.ts';
 
 export interface IdentSession {
   /** Faut-il jouer l'ident avant le programme ? Le front suit cette valeur sans la réinterpréter. */
@@ -30,6 +31,8 @@ export interface PlaybackSession {
   durationSeconds: number;
   renditions: { name: string; height: number; videoKbps: number }[];
   expiresAt: string;
+  /** Pistes de sous-titres WebVTT (vide si aucune). `url` est absolue, à donner telle quelle à `<track src>`. */
+  subtitles: { lang: string; label: string; default: boolean; url: string }[];
   ident: IdentSession;
 }
 
@@ -95,6 +98,10 @@ export async function createPlaybackSession(
     durationSeconds: asset.durationSeconds,
     renditions: asset.renditions,
     expiresAt: signed.expiresAt.toISOString(),
+    subtitles: (await listTracks(sql, asset.playbackId)).map(track => ({
+      lang: track.lang, label: track.label, default: track.isDefault,
+      url: `${context.publicOrigin}/subtitles/${asset.playbackId}/${track.lang}.vtt`,
+    })),
     ident: {
       show: decision.show,
       reason: decision.reason,

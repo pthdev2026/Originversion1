@@ -1,4 +1,4 @@
-# ORIGIN — Contrat d'API (v0.7, 15/10/2026)
+# ORIGIN — Contrat d'API (v0.8, 15/10/2026)
 
 Propriétaire : l'agent back-end. Toute modification est annoncée ici avant d'être déployée.
 Limites : 120 requêtes par minute et par adresse IP sur `/api/*` ; en-têtes `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
@@ -296,9 +296,23 @@ Import en masse : `npm run catalog:import -- fichier.json` ; export du catalogue
 - La réinitialisation de mot de passe envoie un **vrai e-mail** quand `MAIL_PROVIDER=resend` (sinon : journal). Le lien pointe vers
   `{PUBLIC_APP_URL}/reinitialiser?token=…` : **le front doit fournir cette page** (appelle `POST /api/auth/password/reset`).
 
+## Sous-titres (disponible — v0.8)
+
+La réponse de `GET /api/programs/:id/playback` contient désormais **`subtitles`** (tableau, vide s'il n'y en a pas) :
+```json
+"subtitles": [ { "lang": "fr", "label": "Français", "default": true, "url": "https://api…/subtitles/<playbackId>/fr.vtt" } ]
+```
+- `url` est absolue, à donner telle quelle à `<track kind="subtitles" srclang={lang} label={label} src={url} default={default}>`
+  (ajouter `crossOrigin="anonymous"` sur `<video>` : l'API envoie les en-têtes CORS).
+- Une seule piste `default: true` au plus. Le fichier est du WebVTT UTF-8 ; `GET` public, cache 1 h.
+- Dépôt (administrateur) : `PUT /files/subtitles/:playbackId/:lang?label=Français&default=true` avec le fichier WebVTT brut comme corps
+  (1 Mo au plus, doit commencer par `WEBVTT`) → `204` · `400` fichier invalide · `404` média inconnu · `413` trop gros.
+  Suppression : `DELETE /files/subtitles/:playbackId/:lang` → `204` · `404`.
+- `lang` : `fr`, `en`, `es`, `pt-BR`…
+
 ## Prévu (pas encore disponible — ne pas le simuler)
 
 | Domaine | Routes prévues | État |
 |---|---|---|
-| Sous-titres | `GET` des pistes WebVTT dans la réponse de lecture | Après les premiers contenus réels |
+| Langues audio multiples | pistes audio dans le manifeste | Après les premiers contenus réels |
 | Paiement / abonnement | — | Si le modèle devient payant |
