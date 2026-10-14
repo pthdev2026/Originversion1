@@ -32,6 +32,7 @@ export async function listPlayablePrograms(sql: Sql): Promise<PlayableProgram[]>
     SELECT p.slug, p.kind, p.title, p.is_demo, count(m.playback_id)::text AS playable
     FROM programs p
     JOIN media_assets m ON m.program_slug = p.slug AND m.status = 'ready'
+    WHERE p.kind <> 'brand'
     GROUP BY p.slug
     ORDER BY p.title`;
   return rows.map(row => ({

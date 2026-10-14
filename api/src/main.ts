@@ -55,6 +55,7 @@ const deliverySigner =
     : createOriginSigner({ secret: config.mediaSecrets[0], ttlSeconds: config.mediaTtlSeconds });
 logger.info({ mode: config.delivery.mode }, 'mode de diffusion');
 const app = createApp({
+  ident: config.ident,
   deliverySigner,
   identity,
   cookieSecure: config.identity.cookieSecure,

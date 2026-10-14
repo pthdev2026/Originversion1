@@ -9,7 +9,7 @@ import type { Sql } from '../../platform/database/client.ts';
 export interface IngestInput {
   playbackId: string;
   programSlug: string;
-  kind: 'film' | 'serie' | 'documentaire';
+  kind: 'film' | 'serie' | 'documentaire' | 'brand';
   title: string;
   storagePath: string;
   durationSeconds: number;

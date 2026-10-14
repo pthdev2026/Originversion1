@@ -13,7 +13,7 @@ export interface MediaJob {
   id: string;
   playbackId: string;
   programSlug: string;
-  kind: 'film' | 'serie' | 'documentaire';
+  kind: 'film' | 'serie' | 'documentaire' | 'brand';
   title: string;
   isDemo: boolean;
   sourcePath: string;

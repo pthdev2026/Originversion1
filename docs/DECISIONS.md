@@ -72,3 +72,11 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Région de stockage : Falkenstein (Europe) ; réseau Standard
 - ✅ Étape B6 réalisée : sauvegarde logique chiffrée + rotation + test de restauration, /ready, /metrics (jeton), tableau de bord administrateur, garde-fou d'espace disque, chien de garde avec alertes, runbooks (`docs/EXPLOITATION.md`)
 - 🟡 Sauvegarde hors site à prévoir (second lieu) ; planification réelle (cron) à activer par le propriétaire ; webhook d'alerte à choisir
+
+## Ident de marque (14/10/2026)
+- ✅ Vidéo « ORIGIN » (6 s) jouée avant la première lecture d'un titre : décision côté serveur (`ident.show`), le front exécute
+- ✅ Règle par défaut : une fois par titre (film ou série), jamais à la reprise, jamais à l'enchaînement automatique ; réglable (`IDENT_POLICY`)
+- ✅ Passable après 2 s ; le programme se précharge pendant que l'ident joue (consigne au front)
+- ✅ Ident publié par le pipeline normal (`--kind brand`), exclu du catalogue
+- 🟡 Version courte (3,5–4 s) à envisager ; normalisation du volume de l'ident et des programmes à une même cible
+- 🟡 Le comportement exact de Netflix (répétition par épisode, insertion technique) n'a pas pu être vérifié par des sources fiables

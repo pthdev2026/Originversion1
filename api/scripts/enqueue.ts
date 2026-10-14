@@ -17,8 +17,8 @@ const file = args.find((arg, index) => !arg.startsWith('--') && !args[index - 1]
 const id = flag('id');
 const kind = flag('kind');
 const title = flag('title');
-if (!file || !id || !title || !['film', 'serie', 'documentaire'].includes(kind ?? '') || !/^[a-z0-9][a-z0-9-]{0,119}$/.test(id)) {
-  console.error('Usage : npm run media:enqueue -- <fichier> --id <identifiant-de-lecture> --kind film|serie|documentaire --title "Titre" [--program <slug>] [--demo]');
+if (!file || !id || !title || !['film', 'serie', 'documentaire', 'brand'].includes(kind ?? '') || !/^[a-z0-9][a-z0-9-]{0,119}$/.test(id)) {
+  console.error('Usage : npm run media:enqueue -- <fichier> --id <identifiant-de-lecture> --kind film|serie|documentaire|brand --title "Titre" [--program <slug>] [--demo]');
   process.exit(1);
 }
 
@@ -31,7 +31,7 @@ await copyFile(file, path.join(layout.sourcesRoot, relative));
 const sql = connect(config.databaseUrl);
 try {
   const job = await enqueueJob(sql, {
-    id: randomUUID(), playbackId: id, programSlug: flag('program') ?? id, kind: kind as 'film' | 'serie' | 'documentaire', title,
+    id: randomUUID(), playbackId: id, programSlug: flag('program') ?? id, kind: kind as 'film' | 'serie' | 'documentaire' | 'brand', title,
     isDemo: args.includes('--demo'), sourcePath: relative, preset: config.media.encodePreset, uploadId: null, createdBy: null,
   });
   console.log(job ? `Tâche créée : ${job.id} (${id}). Lancez « npm run worker » si ce n'est pas déjà fait.` : `Un encodage est déjà actif pour « ${id} ».`);

@@ -67,6 +67,35 @@ Source de vérité : docs/API-CONTRACT.md du dossier projet (propriété du back
 Prévu mais NON disponible (ne pas simuler, prévoir seulement des points d'intégration typés et désactivés explicitement) : comptes (/api/auth/*, /api/me, cookie de session, credentials:'include'), reprise de lecture (/api/me/progress/*), Ma liste (/api/me/list/*), mesure de lecture (POST /api/playback-sessions), catalogue (/api/catalog/*).
 Si tu as besoin d'un champ ou d'une route : ouvre une demande écrite dans docs/API-REQUESTS.md (ce que tu veux, pourquoi, forme souhaitée). Ne l'invente pas côté front.
 
+
+════════════════════════════════════════
+4 bis. IDENT DE MARQUE « ORIGIN » AVANT LE PROGRAMME  (ajout du 14/10/2026)
+════════════════════════════════════════
+Avant la première lecture d'un titre (film, série, saison), une courte séquence « ORIGIN » (~6 s, avec son) est jouée AVANT le
+programme. Rôles : marquer l'identité de la marque, et laisser le temps au programme de précharger sa bande passante.
+Toute la décision est prise par l'API ; le front exécute.
+
+Contrat : la réponse de `GET /api/programs/:id/playback` contient `ident` (voir docs/API-CONTRACT.md « Ident de marque »).
+- `ident.show === false` → lire directement le programme. Ne JAMAIS recalculer la règle côté front.
+- `ident.show === true` → jouer l'ident plein écran puis enchaîner sur le programme.
+- Visiteur anonyme : après avoir joué l'ident pour un titre, mémoriser dans localStorage (`origin-ident-seen:<slug>`, try/catch) et envoyer
+  `?identSeen=1` aux demandes suivantes. Pour un compte connecté, le serveur le sait déjà.
+- Épisode enchaîné automatiquement : envoyer `?autoplay=1`.
+
+Comportement du lecteur :
+1. Deux éléments vidéo : celui de l'ident (visible) et celui du programme (caché, en pause, muet). Dès la réponse de l'API :
+   charger l'ident ET commencer à précharger le programme (hls.js sur le second élément, `maxBufferLength` ≈ 10–15 s, sans lecture).
+2. L'ident démarre automatiquement (le clic « Regarder » vaut geste utilisateur, le son est autorisé).
+3. Le bouton « Passer » apparaît après `ident.skippableAfterSeconds` ; touche Échap/Entrée/Espace équivalente, accessible au clavier.
+4. À la fin (ou au « Passer ») : fondu enchaîné court (≤ 300 ms) vers le programme déjà préchargé, puis lecture. Reprise : à `GET /api/me/progress/:id`.
+5. Échec de l'ident (réseau, erreur de lecture) : ne JAMAIS bloquer. Passer au programme immédiatement.
+6. Ne pas envoyer de rapports de mesure (`/api/playback-sessions`) ni de progression (`/api/me/progress`) pendant l'ident.
+7. `prefers-reduced-motion` : l'ident reste joué (c'est une vidéo de marque) mais proposer « Passer » dès 0 s.
+8. États visibles : « Préparation de votre séance… » pendant la récupération de `/playback`, jamais d'écran noir muet.
+
+À NE PAS FAIRE : coder « première fois » à partir de localStorage seul pour un compte connecté ; rejouer l'ident à chaque épisode ;
+précharger le programme APRÈS la fin de l'ident (on perdrait l'intérêt) ; afficher l'ident dans le catalogue ou les recherches.
+
 ════════════════════════════════════════
 5. VARIABLES D'ENVIRONNEMENT ET PARAMÈTRES PTH
 ════════════════════════════════════════

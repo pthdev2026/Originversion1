@@ -53,6 +53,8 @@ export interface AppDependencies {
   encodePreset: string;
   /** Façon de signer les URLs de lecture. Par défaut : l'API sert elle-même les fichiers (mode « origin »). */
   deliverySigner?: DeliverySigner;
+  /** Ident de marque avant les programmes. Par défaut : une fois par titre, média `origin-ident`. */
+  ident?: { policy: 'title' | 'season' | 'always' | 'off'; playbackId: string; skippableAfterSeconds: number };
   /** Exploitation (valeurs par défaut sûres si absentes). */
   ops?: { backupDir: string; minFreeBytes: number; metricsToken: string | null; freeBytes?: FreeBytes };
 }
@@ -92,6 +94,7 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
     sql: deps.sql,
     signer: deps.deliverySigner ?? createOriginSigner({ secret: deps.mediaSecrets[0], ttlSeconds: deps.mediaTtlSeconds }),
     requireLogin: deps.playbackRequiresLogin,
+    ident: deps.ident ?? { policy: 'title', playbackId: 'origin-ident', skippableAfterSeconds: 2 },
   }));
   app.route('/', identityRoutes({
     identity: deps.identity,

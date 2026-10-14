@@ -17,7 +17,7 @@ const flag = (name: string): string | undefined => {
 const playbackId = args.find((arg, index) => !arg.startsWith('--') && !args[index - 1]?.startsWith('--'));
 const kind = flag('kind');
 const title = flag('title');
-if (!playbackId || !title || !['film', 'serie', 'documentaire'].includes(kind ?? '')) {
+if (!playbackId || !title || !['film', 'serie', 'documentaire', 'brand'].includes(kind ?? '')) {
   console.error('Usage : npm run ingest -- <playbackId> --kind film|serie|documentaire --title "Titre" [--program <slug>] [--demo]');
   process.exit(1);
 }
@@ -39,7 +39,7 @@ try {
   await registerAsset(sql, {
     playbackId,
     programSlug: flag('program') ?? playbackId,
-    kind: kind as 'film' | 'serie' | 'documentaire',
+    kind: kind as 'film' | 'serie' | 'documentaire' | 'brand',
     title,
     storagePath: playbackId,
     durationSeconds: meta.source.durationSeconds,

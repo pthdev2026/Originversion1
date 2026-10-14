@@ -1,4 +1,4 @@
-# ORIGIN — Contrat d'API (v0.5, 13/10/2026)
+# ORIGIN — Contrat d'API (v0.6, 14/10/2026)
 
 Propriétaire : l'agent back-end. Toute modification est annoncée ici avant d'être déployée.
 Limites : 120 requêtes par minute et par adresse IP sur `/api/*` ; en-têtes `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
@@ -49,6 +49,30 @@ Règles pour le front :
 - `manifestUrl` et `posterUrl` sont **opaques** : ne jamais les construire ni les analyser, ne pas les mettre en cache au-delà de `expiresAt`.
 - Redemander `/playback` si `expiresAt` est dépassé (ou erreur 403 sur un segment).
 - Lecture : hls.js (`Hls.isSupported()`), sinon lecture native HLS (Safari / iOS).
+
+#### Ident de marque (`ident`, ajouté dans la réponse de lecture)
+
+`GET /api/programs/:id/playback` renvoie aussi un objet `ident` : la séquence « ORIGIN » à jouer **avant** le programme.
+
+```json
+"ident": {
+  "show": true,
+  "reason": "first_view",
+  "manifestUrl": "https://…/origin-ident/master.m3u8",
+  "durationSeconds": 6.0,
+  "skippableAfterSeconds": 2
+}
+```
+
+| Paramètre de requête | Quand l'envoyer |
+|---|---|
+| `identSeen=1` | Le navigateur a déjà joué l'ident pour ce titre (visiteur **anonyme** : mémoire locale du navigateur) |
+| `autoplay=1` | L'épisode est enchaîné automatiquement après le précédent |
+
+`reason` ∈ `first_view` (à jouer) · `always` · `already_seen` · `resume` · `autoplay_next` · `unavailable` · `policy_off` · `is_brand_asset`.
+**Le front suit `ident.show` sans réinterpréter** : toute la règle est côté serveur (une fois par titre par défaut, jamais à la reprise
+ni à l'enchaînement automatique). Quand `show` est `false`, `manifestUrl`, `durationSeconds` et `skippableAfterSeconds` valent `null`.
+`skippableAfterSeconds` : secondes avant lesquelles le bouton « Passer » n'est pas proposé.
 
 ### `GET /media/:jeton/:playbackId/*` (distribution HLS)
 Géré par hls.js ; `Range` supporté. `403` : jeton invalide ou expiré. `404` : fichier absent.

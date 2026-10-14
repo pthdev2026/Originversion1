@@ -74,3 +74,15 @@ export async function listContinueWatching(sql: Sql, userId: string, limit: numb
 export async function deleteProgress(sql: Sql, userId: string, playbackId: string): Promise<void> {
   await sql`DELETE FROM watch_progress WHERE user_id = ${userId} AND playback_id = ${playbackId}`;
 }
+
+/** Le compte a-t-il déjà commencé ce programme (n'importe quel épisode) ? Sert à décider de l'ident de marque. */
+export async function hasProgressInProgram(sql: Sql, userId: string, programSlug: string): Promise<boolean> {
+  const rows = await sql`SELECT 1 FROM watch_progress WHERE user_id = ${userId} AND program_slug = ${programSlug} LIMIT 1`;
+  return rows.length > 0;
+}
+
+/** Même question pour une saison : `seasonPrefix` vaut « <slug>-s2- » (identifiants bornés : a-z, 0-9, tiret). */
+export async function hasProgressInSeason(sql: Sql, userId: string, seasonPrefix: string): Promise<boolean> {
+  const rows = await sql`SELECT 1 FROM watch_progress WHERE user_id = ${userId} AND playback_id LIKE ${`${seasonPrefix}%`} LIMIT 1`;
+  return rows.length > 0;
+}

@@ -194,6 +194,19 @@ contient que les données, ce qui la rend lisible, vérifiable et indépendante 
 Principe d'or : **une sauvegarde qu'on n'a jamais restaurée n'existe pas** : `npm run backup:verify` la restaure pour de vrai
 dans un schéma temporaire et compare chaque nombre de lignes.
 
+## 7 sexies. L'ident de marque
+
+C'est un média comme un autre (même pipeline, même diffusion CDN, même signature), publié avec `--kind brand` sous l'identifiant
+`origin-ident` : il n'apparaît jamais au catalogue. La décision « faut-il le jouer ? » est une **règle métier** isolée dans
+`modules/playback/ident-policy.ts` (fonction pure, testée sans base) ; le service de lecture la nourrit avec l'historique du compte,
+et l'API renvoie simplement `ident.show`. Changer la règle (« une fois par saison », « toujours », « jamais ») = une variable
+d'environnement (`IDENT_POLICY`), sans toucher au front.
+
+Publier ou remplacer l'ident :
+```bash
+npm run media:enqueue -- /chemin/ident.mp4 --id origin-ident --kind brand --title "Ident ORIGIN"
+```
+
 ## 8. Commandes
 
 ```bash

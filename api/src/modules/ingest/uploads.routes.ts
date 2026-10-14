@@ -36,7 +36,7 @@ const ALLOWED_EXTENSIONS = new Set(['.mp4', '.mov', '.m4v', '.mkv', '.webm', '.a
 const metadataSchema = z.object({
   filename: z.string().min(1).max(255),
   playbackId: z.string().regex(/^[a-z0-9][a-z0-9-]{0,119}$/, 'playbackId invalide (minuscules, chiffres, tirets).'),
-  kind: z.enum(['film', 'serie', 'documentaire']),
+  kind: z.enum(['film', 'serie', 'documentaire', 'brand']),
   title: z.string().trim().min(1).max(200),
   programSlug: z.string().regex(/^[a-z0-9][a-z0-9-]{0,119}$/).optional(),
   demo: z.enum(['true', 'false']).optional(),

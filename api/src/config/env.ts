@@ -72,6 +72,12 @@ const schema = z.object({
   METRICS_TOKEN: z.string().min(24, 'METRICS_TOKEN doit faire au moins 24 caractères').optional(),
   /** Adresse d'un webhook (Slack, Discord, ntfy…) où le « chien de garde » envoie les alertes. */
   ALERT_WEBHOOK_URL: z.string().url().optional(),
+  /** Ident de marque : quand l'afficher (`title` = une fois par titre, `season` = une fois par saison, `always`, `off`). */
+  IDENT_POLICY: z.enum(['title', 'season', 'always', 'off']).default('title'),
+  /** Identifiant de lecture du média de l'ident (publié avec `--kind brand`). */
+  BRAND_IDENT_PLAYBACK_ID: z.string().regex(/^[a-z0-9][a-z0-9-]{0,119}$/).default('origin-ident'),
+  /** Après combien de secondes le spectateur peut passer l'ident. */
+  IDENT_SKIPPABLE_AFTER_SECONDS: z.coerce.number().min(0).max(30).default(2),
   /** Durée de validité d'une URL de lecture, en secondes (1 minute à 24 h). */
   MEDIA_TTL_SECONDS: z.coerce.number().int().min(60).max(86_400).default(4 * 60 * 60),
   /** Origines autorisées pour le navigateur, séparées par des virgules. Vide = localhost uniquement. */
@@ -95,6 +101,7 @@ export interface AppConfig {
   trustProxy: boolean;
   rateLimits: { apiPerMinute: number; mediaPerMinute: number; authPerMinute: number; metricsPerMinute: number };
   media: { ffmpegPath: string; ffprobePath: string; encodePreset: string; uploadMaxBytes: number };
+  ident: { policy: 'title' | 'season' | 'always' | 'off'; playbackId: string; skippableAfterSeconds: number };
   ops: {
     backupDir: string;
     backupPassphrase: string | null;
@@ -172,6 +179,7 @@ export function loadConfig(source: Record<string, string | undefined> = process.
       encodePreset: raw.ENCODE_PRESET,
       uploadMaxBytes: raw.UPLOAD_MAX_BYTES,
     },
+    ident: { policy: raw.IDENT_POLICY, playbackId: raw.BRAND_IDENT_PLAYBACK_ID, skippableAfterSeconds: raw.IDENT_SKIPPABLE_AFTER_SECONDS },
     ops: {
       backupDir: path.resolve(raw.BACKUP_DIR ?? path.join(PROJECT_ROOT, 'backups')),
       backupPassphrase: raw.BACKUP_PASSPHRASE ?? null,
