@@ -80,3 +80,9 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Ident publié par le pipeline normal (`--kind brand`), exclu du catalogue
 - 🟡 Version courte (3,5–4 s) à envisager ; normalisation du volume de l'ident et des programmes à une même cible
 - 🟡 Le comportement exact de Netflix (répétition par épisode, insertion technique) n'a pas pu être vérifié par des sources fiables
+
+## Test de charge (14/10/2026, B7)
+- ✅ L'API tient ≥ 10× le trafic réel de 1 000 spectateurs sans erreur (voir `docs/TEST-DE-CHARGE.md`)
+- ✅ Le CDN est **obligatoire** : l'origine sature vers 100–160 spectateurs simultanés
+- ✅ Hachage argon2 limité à 2 simultanés + `UV_THREADPOOL_SIZE=16` pour qu'une rafale de connexions ne bloque pas la lecture
+- 🟡 Test à refaire depuis une machine distincte contre le vrai CDN après B5/B8

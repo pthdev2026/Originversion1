@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch --env-file-if-exists=.env src/main.ts",
-    "start": "node --env-file-if-exists=.env src/main.ts",
+    "dev": "UV_THREADPOOL_SIZE=16 node --watch --env-file-if-exists=.env src/main.ts",
+    "start": "UV_THREADPOOL_SIZE=16 node --env-file-if-exists=.env src/main.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --test \"src/**/*.test.ts\"",
     "db:start": "node scripts/db-server.ts",
@@ -12,13 +12,15 @@
     "ingest": "node scripts/ingest.ts",
     "postinstall": "cd node_modules/@embedded-postgres/darwin-arm64 2>/dev/null && node scripts/hydrate-symlinks.js || true",
     "user:create-admin": "node scripts/create-admin.ts",
-    "worker": "node --env-file-if-exists=.env scripts/worker.ts",
+    "worker": "UV_THREADPOOL_SIZE=16 node --env-file-if-exists=.env scripts/worker.ts",
     "media:enqueue": "node --env-file-if-exists=.env scripts/enqueue.ts",
     "cdn:check": "node --env-file-if-exists=.env scripts/cdn-check.ts",
     "backup": "node --env-file-if-exists=.env scripts/backup.ts",
     "backup:verify": "node --env-file-if-exists=.env scripts/backup-verify.ts",
     "restore": "node --env-file-if-exists=.env scripts/restore.ts",
-    "watchdog": "node --env-file-if-exists=.env scripts/watchdog.ts"
+    "watchdog": "node --env-file-if-exists=.env scripts/watchdog.ts",
+    "load:prepare": "node --env-file-if-exists=.env scripts/load/prepare.ts",
+    "load:run": "node --env-file-if-exists=.env scripts/load/run.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.0",
@@ -34,6 +36,7 @@
   "devDependencies": {
     "@types/node": "^22.20.5",
     "pino-pretty": "^13.2.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "undici": "^7.30.0"
   }
 }

@@ -14,8 +14,35 @@ type Argon2Params = { message: Buffer; nonce: Buffer; parallelism: number; tagLe
 const argon2Native = (nodeCrypto as unknown as {
   argon2: (algorithm: 'argon2id', params: Argon2Params, callback: (error: Error | null, key: Buffer) => void) => void;
 }).argon2;
-const argon2Async = (algorithm: 'argon2id', params: Argon2Params): Promise<Buffer> =>
+const argon2Raw = (algorithm: 'argon2id', params: Argon2Params): Promise<Buffer> =>
   new Promise((resolve, reject) => argon2Native(algorithm, params, (error, key) => (error ? reject(error) : resolve(key))));
+
+/**
+ * Limiteur de concurrence : au plus `max` tâches en même temps, les autres attendent leur tour.
+ *
+ * Pourquoi : le hachage argon2 est volontairement lent et gourmand. Sans limite, une vague de connexions
+ * (première d'un film) occuperait tous les fils d'exécution de Node, et la lecture des fichiers vidéo
+ * (qui utilise les mêmes fils) serait mise en attente. Avec la limite, les connexions font la queue,
+ * mais la lecture des vidéos continue.
+ */
+export function createLimiter(max: number): <T>(task: () => Promise<T>) => Promise<T> {
+  let running = 0;
+  const waiting: (() => void)[] = [];
+  return async task => {
+    if (running >= max) await new Promise<void>(resolve => waiting.push(resolve));
+    running += 1;
+    try {
+      return await task();
+    } finally {
+      running -= 1;
+      waiting.shift()?.();
+    }
+  };
+}
+
+/** Au plus 2 hachages simultanés (voir `createLimiter`). */
+const hashLimiter = createLimiter(2);
+const argon2Async = (algorithm: 'argon2id', params: Argon2Params): Promise<Buffer> => hashLimiter(() => argon2Raw(algorithm, params));
 
 /** Paramètres argon2id recommandés par l'OWASP (mémoire 19 Mio, 2 passes, 1 voie). */
 const PARAMS = { memory: 19_456, passes: 2, parallelism: 1, tagLength: 32 } as const;
