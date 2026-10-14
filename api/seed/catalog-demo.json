@@ -1,0 +1,922 @@
+{
+  "themes": {
+    "foi": {
+      "title": "Foi & Spiritualité",
+      "imageUrl": "/images/le-trone/hero-roi-trone.jpg",
+      "position": 0
+    },
+    "couple": {
+      "title": "Couple",
+      "imageUrl": "/images/un-nouveau-matin/hero-jeune-homme.jpeg",
+      "position": 1
+    },
+    "mariage": {
+      "title": "Mariage",
+      "imageUrl": "/images/un-nouveau-matin/hero-jeune-homme.jpeg",
+      "position": 2
+    },
+    "famille": {
+      "title": "Famille",
+      "imageUrl": "/images/un-nouveau-matin/hero-jeune-homme.jpeg",
+      "position": 3
+    },
+    "identite": {
+      "title": "Identité",
+      "imageUrl": "/images/la-reine-guerriere/hero-reine-guerriere.jpg",
+      "position": 4
+    },
+    "relations": {
+      "title": "Relations",
+      "imageUrl": "/images/les-choisis/hero-the-chosen.jpeg",
+      "position": 5
+    },
+    "pardon": {
+      "title": "Pardon",
+      "imageUrl": "/images/briser-le-cycle/sugg-briser-le-cycle.jpg",
+      "position": 6
+    },
+    "reconstruction": {
+      "title": "Reconstruction",
+      "imageUrl": "/images/un-nouveau-matin/hero-jeune-homme.jpeg",
+      "position": 7
+    },
+    "leadership": {
+      "title": "Leadership",
+      "imageUrl": "/images/le-trone/hero-roi-trone.jpg",
+      "position": 8
+    },
+    "ministere": {
+      "title": "Ministère",
+      "imageUrl": "/images/les-secrets-du-ministere/pth-presentatrice-bordeaux.jpg",
+      "position": 9
+    },
+    "temoignages": {
+      "title": "Témoignages",
+      "imageUrl": "/images/un-nouveau-matin/hero-jeune-homme.jpeg",
+      "position": 10
+    },
+    "societe": {
+      "title": "Société",
+      "imageUrl": "/images/le-trone/hero-roi-trone.jpg",
+      "position": 11
+    }
+  },
+  "programs": {
+    "gladiator": {
+      "isDemo": true,
+      "published": true,
+      "kind": "film",
+      "title": "Gladiator",
+      "category": "Film original",
+      "posterUrl": "/images/gladiator/top-gladiator.jpg",
+      "imageAlt": "Un gladiateur dans une arène antique."
+    },
+    "damnes": {
+      "isDemo": true,
+      "published": true,
+      "kind": "serie",
+      "title": "Damnés du Namibao",
+      "category": "Série documentaire",
+      "posterUrl": "/images/damnes/top-damnes.jpg",
+      "imageAlt": "Un personnage fantastique devant une lune et un ciel rouge."
+    },
+    "acteurs": {
+      "isDemo": true,
+      "published": true,
+      "kind": "serie",
+      "title": "Acteurs de l’ombre",
+      "category": "Série originale",
+      "posterUrl": "/images/acteurs/top-acteurs.jpg",
+      "imageAlt": "Un détective devant un homard géant."
+    },
+    "au-dela": {
+      "isDemo": true,
+      "published": true,
+      "kind": "serie",
+      "title": "Au-delà",
+      "category": "Série originale",
+      "posterUrl": "/images/au-dela/top-au-dela.jpg",
+      "imageAlt": "Une astronaute devant une planète orangée."
+    },
+    "le-silence": {
+      "isDemo": true,
+      "published": true,
+      "kind": "film",
+      "title": "Le Silence",
+      "category": "Bande-annonce",
+      "posterUrl": "/images/le-silence/le-silence-poster.jpg",
+      "imageAlt": "Une silhouette seule au bout d’une scène d’arène, face à une foule dense, sous d’immenses faisceaux de lumière.",
+      "synopsis": "Le teaser de Le Silence. Synopsis provisoire en attente du texte officiel.",
+      "titleLines": [
+        "LE",
+        "SILENCE"
+      ],
+      "tagline": "Quand la foule se tait, une voix répond.",
+      "heroUrl": "/images/le-silence/le-silence-poster.jpg",
+      "heroVideoUrl": "/images/le-silence/le-silence-teaser.mp4"
+    },
+    "les-passagers": {
+      "isDemo": true,
+      "published": true,
+      "kind": "film",
+      "title": "Les Passagers",
+      "category": "Bande-annonce",
+      "posterUrl": "/images/les-passagers/les-passagers-poster.jpg",
+      "imageAlt": "Image extraite du teaser Les Passagers.",
+      "synopsis": "Le teaser de Les Passagers. Synopsis provisoire en attente du texte officiel.",
+      "titleLines": [
+        "LES",
+        "PASSAGERS"
+      ],
+      "tagline": "Chacun porte son histoire à bord.",
+      "heroUrl": "/images/les-passagers/les-passagers-poster.jpg",
+      "heroVideoUrl": "/images/les-passagers/les-passagers-teaser.mp4"
+    },
+    "derniere-sortie": {
+      "isDemo": true,
+      "published": true,
+      "kind": "film",
+      "title": "Dernière sortie",
+      "category": "Film original",
+      "posterUrl": "/images/derniere-sortie/derniere-sortie-poster.jpg",
+      "imageAlt": "Une voiture roulant de nuit sous la pluie, un homme au volant, la ville en arrière-plan.",
+      "synopsis": "Un homme seul au volant traverse la nuit et la pluie, loin de tout retour possible.",
+      "titleLines": [
+        "DERNIÈRE",
+        "SORTIE"
+      ],
+      "tagline": "La nuit ne pardonne pas ceux qui roulent seuls.",
+      "heroUrl": "/images/derniere-sortie/derniere-sortie-poster.jpg",
+      "heroVideoUrl": "/images/derniere-sortie/derniere-sortie.mp4"
+    },
+    "teaser-origin": {
+      "isDemo": true,
+      "published": true,
+      "kind": "film",
+      "title": "Teaser ORIGIN",
+      "category": "Bande-annonce",
+      "posterUrl": "/images/teaser-origin/origin-teaser-poster.jpg",
+      "imageAlt": "Un homme de profil dans une voiture, sous la pluie, à travers une vitre couvertes de gouttes.",
+      "synopsis": "Le teaser de la plateforme ORIGIN, une présentation de quinze secondes.",
+      "titleLines": [
+        "ORIGIN"
+      ],
+      "tagline": "Quinze secondes pour entrer dans l’univers.",
+      "heroUrl": "/images/teaser-origin/origin-teaser-poster.jpg",
+      "heroVideoUrl": "/images/teaser-origin/origin-teaser-15s.mp4"
+    },
+    "un-nouveau-matin": {
+      "isDemo": true,
+      "published": true,
+      "kind": "serie",
+      "title": "Un nouveau matin",
+      "category": "Série documentaire",
+      "posterUrl": "/images/un-nouveau-matin/hero-jeune-homme.jpeg",
+      "imageAlt": "Un jeune homme souriant au milieu de la foule, en pleine lumière.",
+      "synopsis": "Le parcours d’un jeune homme qui choisit l’espoir malgré les épreuves, et qui inspire les siens à son tour.",
+      "themes": [
+        "couple",
+        "mariage",
+        "famille",
+        "reconstruction",
+        "temoignages"
+      ],
+      "titleLines": [
+        "UN NOUVEAU",
+        "MATIN"
+      ],
+      "tagline": "Chaque renaissance commence par un sourire.",
+      "heroUrl": "/images/un-nouveau-matin/hero-jeune-homme.jpeg"
+    },
+    "le-trone": {
+      "isDemo": true,
+      "published": true,
+      "kind": "film",
+      "title": "Le Trône",
+      "category": "Film original",
+      "posterUrl": "/images/le-trone/hero-roi-trone.jpg",
+      "imageAlt": "Un roi pensif sur son trône, entouré de sa cour dans une lumière dorée.",
+      "synopsis": "Au cœur d’une cour ancienne, un roi mesure le prix de la justice et du pouvoir.",
+      "themes": [
+        "leadership",
+        "foi",
+        "societe"
+      ],
+      "titleLines": [
+        "LE",
+        "TRÔNE"
+      ],
+      "tagline": "Régner, c’est d’abord servir.",
+      "heroUrl": "/images/le-trone/hero-roi-trone.jpg"
+    },
+    "les-choisis": {
+      "isDemo": true,
+      "published": true,
+      "kind": "serie",
+      "title": "Les Choisis",
+      "category": "Série originale",
+      "posterUrl": "/images/les-choisis/hero-the-chosen.jpeg",
+      "imageAlt": "Trois hommes marchent ensemble, le bras l’un sur l’épaule de l’autre.",
+      "synopsis": "Trois compagnons de route avancent ensemble vers une destinée qui les dépasse.",
+      "themes": [
+        "foi",
+        "relations",
+        "temoignages"
+      ],
+      "titleLines": [
+        "LES",
+        "CHOISIS"
+      ],
+      "tagline": "Appelés parmi tant d’autres, choisis pour plus.",
+      "heroUrl": "/images/les-choisis/hero-the-chosen.jpeg"
+    },
+    "la-reine-guerriere": {
+      "isDemo": true,
+      "published": true,
+      "kind": "film",
+      "title": "La Reine guerrière",
+      "category": "Film original",
+      "posterUrl": "/images/la-reine-guerriere/hero-reine-guerriere.jpg",
+      "imageAlt": "Une reine guerrière au sommet d’un rocher, entourée de ses guerrières au lever du soleil.",
+      "synopsis": "À l’aube, une reine lève les siens pour défendre sa terre et sa lignée.",
+      "themes": [
+        "leadership",
+        "identite",
+        "societe"
+      ],
+      "titleLines": [
+        "LA REINE",
+        "GUERRIÈRE"
+      ],
+      "tagline": "Elle porte la force de tout un peuple.",
+      "heroUrl": "/images/la-reine-guerriere/hero-reine-guerriere.jpg"
+    },
+    "lintervention": {
+      "isDemo": true,
+      "published": true,
+      "kind": "serie",
+      "title": "L’Intervention",
+      "category": "Série originale",
+      "posterUrl": "/images/lintervention/hero-intervention.jpg",
+      "imageAlt": "Une jeune femme armée en position dans un entrepôt sombre, ses coéquipiers derrière elle.",
+      "synopsis": "Une unité d’intervention agit en milieu hostile, entre protocole et conscience.",
+      "themes": [
+        "societe",
+        "relations"
+      ],
+      "titleLines": [
+        "L’INTERVENTION"
+      ],
+      "tagline": "Sauver des vies sans en détruire.",
+      "heroUrl": "/images/lintervention/hero-intervention.jpg"
+    },
+    "ligne-rouge": {
+      "isDemo": true,
+      "published": true,
+      "kind": "film",
+      "title": "Ligne rouge",
+      "category": "Film original",
+      "posterUrl": "/images/ligne-rouge/hero-metro-tactique.jpg",
+      "imageAlt": "Une équipe tactique progresse sur un quai de métro plongé dans la pénombre.",
+      "synopsis": "Une équipe d’agents affronte une crise souterraine où chaque décision est définitive.",
+      "themes": [
+        "societe",
+        "reconstruction"
+      ],
+      "titleLines": [
+        "LIGNE",
+        "ROUGE"
+      ],
+      "tagline": "Personne ne reste neutre sur la ligne rouge.",
+      "heroUrl": "/images/ligne-rouge/hero-metro-tactique.jpg"
+    },
+    "plus-quun-reve": {
+      "isDemo": true,
+      "published": true,
+      "kind": "film",
+      "title": "Plus qu’un rêve",
+      "category": "Film original",
+      "posterUrl": "/images/plus-quun-reve/sugg-plus-quun-reve.jpg",
+      "imageAlt": "Un jeune homme regardant le ciel au coucher du soleil, une ville en arrière-plan.",
+      "themes": [
+        "identite",
+        "leadership",
+        "societe"
+      ],
+      "titleLines": [
+        "PLUS",
+        "QU’UN RÊVE"
+      ],
+      "durationLabel": "48 min",
+      "titleStyle": "condensed"
+    },
+    "briser-le-cycle": {
+      "isDemo": true,
+      "published": true,
+      "kind": "serie",
+      "title": "Briser le cycle",
+      "category": "Série originale",
+      "posterUrl": "/images/briser-le-cycle/sugg-briser-le-cycle.jpg",
+      "imageAlt": "Une jeune femme recueillie, les mains jointes, éclairée par une lumière chaude.",
+      "themes": [
+        "famille",
+        "pardon",
+        "reconstruction",
+        "temoignages"
+      ],
+      "titleLines": [
+        "BRISER",
+        "LE CYCLE"
+      ],
+      "durationLabel": "1 h 12",
+      "titleStyle": "bebas"
+    },
+    "se-relever-en-silence": {
+      "isDemo": true,
+      "published": true,
+      "kind": "documentaire",
+      "title": "Se relever en silence",
+      "category": "Documentaire",
+      "posterUrl": "/images/se-relever-en-silence/sugg-se-relever.jpg",
+      "imageAlt": "Un homme aux cheveux bouclés, la tête baissée dans une lumière chaude.",
+      "themes": [
+        "reconstruction",
+        "foi",
+        "temoignages"
+      ],
+      "titleLines": [
+        "SE RELEVER",
+        "EN SILENCE"
+      ],
+      "durationLabel": "46 min",
+      "titleStyle": "italic-serif"
+    },
+    "ombre-du-secret": {
+      "isDemo": true,
+      "published": true,
+      "kind": "serie",
+      "title": "L’Ombre du secret",
+      "category": "Série originale",
+      "posterUrl": "/images/ombre-du-secret/genre-suspense-1.jpg",
+      "imageAlt": "Une femme en pleine lumière dans un couloir sombre."
+    },
+    "le-dernier-temoin": {
+      "isDemo": true,
+      "published": true,
+      "kind": "film",
+      "title": "Le Dernier Témoin",
+      "category": "Film original",
+      "posterUrl": "/images/le-dernier-temoin/genre-suspense-2.jpg",
+      "imageAlt": "Une silhouette sous un lampadaire dans une rue nocturne."
+    },
+    "nuit-blanche": {
+      "isDemo": true,
+      "published": true,
+      "kind": "serie",
+      "title": "Nuit blanche",
+      "category": "Série originale",
+      "posterUrl": "/images/nuit-blanche/genre-suspense-3.jpg",
+      "imageAlt": "Une porte entrouverte laissant passer un faisceau de lumière."
+    },
+    "a-decouvert": {
+      "isDemo": true,
+      "published": true,
+      "kind": "film",
+      "title": "À découvert",
+      "category": "Film original",
+      "posterUrl": "/images/a-decouvert/genre-suspense-4.jpg",
+      "imageAlt": "Un visage tendu, éclairé par un écran dans le noir."
+    },
+    "nouvelle-terre": {
+      "isDemo": true,
+      "published": true,
+      "kind": "serie",
+      "title": "Nouvelle Terre",
+      "category": "Série originale",
+      "posterUrl": "/images/nouvelle-terre/genre-scifi-1.jpg",
+      "imageAlt": "Une silhouette sur un toit face à une ville futuriste."
+    },
+    "signal-perdu": {
+      "isDemo": true,
+      "published": true,
+      "kind": "film",
+      "title": "Signal perdu",
+      "category": "Film original",
+      "posterUrl": "/images/signal-perdu/genre-scifi-2.jpg",
+      "imageAlt": "Un casque d’astronaute reflétant les étoiles."
+    },
+    "leveil": {
+      "isDemo": true,
+      "published": true,
+      "kind": "serie",
+      "title": "L’Éveil",
+      "category": "Série originale",
+      "posterUrl": "/images/leveil/genre-scifi-3.jpg",
+      "imageAlt": "Une structure mystérieuse illuminée dans le désert."
+    },
+    "protocole-minuit": {
+      "isDemo": true,
+      "published": true,
+      "kind": "serie",
+      "title": "Protocole Minuit",
+      "category": "Série originale",
+      "posterUrl": "/images/protocole-minuit/genre-scifi-4.jpg",
+      "imageAlt": "Un couloir de serveurs baigné de lumière froide."
+    },
+    "hors-du-temps": {
+      "isDemo": true,
+      "published": true,
+      "kind": "film",
+      "title": "Hors du temps",
+      "category": "Film original",
+      "posterUrl": "/images/hors-du-temps/genre-scifi-5.jpg",
+      "imageAlt": "Un poste de pilotage spatial aux instruments ambrés."
+    },
+    "les-secrets-du-ministere": {
+      "isDemo": true,
+      "published": true,
+      "kind": "serie",
+      "title": "Les secrets du ministère",
+      "category": "PTH ORIGINALS",
+      "synopsis": "Chantal reçoit celles et ceux qui servent, loin des projecteurs comme sous la lumière. Des conversations sincères sur les parcours, les épreuves et les réalités du ministère.",
+      "posterUrl": "/images/les-secrets-du-ministere/pth-presentatrice-bordeaux.jpg",
+      "imageAlt": "La présentatrice en tenue bordeaux au micro sur le plateau PTH.",
+      "themes": [
+        "ministere",
+        "foi",
+        "leadership",
+        "temoignages"
+      ],
+      "presenter": "Chantal",
+      "badges": [
+        "Nouvelle saison",
+        "Exclusivité ORIGIN"
+      ],
+      "year": 2026,
+      "language": "Français",
+      "genres": [
+        "Podcast",
+        "Interview"
+      ],
+      "durationLabel": "50 min",
+      "heroUrl": "/images/les-secrets-du-ministere/pth-presentatrice-bordeaux.jpg",
+      "seasons": [
+        {
+          "number": 1,
+          "title": null,
+          "episodes": [
+            {
+              "key": "s1-e1",
+              "number": 1,
+              "title": "Le premier appel",
+              "synopsis": "Aux origines d’une vocation : le moment où tout a basculé.",
+              "durationLabel": "47 min",
+              "imageUrl": "/images/les-secrets-du-ministere/pth-episode-5.jpg",
+              "imageAlt": "Portrait illustratif d’un invité en costume au micro."
+            },
+            {
+              "key": "s1-e2",
+              "number": 2,
+              "title": "Servir dans l’ombre",
+              "synopsis": "Ceux qui portent le ministère sans jamais monter sur scène.",
+              "durationLabel": "44 min",
+              "imageUrl": "/images/les-secrets-du-ministere/pth-episode-6.jpg",
+              "imageAlt": "Portrait illustratif d’un invité en chemise noire au micro."
+            },
+            {
+              "key": "s1-e3",
+              "number": 3,
+              "title": "Tenir bon",
+              "synopsis": "Traverser le doute sans renoncer à l’essentiel.",
+              "durationLabel": "51 min",
+              "imageUrl": "/images/les-secrets-du-ministere/pth-episode-7.jpg",
+              "imageAlt": "Portrait illustratif d’un invité en veste claire au micro."
+            }
+          ]
+        },
+        {
+          "number": 2,
+          "title": null,
+          "episodes": [
+            {
+              "key": "s2-e8",
+              "number": 8,
+              "title": "Les coulisses du ministère",
+              "synopsis": "Une conversation autour des réalités et des défis du ministère.",
+              "durationLabel": "52 min",
+              "imageUrl": "/images/les-secrets-du-ministere/pth-presentatrice-bordeaux.jpg",
+              "imageAlt": "La présentatrice en tenue bordeaux au micro."
+            },
+            {
+              "key": "s2-e7",
+              "number": 7,
+              "title": "L’épreuve et l’appel",
+              "synopsis": "Quand l’épreuve devient le lieu même de l’appel.",
+              "durationLabel": "49 min",
+              "imageUrl": "/images/les-secrets-du-ministere/pth-episode-7.jpg",
+              "imageAlt": "Portrait illustratif d’un invité en veste claire au micro."
+            },
+            {
+              "key": "s2-e6",
+              "number": 6,
+              "title": "La fidélité",
+              "synopsis": "Rester constant quand plus personne ne regarde.",
+              "durationLabel": "46 min",
+              "imageUrl": "/images/les-secrets-du-ministere/pth-episode-6.jpg",
+              "imageAlt": "Portrait illustratif d’un invité en chemise noire au micro."
+            },
+            {
+              "key": "s2-e5",
+              "number": 5,
+              "title": "L’impact",
+              "synopsis": "Mesurer ce qu’une vie transformée laisse derrière elle.",
+              "durationLabel": "50 min",
+              "imageUrl": "/images/les-secrets-du-ministere/pth-episode-5.jpg",
+              "imageAlt": "Portrait illustratif d’un invité en costume au micro."
+            },
+            {
+              "key": "s2-e4",
+              "number": 4,
+              "title": "Le plateau",
+              "synopsis": "Derrière les micros : la préparation d’une rencontre.",
+              "durationLabel": "41 min",
+              "imageUrl": "/images/les-secrets-du-ministere/pth-chantal.jpg",
+              "imageAlt": "Le plateau d’enregistrement PTH."
+            }
+          ]
+        }
+      ]
+    },
+    "temoignage-mariage": {
+      "isDemo": true,
+      "published": true,
+      "kind": "documentaire",
+      "title": "Il a épousé une autre",
+      "titleLines": [
+        "IL A ÉPOUSÉ",
+        "UNE AUTRE"
+      ],
+      "category": "Témoignage",
+      "durationLabel": "32 min",
+      "posterUrl": "/images/temoignage-mariage/temoignage-mariage.jpg",
+      "imageAlt": "Une femme en larmes lors d’un mariage, le couple de mariés flou derrière elle.",
+      "titleStyle": "serif"
+    },
+    "temoignage-silence": {
+      "isDemo": true,
+      "published": true,
+      "kind": "documentaire",
+      "title": "Le poids du silence",
+      "titleLines": [
+        "LE POIDS",
+        "DU SILENCE"
+      ],
+      "category": "Témoignage",
+      "durationLabel": "28 min",
+      "posterUrl": "/images/temoignage-silence/temoignage-silence.jpg",
+      "imageAlt": "Un homme la main sur la bouche, un visage sombre qui se dessine derrière lui.",
+      "titleStyle": "italic-serif"
+    },
+    "deux-fois-oui": {
+      "isDemo": true,
+      "published": true,
+      "kind": "serie",
+      "title": "Deux fois oui",
+      "titleLines": [
+        "DEUX",
+        "FOIS OUI"
+      ],
+      "category": "Série documentaire",
+      "durationLabel": "52 min",
+      "posterUrl": "/images/deux-fois-oui/deux-fois-oui.jpg",
+      "imageAlt": "Une femme et un homme face au soleil couchant sur la côte.",
+      "titleStyle": "condensed"
+    },
+    "temoignage-lumiere-rouge": {
+      "isDemo": true,
+      "published": true,
+      "kind": "documentaire",
+      "title": "Debout au milieu des siens",
+      "titleLines": [
+        "DEBOUT AU",
+        "MILIEU DES SIENS"
+      ],
+      "category": "Documentaire",
+      "durationLabel": "41 min",
+      "posterUrl": "/images/temoignage-lumiere-rouge/temoignage-lumiere-rouge.jpg",
+      "imageAlt": "Un homme en chemise blanche, seul et lumineux au milieu d’une foule baignée de rouge.",
+      "titleStyle": "bebas"
+    },
+    "temoignage-reconstruction": {
+      "isDemo": true,
+      "published": true,
+      "kind": "documentaire",
+      "title": "Repartir de zéro",
+      "titleLines": [
+        "REPARTIR",
+        "DE ZÉRO"
+      ],
+      "category": "Témoignage",
+      "durationLabel": "35 min",
+      "posterUrl": "/images/temoignage-reconstruction/temoignage-reconstruction.jpg",
+      "imageAlt": "Un visage meurtri éclairé par des néons, une flamme ranimée au premier plan.",
+      "titleStyle": "bebas"
+    },
+    "yvan-castanou-enseignement": {
+      "isDemo": true,
+      "published": true,
+      "kind": "film",
+      "title": "Le courage de croire",
+      "titleLines": [
+        "Le courage",
+        "de croire"
+      ],
+      "category": "Enseignement",
+      "durationLabel": "6 épisodes",
+      "posterUrl": "/images/yvan-castanou-enseignement/yvan-castanou.jpg",
+      "imageAlt": "L’apôtre Yvan Castanou souriant, micro en main, sur une scène baignée de lumière bleue.",
+      "titleStyle": "italic-serif"
+    },
+    "nathaniel-bassey-louange": {
+      "isDemo": true,
+      "published": true,
+      "kind": "film",
+      "title": "Le son de la louange",
+      "titleLines": [
+        "LE SON DE",
+        "LA LOUANGE"
+      ],
+      "category": "Louange & musique",
+      "durationLabel": "1 h 30",
+      "posterUrl": "/images/nathaniel-bassey-louange/nathaniel-bassey.jpg",
+      "imageAlt": "Nathaniel Bassey jouant de la trompette sur scène, éclairé par des projecteurs.",
+      "titleStyle": "serif"
+    },
+    "joshua-selman-conference": {
+      "isDemo": true,
+      "published": true,
+      "kind": "film",
+      "title": "Puissance & intimité",
+      "titleLines": [
+        "PUISSANCE",
+        "& INTIMITÉ"
+      ],
+      "category": "Conférence",
+      "durationLabel": "8 épisodes",
+      "posterUrl": "/images/joshua-selman-conference/joshua-selman.jpg",
+      "imageAlt": "L’apôtre Joshua Selman prêchant sous un chapiteau baigné de lumière ambre.",
+      "titleStyle": "bebas"
+    },
+    "le-jour-ou-tout-a-change": {
+      "isDemo": true,
+      "published": true,
+      "kind": "serie",
+      "title": "Le jour où tout a changé",
+      "titleLines": [
+        "LE JOUR OÙ",
+        "TOUT A CHANGÉ"
+      ],
+      "category": "Série documentaire",
+      "durationLabel": "1 h 05",
+      "posterUrl": "/images/le-jour-ou-tout-a-change/sugg-le-jour.jpg",
+      "imageAlt": "Une jeune femme regardant le ciel au coucher du soleil au-dessus d’une ville.",
+      "titleStyle": "serif"
+    }
+  },
+  "creators": {
+    "yvan-castanou": {
+      "name": "Apôtre Yvan Castanou",
+      "showTitle": null,
+      "intro": "Présentation éditoriale à venir — contenu provisoire.",
+      "themes": [
+        "Prédication",
+        "Foi"
+      ],
+      "ambience": "ember",
+      "imageUrl": "/images/creators-yvan-castanou/yvan-castanou.jpeg",
+      "imageAlt": "Apôtre Yvan Castanou souriant sur scène, micro en main.",
+      "imageFocus": "50% 30%",
+      "isProvisional": true,
+      "published": true,
+      "position": 0
+    },
+    "benny-hinn": {
+      "name": "Benny Hinn",
+      "showTitle": null,
+      "intro": "Présentation éditoriale à venir — contenu provisoire.",
+      "themes": [
+        "Enseignement",
+        "Foi"
+      ],
+      "ambience": "night",
+      "imageUrl": "/images/creators-benny-hinn/benny-hinn.jpeg",
+      "imageAlt": "Portrait de Benny Hinn en costume sombre.",
+      "imageFocus": "50% 25%",
+      "isProvisional": true,
+      "published": true,
+      "position": 1
+    },
+    "chris-oyakhilome": {
+      "name": "Pasteur Chris Oyakhilome",
+      "showTitle": null,
+      "intro": "Présentation éditoriale à venir — contenu provisoire.",
+      "themes": [
+        "Prédication",
+        "Guérison"
+      ],
+      "ambience": "graphite",
+      "imageUrl": "/images/creators-chris-oyakhilome/pastor-chris.jpeg",
+      "imageAlt": "Pasteur Chris Oyakhilome en costume blanc au micro.",
+      "imageFocus": "50% 25%",
+      "isProvisional": true,
+      "published": true,
+      "position": 2
+    },
+    "joshua-selman": {
+      "name": "Apôtre Joshua Selman",
+      "showTitle": null,
+      "intro": "Présentation éditoriale à venir — contenu provisoire.",
+      "themes": [
+        "Enseignement",
+        "Prédication"
+      ],
+      "ambience": "amber",
+      "imageUrl": "/images/creators-joshua-selman/joshua-selman.jpeg",
+      "imageAlt": "Apôtre Joshua Selman prêchant sous une lumière chaude.",
+      "imageFocus": "50% 30%",
+      "isProvisional": true,
+      "published": true,
+      "position": 3
+    },
+    "nathaniel-bassey": {
+      "name": "Pasteur Nathaniel Bassey",
+      "showTitle": null,
+      "intro": "Présentation éditoriale à venir — contenu provisoire.",
+      "themes": [
+        "Louange",
+        "Musique"
+      ],
+      "ambience": "bordeaux",
+      "imageUrl": "/images/creators-nathaniel-bassey/nathaniel-bassey.jpeg",
+      "imageAlt": "Pasteur Nathaniel Bassey assis près de sa trompette.",
+      "imageFocus": "50% 30%",
+      "isProvisional": true,
+      "published": true,
+      "position": 4
+    }
+  },
+  "collections": {
+    "hero": {
+      "title": "À l’affiche",
+      "layout": "hero",
+      "homePosition": 0,
+      "published": true,
+      "items": [
+        "le-silence",
+        "les-passagers",
+        "derniere-sortie",
+        "teaser-origin",
+        "un-nouveau-matin",
+        "le-trone",
+        "les-choisis",
+        "la-reine-guerriere",
+        "lintervention",
+        "ligne-rouge"
+      ]
+    },
+    "top-10": {
+      "title": "Top 10 — Les histoires qui font parler",
+      "layout": "ranked",
+      "homePosition": 1,
+      "published": true,
+      "items": [
+        "gladiator",
+        "damnes",
+        "acteurs",
+        "au-dela",
+        "le-silence",
+        "les-passagers",
+        "derniere-sortie",
+        "teaser-origin",
+        "un-nouveau-matin",
+        "le-trone",
+        "les-choisis",
+        "la-reine-guerriere",
+        "lintervention",
+        "ligne-rouge"
+      ]
+    },
+    "suggestions": {
+      "title": "Ce qui pourrait vous plaire",
+      "layout": "portrait",
+      "homePosition": 2,
+      "published": true,
+      "items": [
+        "deux-fois-oui",
+        "yvan-castanou-enseignement",
+        "briser-le-cycle",
+        "nathaniel-bassey-louange",
+        "se-relever-en-silence",
+        "joshua-selman-conference",
+        "plus-quun-reve",
+        "le-jour-ou-tout-a-change"
+      ]
+    },
+    "universes": {
+      "title": "Ils ont osé raconter leur histoire",
+      "layout": "universes",
+      "homePosition": 3,
+      "published": true,
+      "items": [
+        "temoignage-mariage",
+        "temoignage-silence",
+        "deux-fois-oui",
+        "temoignage-lumiere-rouge",
+        "temoignage-reconstruction"
+      ]
+    },
+    "pth-originals": {
+      "title": "PTH Originals",
+      "layout": "rail",
+      "homePosition": 4,
+      "published": true,
+      "items": [
+        "les-secrets-du-ministere"
+      ]
+    },
+    "nouveautes": {
+      "title": "Nouveautés sur ORIGIN",
+      "layout": "rail",
+      "badge": "NOUVEAU",
+      "homePosition": 5,
+      "published": true,
+      "items": [
+        "les-secrets-du-ministere",
+        "un-nouveau-matin",
+        "le-trone",
+        "les-choisis",
+        "la-reine-guerriere",
+        "lintervention",
+        "ligne-rouge"
+      ]
+    },
+    "suspense": {
+      "title": "Suspense",
+      "layout": "rail",
+      "badge": null,
+      "homePosition": 6,
+      "published": true,
+      "items": [
+        "ombre-du-secret",
+        "le-dernier-temoin",
+        "nuit-blanche",
+        "a-decouvert",
+        "lintervention",
+        "briser-le-cycle"
+      ]
+    },
+    "drama": {
+      "title": "Drama",
+      "layout": "rail",
+      "badge": null,
+      "homePosition": 7,
+      "published": true,
+      "items": [
+        "un-nouveau-matin",
+        "le-trone",
+        "les-choisis",
+        "la-reine-guerriere",
+        "briser-le-cycle",
+        "se-relever-en-silence"
+      ]
+    },
+    "couple": {
+      "title": "Couple",
+      "layout": "portrait",
+      "badge": null,
+      "homePosition": 8,
+      "published": true,
+      "items": [
+        "un-nouveau-matin",
+        "les-choisis",
+        "briser-le-cycle",
+        "se-relever-en-silence",
+        "ligne-rouge"
+      ]
+    },
+    "science-fiction": {
+      "title": "Science-Fiction",
+      "layout": "rail",
+      "badge": null,
+      "homePosition": 9,
+      "published": true,
+      "items": [
+        "nouvelle-terre",
+        "signal-perdu",
+        "leveil",
+        "protocole-minuit",
+        "hors-du-temps"
+      ]
+    }
+  }
+}

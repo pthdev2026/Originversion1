@@ -110,12 +110,12 @@ describe('catalogue en base', () => {
     assert.equal((await listPlayablePrograms(sql))[0]?.slug, 'film-test');
   });
 
-  it('met à jour sans doublon lors d’une nouvelle ingestion', async t => {
+  it('met à jour le média sans doublon ni écrasement de la fiche éditoriale', async t => {
     if (!available) return t.skip('PostgreSQL injoignable');
     await registerAsset(sql, asset({ title: 'Film test v2', durationSeconds: 20 }));
     const programs = await listPlayablePrograms(sql);
     assert.equal(programs.length, 1);
-    assert.equal(programs[0]?.title, 'Film test v2');
+    assert.equal(programs[0]?.title, 'Film test', 'le titre éditorial est conservé');
     assert.equal((await findPlayableAsset(sql, 'film-test'))?.durationSeconds, 20);
   });
 

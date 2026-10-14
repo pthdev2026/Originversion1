@@ -1,0 +1,191 @@
+/**
+ * Module « catalog » — écriture éditoriale (administrateur uniquement).
+ *
+ * Chaque fonction applique un document COMPLET dans une transaction : « voici l'état voulu de ce programme ».
+ * C'est plus simple et plus sûr que des modifications champ par champ (pas d'état à moitié appliqué).
+ */
+import type { Executor, Sql } from '../../platform/database/client.ts';
+import { errors } from '../../platform/errors.ts';
+
+/** `text[]` depuis un tableau JS, sans dépendre du typage des paramètres du pilote. */
+const textArray = (sql: Executor, values: string[]) =>
+  sql`ARRAY(SELECT jsonb_array_elements_text(${JSON.stringify(values)}::text::jsonb))`;
+
+export interface ProgramInput {
+  kind: 'film' | 'serie' | 'documentaire';
+  title: string;
+  titleLines: string[];
+  tagline: string | null;
+  synopsis: string | null;
+  category: string | null;
+  durationLabel: string | null;
+  year: number | null;
+  language: string | null;
+  rating: string | null;
+  presenter: string | null;
+  genres: string[];
+  badges: string[];
+  posterUrl: string | null;
+  heroUrl: string | null;
+  logoUrl: string | null;
+  heroVideoUrl: string | null;
+  trailerUrl: string | null;
+  imageAlt: string | null;
+  imageFocus: string | null;
+  titleStyle: 'condensed' | 'serif' | 'bebas' | 'italic-serif' | null;
+  isDemo: boolean;
+  published: boolean;
+  themes: string[];
+  seasons: {
+    number: number;
+    title: string | null;
+    episodes: { key: string; number: number; title: string; synopsis: string | null; durationLabel: string | null; imageUrl: string | null; imageAlt: string | null }[];
+  }[];
+}
+
+/** Crée ou remplace un programme, ses saisons/épisodes et ses thèmes. Les médias (media_assets) ne sont jamais touchés. */
+export async function upsertProgram(sql: Sql, slug: string, input: ProgramInput): Promise<'created' | 'updated'> {
+  return sql.begin(async tx => {
+    const [existing] = await tx`SELECT 1 FROM programs WHERE slug = ${slug}`;
+    await tx`
+      INSERT INTO programs (slug, kind, title, title_lines, tagline, synopsis, category, duration_label, year, language, rating,
+                            presenter, genres, badges, poster_url, hero_url, logo_url, hero_video_url, trailer_url, image_alt,
+                            image_focus, title_style, is_demo, published)
+      VALUES (${slug}, ${input.kind}, ${input.title}, ${textArray(tx, input.titleLines)}, ${input.tagline}, ${input.synopsis},
+              ${input.category}, ${input.durationLabel}, ${input.year}, ${input.language}, ${input.rating}, ${input.presenter},
+              ${textArray(tx, input.genres)}, ${textArray(tx, input.badges)}, ${input.posterUrl}, ${input.heroUrl}, ${input.logoUrl},
+              ${input.heroVideoUrl}, ${input.trailerUrl}, ${input.imageAlt}, ${input.imageFocus}, ${input.titleStyle},
+              ${input.isDemo}, ${input.published})
+      ON CONFLICT (slug) DO UPDATE SET
+        kind = EXCLUDED.kind, title = EXCLUDED.title, title_lines = EXCLUDED.title_lines, tagline = EXCLUDED.tagline,
+        synopsis = EXCLUDED.synopsis, category = EXCLUDED.category, duration_label = EXCLUDED.duration_label, year = EXCLUDED.year,
+        language = EXCLUDED.language, rating = EXCLUDED.rating, presenter = EXCLUDED.presenter, genres = EXCLUDED.genres,
+        badges = EXCLUDED.badges, poster_url = EXCLUDED.poster_url, hero_url = EXCLUDED.hero_url, logo_url = EXCLUDED.logo_url,
+        hero_video_url = EXCLUDED.hero_video_url, trailer_url = EXCLUDED.trailer_url, image_alt = EXCLUDED.image_alt,
+        image_focus = EXCLUDED.image_focus, title_style = EXCLUDED.title_style, is_demo = EXCLUDED.is_demo,
+        published = EXCLUDED.published, updated_at = now()`;
+
+    // Saisons et épisodes : remplacés d'un bloc (les médias, eux, sont rattachés par identifiant de lecture).
+    await tx`DELETE FROM seasons WHERE program_slug = ${slug}`;
+    for (const season of input.seasons) {
+      await tx`INSERT INTO seasons (program_slug, number, title) VALUES (${slug}, ${season.number}, ${season.title})`;
+      for (const e of season.episodes) {
+        await tx`
+          INSERT INTO episodes (program_slug, season_number, number, key, title, synopsis, duration_label, image_url, image_alt)
+          VALUES (${slug}, ${season.number}, ${e.number}, ${e.key}, ${e.title}, ${e.synopsis}, ${e.durationLabel}, ${e.imageUrl}, ${e.imageAlt})`;
+      }
+    }
+
+    // Thèmes : ils doivent exister (sinon on le dit clairement plutôt que de planter sur une clé étrangère).
+    await tx`DELETE FROM program_themes WHERE program_slug = ${slug}`;
+    if (input.themes.length > 0) {
+      const known = await tx<{ slug: string }[]>`SELECT slug FROM themes WHERE slug IN ${tx(input.themes)}`;
+      const missing = input.themes.filter(theme => !known.some(row => row.slug === theme));
+      if (missing.length > 0) throw errors.badRequest(`Thèmes inconnus : ${missing.join(', ')}.`);
+      for (const theme of input.themes) {
+        await tx`INSERT INTO program_themes (program_slug, theme_slug) VALUES (${slug}, ${theme})`;
+      }
+    }
+    return existing ? 'updated' : 'created';
+  });
+}
+
+export async function deleteProgram(sql: Sql, slug: string): Promise<boolean> {
+  // Les médias liés disparaissent aussi (ON DELETE CASCADE) : c'est voulu, un programme supprimé n'est plus lisible.
+  const rows = await sql`DELETE FROM programs WHERE slug = ${slug} AND kind <> 'brand' RETURNING slug`;
+  return rows.length > 0;
+}
+
+export interface ThemeInput { title: string; imageUrl: string | null; position: number }
+
+export async function upsertTheme(sql: Sql, slug: string, input: ThemeInput): Promise<void> {
+  await sql`
+    INSERT INTO themes (slug, title, image_url, position) VALUES (${slug}, ${input.title}, ${input.imageUrl}, ${input.position})
+    ON CONFLICT (slug) DO UPDATE SET title = EXCLUDED.title, image_url = EXCLUDED.image_url, position = EXCLUDED.position`;
+}
+
+export async function deleteTheme(sql: Sql, slug: string): Promise<boolean> {
+  return (await sql`DELETE FROM themes WHERE slug = ${slug} RETURNING slug`).length > 0;
+}
+
+export interface CreatorInput {
+  name: string;
+  showTitle: string | null;
+  intro: string | null;
+  themes: string[];
+  ambience: 'ember' | 'bordeaux' | 'graphite' | 'amber' | 'night' | null;
+  imageUrl: string | null;
+  imageAlt: string | null;
+  imageFocus: string | null;
+  isProvisional: boolean;
+  published: boolean;
+  position: number;
+}
+
+export async function upsertCreator(sql: Sql, slug: string, input: CreatorInput): Promise<void> {
+  await sql`
+    INSERT INTO creators (slug, name, show_title, intro, themes, ambience, image_url, image_alt, image_focus, is_provisional, published, position)
+    VALUES (${slug}, ${input.name}, ${input.showTitle}, ${input.intro}, ${textArray(sql, input.themes)}, ${input.ambience},
+            ${input.imageUrl}, ${input.imageAlt}, ${input.imageFocus}, ${input.isProvisional}, ${input.published}, ${input.position})
+    ON CONFLICT (slug) DO UPDATE SET
+      name = EXCLUDED.name, show_title = EXCLUDED.show_title, intro = EXCLUDED.intro, themes = EXCLUDED.themes,
+      ambience = EXCLUDED.ambience, image_url = EXCLUDED.image_url, image_alt = EXCLUDED.image_alt,
+      image_focus = EXCLUDED.image_focus, is_provisional = EXCLUDED.is_provisional, published = EXCLUDED.published,
+      position = EXCLUDED.position`;
+}
+
+export async function deleteCreator(sql: Sql, slug: string): Promise<boolean> {
+  return (await sql`DELETE FROM creators WHERE slug = ${slug} RETURNING slug`).length > 0;
+}
+
+export interface CollectionInput {
+  title: string;
+  layout: 'hero' | 'ranked' | 'rail' | 'portrait' | 'panels' | 'universes';
+  badge: string | null;
+  viewAllUrl: string | null;
+  homePosition: number | null;
+  published: boolean;
+  /** Slugs des programmes, dans l'ordre d'affichage. */
+  items: string[];
+}
+
+export async function upsertCollection(sql: Sql, slug: string, input: CollectionInput): Promise<void> {
+  await sql.begin(async tx => {
+    await tx`
+      INSERT INTO collections (slug, title, layout, badge, view_all_url, home_position, published)
+      VALUES (${slug}, ${input.title}, ${input.layout}, ${input.badge}, ${input.viewAllUrl}, ${input.homePosition}, ${input.published})
+      ON CONFLICT (slug) DO UPDATE SET
+        title = EXCLUDED.title, layout = EXCLUDED.layout, badge = EXCLUDED.badge, view_all_url = EXCLUDED.view_all_url,
+        home_position = EXCLUDED.home_position, published = EXCLUDED.published, updated_at = now()`;
+    await tx`DELETE FROM collection_items WHERE collection_slug = ${slug}`;
+    if (input.items.length > 0) {
+      const known = await tx<{ slug: string }[]>`SELECT slug FROM programs WHERE slug IN ${tx(input.items)}`;
+      const missing = input.items.filter(item => !known.some(row => row.slug === item));
+      if (missing.length > 0) throw errors.badRequest(`Programmes inconnus : ${missing.join(', ')}.`);
+      for (const [position, program] of input.items.entries()) {
+        await tx`INSERT INTO collection_items (collection_slug, program_slug, position) VALUES (${slug}, ${program}, ${position})`;
+      }
+    }
+  });
+}
+
+export async function deleteCollection(sql: Sql, slug: string): Promise<boolean> {
+  return (await sql`DELETE FROM collections WHERE slug = ${slug} RETURNING slug`).length > 0;
+}
+
+/** Vue complète pour l'administration : brouillons inclus. */
+export async function listAllForAdmin(sql: Sql): Promise<{
+  programs: { slug: string; kind: string; title: string; published: boolean; isDemo: boolean }[];
+  collections: { slug: string; title: string; layout: string; published: boolean; homePosition: number | null; itemCount: number }[];
+}> {
+  const programs = await sql<{ slug: string; kind: string; title: string; published: boolean; is_demo: boolean }[]>`
+    SELECT slug, kind, title, published, is_demo FROM programs WHERE kind <> 'brand' ORDER BY title`;
+  const collections = await sql<{ slug: string; title: string; layout: string; published: boolean; home_position: number | null; count: string }[]>`
+    SELECT c.slug, c.title, c.layout, c.published, c.home_position,
+           (SELECT count(*) FROM collection_items i WHERE i.collection_slug = c.slug)::text AS count
+    FROM collections c ORDER BY c.home_position NULLS LAST, c.title`;
+  return {
+    programs: programs.map(r => ({ slug: r.slug, kind: r.kind, title: r.title, published: r.published, isDemo: r.is_demo })),
+    collections: collections.map(r => ({ slug: r.slug, title: r.title, layout: r.layout, published: r.published, homePosition: r.home_position, itemCount: Number(r.count) })),
+  };
+}

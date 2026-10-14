@@ -33,6 +33,7 @@ import type { StorageLayout } from './platform/storage/layout.ts';
 import { catalogRoutes } from './modules/catalog/routes.ts';
 import { healthRoutes } from './modules/health/routes.ts';
 import { mediaRoutes } from './modules/media/routes.ts';
+import { imageRoutes } from './modules/catalog/images.ts';
 import { playbackRoutes } from './modules/playback/routes.ts';
 
 export interface AppDependencies {
@@ -85,6 +86,7 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
   app.use('/uploads/*', requireTrustedOrigin(deps.corsOrigins));
   app.use('/uploads/*', loadSession({ identity: deps.identity, cookieSecure: deps.cookieSecure }));
   app.use('/uploads/*', rateLimit({ windowMs: minute, max: 600, keyOf: c => `uploads:${byIp(c)}` }));
+  app.use('/images/*', rateLimit({ windowMs: minute, max: deps.rateLimits.mediaPerMinute, keyOf: c => `images:${byIp(c)}` }));
   app.use('/media/*', rateLimit({ windowMs: minute, max: deps.rateLimits.mediaPerMinute, keyOf: c => `media:${byIp(c)}` }));
 
   // Modules fonctionnels. Prévu plus tard : recommendation (voir modules/recommendation/README.md).
@@ -124,6 +126,7 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
     minFreeBytes: deps.ops?.minFreeBytes ?? 0,
     ...(deps.ops?.freeBytes ? { freeBytes: deps.ops.freeBytes } : {}),
   }));
+  app.route('/', imageRoutes({ storage: deps.storage }));
   app.route('/', mediaRoutes({ sql: deps.sql, storage: deps.storage, mediaSecrets: deps.mediaSecrets }));
 
   registerErrorHandlers(app, deps.logger);

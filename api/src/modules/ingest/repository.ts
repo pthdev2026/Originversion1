@@ -28,7 +28,8 @@ export async function registerAsset(sql: Sql, input: IngestInput): Promise<void>
     await tx`
       INSERT INTO programs (slug, kind, title, is_demo)
       VALUES (${input.programSlug}, ${input.kind}, ${input.title}, ${input.isDemo})
-      ON CONFLICT (slug) DO UPDATE SET kind = EXCLUDED.kind, title = EXCLUDED.title, is_demo = EXCLUDED.is_demo, updated_at = now()`;
+      -- Un programme déjà présent garde sa fiche éditoriale (type, titre) : l'encodage n'écrase jamais le catalogue.
+      ON CONFLICT (slug) DO UPDATE SET updated_at = now()`;
     await tx`
       INSERT INTO media_assets
         (playback_id, program_slug, status, storage_path, duration_seconds, source_width, source_height, renditions, preset, encode_seconds, encoded_at)
