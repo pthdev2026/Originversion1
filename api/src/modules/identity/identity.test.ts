@@ -20,12 +20,15 @@ let sql: Sql;
 let available = true;
 const sentMails: { to: string; text: string }[] = [];
 
-function makeApp(options: { registrationMode?: 'open' | 'invite'; playbackRequiresLogin?: boolean } = {}): Hono<AppEnv> {
+function makeApp(options: { registrationMode?: 'open' | 'invite'; playbackRequiresLogin?: boolean; failingMailer?: boolean } = {}): Hono<AppEnv> {
   const logger = pino({ level: 'silent' });
   const identity = createIdentityService({
     sql,
     logger,
-    mailer: { async send(message) { sentMails.push({ to: message.to, text: message.text }); } },
+    mailer: { async send(message) {
+      if (options.failingMailer) throw new Error('fournisseur indisponible');
+      sentMails.push({ to: message.to, text: message.text });
+    } },
     config: { registrationMode: options.registrationMode ?? 'open', sessionTtlSeconds: 3600, publicAppUrl: 'http://localhost:3210' },
   });
   return createApp({
@@ -135,6 +138,18 @@ describe('comptes', () => {
     assert.equal(blocked.status, 429);
     const events = await sql<{ event: string }[]>`SELECT event FROM audit_log WHERE event = 'account_locked'`;
     assert.ok(events.length >= 1, 'le verrouillage est inscrit au journal d’audit');
+  });
+
+  it('une panne d’envoi d’e-mail ne change pas la réponse (pas de fuite sur l’existence du compte)', async t => {
+    if (!available) return t.skip('PostgreSQL injoignable');
+    const app = makeApp({ failingMailer: true });
+    await app.request('/api/auth/register', json({ email: 'panne@mail.fr', password: 'Premier mot de passe 1' }));
+    const known = await app.request('/api/auth/password/forgot', json({ email: 'panne@mail.fr' }));
+    const unknown = await app.request('/api/auth/password/forgot', json({ email: 'inconnu-panne@mail.fr' }));
+    assert.equal(known.status, 202);
+    assert.equal(unknown.status, 202);
+    assert.deepEqual(await known.json(), await unknown.json());
+    await new Promise(resolve => setTimeout(resolve, 20)); // laisse l'envoi échouer sans rejet non géré
   });
 
   it('réinitialise le mot de passe (lien à usage unique) et coupe les sessions', async t => {

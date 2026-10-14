@@ -43,3 +43,40 @@ export async function registerAsset(sql: Sql, input: IngestInput): Promise<void>
         encoded_at = EXCLUDED.encoded_at, updated_at = now()`;
   });
 }
+
+// ---- Lecture d'un média prêt ---------------------------------------------------------------------------------------
+// Le module « ingest » possède la table media_assets : c'est donc lui qui répond à « ce média est-il lisible ? ».
+// Les modules playback, media et progress l'utilisent (dépendance à sens unique, sans cycle).
+
+export interface PlayableAsset {
+  playbackId: string;
+  programSlug: string;
+  durationSeconds: number;
+  /** Dossier du média à l'intérieur de videos/hls/ (voir platform/storage/layout.ts). */
+  storagePath: string;
+  renditions: { name: string; height: number; videoKbps: number }[];
+}
+
+interface AssetRow {
+  playback_id: string;
+  program_slug: string;
+  duration_seconds: string;
+  storage_path: string;
+  renditions: PlayableAsset['renditions'];
+}
+
+/** Retourne le média lisible d'un identifiant de lecture, ou null s'il n'est pas prêt. */
+export async function findPlayableAsset(sql: Sql, playbackId: string): Promise<PlayableAsset | null> {
+  const [row] = await sql<AssetRow[]>`
+    SELECT playback_id, program_slug, duration_seconds::text, storage_path, renditions
+    FROM media_assets
+    WHERE playback_id = ${playbackId} AND status = 'ready'`;
+  if (!row) return null;
+  return {
+    playbackId: row.playback_id,
+    programSlug: row.program_slug,
+    durationSeconds: Number(row.duration_seconds),
+    storagePath: row.storage_path,
+    renditions: row.renditions,
+  };
+}

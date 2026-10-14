@@ -33,6 +33,7 @@ import type { StorageLayout } from './platform/storage/layout.ts';
 import { catalogRoutes } from './modules/catalog/routes.ts';
 import { healthRoutes } from './modules/health/routes.ts';
 import { mediaRoutes } from './modules/media/routes.ts';
+import { recommendationRoutes } from './modules/recommendation/routes.ts';
 import { imageRoutes } from './modules/catalog/images.ts';
 import { playbackRoutes } from './modules/playback/routes.ts';
 
@@ -89,7 +90,7 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
   app.use('/images/*', rateLimit({ windowMs: minute, max: deps.rateLimits.mediaPerMinute, keyOf: c => `images:${byIp(c)}` }));
   app.use('/media/*', rateLimit({ windowMs: minute, max: deps.rateLimits.mediaPerMinute, keyOf: c => `media:${byIp(c)}` }));
 
-  // Modules fonctionnels. Prévu plus tard : recommendation (voir modules/recommendation/README.md).
+  // Modules fonctionnels. Recommandations : voir modules/recommendation/README.md.
   app.route('/', healthRoutes({ sql: deps.sql }));
   app.route('/', catalogRoutes({ sql: deps.sql }));
   app.route('/', playbackRoutes({
@@ -105,6 +106,7 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
     authPerMinute: deps.rateLimits.authPerMinute,
     clientKey: byIp,
   }));
+  app.route('/', recommendationRoutes({ sql: deps.sql }));
   app.route('/', progressRoutes({ sql: deps.sql }));
   app.route('/', myListRoutes({ sql: deps.sql }));
   app.route('/', analyticsRoutes({ sql: deps.sql }));

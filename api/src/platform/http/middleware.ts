@@ -56,10 +56,14 @@ export function accessLog(logger: Logger): MiddlewareHandler {
   };
 }
 
-/** Les réponses de l'API contiennent des URLs signées : elles ne doivent être mises en cache par personne. */
+/**
+ * Les réponses de l'API contiennent des URLs signées ou des données de compte : elles ne doivent être mises en cache
+ * par personne. Exception volontaire : une route qui a explicitement posé son propre `Cache-Control`
+ * (le catalogue public, identique pour tous) le garde.
+ */
 export const noStore: MiddlewareHandler = async (c, next) => {
   await next();
-  c.header('Cache-Control', 'no-store');
+  if (!c.res.headers.has('Cache-Control')) c.header('Cache-Control', 'no-store');
 };
 
 /**

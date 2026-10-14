@@ -2,17 +2,11 @@
  * Module « identity » — accès aux données (SEUL fichier du module qui écrit du SQL).
  */
 import type { Executor, Sql } from '../../platform/database/client.ts';
+import type { AuthenticatedUser, Role } from '../../platform/http/types.ts';
 
-export type Role = 'viewer' | 'admin';
-
-export interface User {
-  id: string;
-  email: string;
-  displayName: string | null;
-  role: Role;
-  status: 'active' | 'disabled';
-  createdAt: Date;
-}
+export type { Role };
+/** Défini dans le socle (platform/http/types.ts) pour que le socle ne dépende pas de ce module. */
+export type User = AuthenticatedUser;
 
 export interface UserWithSecrets extends User {
   passwordHash: string;

@@ -13,7 +13,7 @@ import { Hono } from 'hono';
 import type { Sql } from '../../platform/database/client.ts';
 import { errors } from '../../platform/errors.ts';
 import { isValidId, type StorageLayout } from '../../platform/storage/layout.ts';
-import { findPlayableAsset } from '../playback/repository.ts';
+import { findPlayableAsset } from '../ingest/repository.ts';
 import { verifyMediaToken } from './token.ts';
 
 const CONTENT_TYPES: Record<string, string> = {

@@ -94,3 +94,14 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Front et API sur le même domaine enregistrable (cookie de session SameSite=Lax)
 - 🟡 Images non construites localement (pas de Docker sur le Mac) : validées par la CI et le premier déploiement
 - 🟡 Choix du fournisseur VPS, du domaine, copie hors site, envoi d'e-mails : à ta décision
+
+## Catalogue, recherche, recommandations, e-mails (15/10/2026)
+- ✅ Catalogue éditorial en base : programmes enrichis, saisons/épisodes (fiche propre par épisode), collections ordonnées avec `layout`, thématiques, créateurs, visuels servis par l'API (`/images/…`)
+- ✅ Tout est brouillon par défaut ; l'administration est une API de documents complets validés (zod) ; import/export JSON
+- ✅ `playable` vient des médias prêts ; l'encodage n'écrase jamais la fiche éditoriale
+- ✅ Recherche sans extension PostgreSQL (`search_text` + trigger, accents/casse ignorés, tous les mots requis)
+- ✅ Recommandations par règles explicables (palier 2) : similaires, tendances réelles, « pour vous » seulement si historique ; chaque élément porte sa raison ; jamais de faux « pour vous »
+- ✅ Cache public 30 s du catalogue ; `no-store` conservé partout ailleurs
+- ✅ E-mails : fournisseur Resend par HTTP (sans dépendance) ; réponses de « mot de passe oublié » uniformes même en cas de panne ; corps des e-mails non journalisés en production
+- ✅ Garde-fous d'architecture en test (pas de cycle, socle indépendant, SQL localisé)
+- 🟡 Compte Resend, domaine d'envoi vérifié (SPF/DKIM) et page front `/reinitialiser` à fournir

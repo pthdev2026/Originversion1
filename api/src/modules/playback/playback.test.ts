@@ -13,7 +13,7 @@ import { StorageLayout } from '../../platform/storage/layout.ts';
 import { registerAsset, type IngestInput } from '../ingest/repository.ts';
 import { createIdentityService } from '../identity/service.ts';
 import type { AppDependencies } from '../../app.ts';
-import { findPlayableAsset } from './repository.ts';
+import { findPlayableAsset } from '../ingest/repository.ts';
 import { listPlayablePrograms } from '../catalog/repository.ts';
 
 // Chaque exécution travaille dans un schéma PostgreSQL jetable : la base de développement n'est pas touchée.

@@ -1,8 +1,8 @@
-# ORIGIN — Contrat d'API (v0.6, 14/10/2026)
+# ORIGIN — Contrat d'API (v0.7, 15/10/2026)
 
 Propriétaire : l'agent back-end. Toute modification est annoncée ici avant d'être déployée.
 Limites : 120 requêtes par minute et par adresse IP sur `/api/*` ; en-têtes `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
-Les réponses de `/api/*` ne doivent pas être mises en cache (`Cache-Control: no-store`).
+Les réponses de `/api/*` ne doivent pas être mises en cache (`Cache-Control: no-store`), **sauf** le catalogue public (voir plus bas : `public, max-age=30`).
 Base : variable `VITE_API_URL` côté front (défaut local : `http://127.0.0.1:4000`). Réponses en JSON UTF-8.
 
 ## Convention d'identifiant de lecture (`playbackId`)
@@ -195,9 +195,110 @@ Métadonnées : `playbackId` suit la convention d'identifiant de lecture ; `kind
 `status` ∈ `queued | running | succeeded | failed | canceled`. `progress` : 0 à 100. Interroger toutes les 5 à 10 s.
 Le contenu devient lisible (`GET /api/programs/:id/playback` ≠ 404) **uniquement** quand `status` vaut `succeeded`.
 
+## Catalogue éditorial (disponible — v0.7)
+
+Remplace les fichiers `src/lib/origin-*.ts`, `productions.ts`, `pth-originals.ts` du front. Lecture publique, sans compte,
+`Cache-Control: public, max-age=30` (une modification éditoriale est visible en 30 s au plus). Les brouillons
+(`published: false`) et les contenus de marque n'apparaissent jamais.
+
+Visuels : `images.*`, `heroVideoUrl`, `image` valent soit `https://…`, soit un chemin **à préfixer par l'adresse de l'API**
+(`/images/<slug>/<fichier>`). Le front ne construit jamais d'adresse : il utilise la valeur reçue. `null` = pas de visuel.
+
+### Fiche résumée d'un programme (`ProgramCard`)
+```json
+{
+  "slug": "derniere-sortie", "kind": "film", "title": "Dernière sortie", "titleLines": ["DERNIÈRE", "SORTIE"],
+  "tagline": "La nuit ne pardonne pas…", "synopsis": "…", "category": "Film original", "durationLabel": "48 min",
+  "badges": ["Nouveau"], "themes": ["foi", "famille"],
+  "images": { "poster": "/images/derniere-sortie/poster.jpg", "hero": "…", "logo": null, "alt": "…", "focus": "50% 30%" },
+  "heroVideoUrl": "/images/derniere-sortie/teaser.mp4", "titleStyle": "condensed", "isDemo": true,
+  "playable": false
+}
+```
+- **`playable`** est la seule vérité sur la lecture : le bouton « Regarder » n'apparaît que s'il vaut `true`. `isDemo: true` = contenu de démonstration.
+- `titleStyle` ∈ `condensed | serif | bebas | italic-serif | null` (personnalité typographique des cartes de suggestion).
+- `durationLabel` est un libellé éditorial (« 52 min », « 6 épisodes »), pas la durée réelle du média.
+
+### Routes
+| Route | Réponse |
+|---|---|
+| `GET /api/home` | `{collections: Collection[], themes: Theme[], creators: Creator[]}` — **toute la page d'accueil en un appel**, collections dans l'ordre d'affichage |
+| `GET /api/programs/:slug` | Fiche complète (voir ci-dessous) · `404` si inconnu ou brouillon |
+| `GET /api/collections/:slug` | `Collection` · `404` |
+| `GET /api/themes` | `{themes: [{slug, title, image, programCount}]}` |
+| `GET /api/themes/:slug` | `{programs: ProgramCard[]}` · `404` |
+| `GET /api/creators` | `{creators: [{slug, name, showTitle, intro, themes, ambience, image, imageAlt, imageFocus, isProvisional}]}` |
+| `GET /api/search?q=…&limit=20` | `{query, programs: ProgramCard[], creators: Creator[]}` — 2 à 80 caractères ; sans accents ni casse ; plusieurs mots = tous requis ; titres d'abord |
+
+`Collection` : `{slug, title, layout, badge, viewAllUrl, items: (ProgramCard & {rank})[]}`.
+`layout` ∈ `hero | ranked | rail | portrait | panels | universes` — dit **comment** l'afficher ; `rank` (1, 2, 3…) sert au Top 10.
+Slugs actuellement importés : `hero`, `top-10`, `suggestions`, `universes`, `pth-originals`, `nouveautes`, `suspense`, `drama`, `couple`, `science-fiction`.
+
+Fiche complète = `ProgramCard` + :
+```json
+{
+  "trailerUrl": null, "presenter": "Chantal",
+  "meta": { "year": 2026, "language": "Français", "rating": null, "genres": ["Podcast", "Interview"] },
+  "seasons": [ { "number": 1, "title": null, "episodes": [
+    { "id": "s1-e1", "number": 1, "title": "Le premier appel", "synopsis": "…", "durationLabel": "47 min",
+      "image": "/images/…", "imageAlt": "…", "playbackId": "les-secrets-du-ministere-s1-e1", "playable": true } ] } ]
+}
+```
+- Film / documentaire sans épisodes déclarés : une saison avec une seule entrée `id: "feature"`, `playbackId` = slug.
+- **Utiliser `playbackId` tel quel** pour `GET /api/programs/:playbackId/playback` (plus de reconstruction côté front).
+- Série sans épisode déclaré mais avec des médias prêts : ils sont exposés automatiquement (`Épisode N`).
+
+### Correspondance avec les fichiers du front
+| Fichier du front | Source API |
+|---|---|
+| `origin-programs.ts` (Hero) | `collections[slug=hero].items` |
+| `origin-top-ten.ts` | `collections[slug=top-10].items` (`rank`) |
+| `origin-suggestions.ts` | `collections[slug=suggestions].items` (`durationLabel`, `titleStyle`) |
+| `origin-testimonials.ts` | `collections[slug=universes].items` |
+| `origin-catalogs.ts` (rails, thématiques) | `collections[…]` et `themes` ; contenu d'une thématique : `GET /api/themes/:slug` |
+| `origin-creators.ts` | `creators` |
+| `productions.ts`, `pth-originals.ts` | `GET /api/programs/:slug` (saisons, épisodes, méta) |
+| `watch-catalog.ts` (`searchCatalog`, `similarTo`) | `GET /api/search`, `GET /api/programs/:slug/similar` |
+| `nav` / `navSections` | reste dans le front |
+
+## Recommandations (disponible — v0.7)
+
+Chaque élément porte **sa raison**, à afficher telle quelle (« Parce que vous avez regardé « X » »). Pas de boîte noire.
+`items: [{ program: ProgramCard, reason: string }]` · `limit` : 1 à 30 (défaut 10).
+
+| Route | Accès | Description |
+|---|---|---|
+| `GET /api/programs/:slug/similar` | public | « Dans le même esprit » : thématiques, genres, type, catégorie communs |
+| `GET /api/trending` | public | Ce qui est réellement regardé (14 jours) ; complété par la sélection éditoriale tant que les données manquent |
+| `GET /api/recommendations` | public / compte | Anonyme : tendances (`personalized: false`). Connecté avec historique : personnalisé (`personalized: true`), contenus déjà vus ou en liste exclus |
+
+Règle d'affichage : afficher « Pour vous » **seulement si `personalized` vaut `true`** ; sinon « Populaire en ce moment ».
+
+## Administration éditoriale (disponible — v0.7, administrateur uniquement)
+
+Tout est un document **complet** (remplace l'existant) validé strictement : un champ inconnu ou une adresse d'image invalide → `400`.
+Par défaut un élément est un **brouillon** (`published: false`) : rien n'est public tant que l'administrateur ne le décide pas.
+
+| Route | Corps | Réponses |
+|---|---|---|
+| `GET /api/admin/catalog` | — | `{programs, collections}` brouillons inclus |
+| `PUT /api/admin/programs/:slug` | programme + `themes[]` + `seasons[{number,title,episodes[{key,number,title,…}]}]` | `201 {slug,result:"created"}` · `200 {…"updated"}` · `400` |
+| `DELETE /api/admin/programs/:slug` | — | `204` · `404` |
+| `PUT /api/admin/themes/:slug` | `{title, imageUrl?, position?}` | `204` |
+| `PUT /api/admin/creators/:slug` | `{name, showTitle?, intro?, themes?, ambience?, imageUrl?, imageAlt?, imageFocus?, isProvisional?, published?, position?}` | `204` |
+| `PUT /api/admin/collections/:slug` | `{title, layout, badge?, viewAllUrl?, homePosition?, published?, items: [slug,…]}` (l'ordre = l'affichage) | `204` · `400` (programme inconnu) |
+| `DELETE …/themes|creators|collections/:slug` | — | `204` · `404` |
+
+`homePosition` : place sur l'accueil (`null` = hors accueil). L'identifiant de lecture d'un épisode est toujours `<slug>-<key>`.
+Import en masse : `npm run catalog:import -- fichier.json` ; export du catalogue de démo du front : `npm run catalog:export-front`.
+
+## Recherche, e-mails
+- La réinitialisation de mot de passe envoie un **vrai e-mail** quand `MAIL_PROVIDER=resend` (sinon : journal). Le lien pointe vers
+  `{PUBLIC_APP_URL}/reinitialiser?token=…` : **le front doit fournir cette page** (appelle `POST /api/auth/password/reset`).
+
 ## Prévu (pas encore disponible — ne pas le simuler)
 
 | Domaine | Routes prévues | État |
 |---|---|---|
-| Catalogue | `GET /api/catalog/*` (thèmes, collections, fiches) | Plus tard (hors périmètre actuel) |
-| Recommandation | `GET /api/me/recommendations` (avec la raison de chaque proposition) | Après catalogue et données |
+| Sous-titres | `GET` des pistes WebVTT dans la réponse de lecture | Après les premiers contenus réels |
+| Paiement / abonnement | — | Si le modèle devient payant |

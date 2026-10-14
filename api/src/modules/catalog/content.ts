@@ -274,3 +274,54 @@ export async function getHome(sql: Sql): Promise<{ collections: CollectionView[]
   const [collections, themes, creators] = await Promise.all([loadCollections(sql, rows), listThemes(sql), listCreators(sql)]);
   return { collections, themes, creators };
 }
+
+/** Texte de recherche → mots « pliés » (sans accents, minuscules), bornés. Même règle que `origin_fold` en base. */
+export function foldQuery(query: string): string[] {
+  return query
+    .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+    .toLowerCase().replace(/[œ]/g, 'o').replace(/[æ]/g, 'a')
+    .split(/[^a-z0-9]+/).filter(token => token.length > 0)
+    .slice(0, 5);
+}
+
+/**
+ * Recherche : chaque mot doit se retrouver (début de mot ou milieu) dans le titre, la catégorie, l'accroche,
+ * le présentateur, les genres ou une thématique. Les titres qui COMMENCENT par le mot passent en premier.
+ */
+export async function searchPrograms(sql: Sql, tokens: string[], limit: number): Promise<ProgramCard[]> {
+  if (tokens.length === 0) return [];
+  const clauses = tokens.map(token => {
+    const like = `%${token}%`;
+    return sql`(p.search_text LIKE ${like} OR EXISTS (
+      SELECT 1 FROM program_themes pt JOIN themes t ON t.slug = pt.theme_slug
+      WHERE pt.program_slug = p.slug AND origin_fold(t.title) LIKE ${like}))`;
+  });
+  const where = clauses.reduce((all, clause, index) => (index === 0 ? clause : sql`${all} AND ${clause}`));
+  const score = tokens
+    .map(token => sql`(CASE WHEN origin_fold(p.title) LIKE ${token + '%'} THEN 3 WHEN origin_fold(p.title) LIKE ${'%' + token + '%'} THEN 2 ELSE 1 END)`)
+    .reduce((all, part, index) => (index === 0 ? part : sql`${all} + ${part}`));
+  const rows = await sql<ProgramRow[]>`
+    SELECT ${PROGRAM_COLUMNS(sql)} FROM programs p
+    WHERE p.published AND p.kind <> 'brand' AND ${where}
+    ORDER BY ${score} DESC, p.title
+    LIMIT ${limit}`;
+  return rows.map(toCard);
+}
+
+export async function searchCreators(sql: Sql, tokens: string[], limit: number): Promise<CreatorView[]> {
+  if (tokens.length === 0) return [];
+  const all = await listCreators(sql);
+  return all.filter(creator => {
+    const haystack = foldQuery(`${creator.name} ${creator.showTitle ?? ''} ${creator.themes.join(' ')}`).join(' ');
+    return tokens.every(token => haystack.includes(token));
+  }).slice(0, limit);
+}
+
+/** Fiches résumées de plusieurs programmes publiés (slug → fiche) : sert aux recommandations. */
+export async function getCards(sql: Sql, slugs: string[]): Promise<Map<string, ProgramCard>> {
+  if (slugs.length === 0) return new Map();
+  const rows = await sql<ProgramRow[]>`
+    SELECT ${PROGRAM_COLUMNS(sql)} FROM programs p
+    WHERE p.slug IN ${sql(slugs)} AND p.published AND p.kind <> 'brand'`;
+  return new Map(rows.map(row => [row.slug, toCard(row)]));
+}

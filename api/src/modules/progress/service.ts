@@ -7,7 +7,7 @@
  *  - La position est bornée à la durée connue.
  */
 import type { Sql } from '../../platform/database/client.ts';
-import { findPlayableAsset } from '../playback/repository.ts';
+import { findPlayableAsset } from '../ingest/repository.ts';
 import { findProgress, upsertProgress, type Progress } from './repository.ts';
 
 const COMPLETE_RATIO = 0.95;

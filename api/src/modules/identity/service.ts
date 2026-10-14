@@ -145,11 +145,15 @@ export function createIdentityService(deps: { sql: Sql; config: IdentityConfig; 
         expiresAt: new Date(Date.now() + RESET_TTL_SECONDS * 1000),
       });
       await audit(user.id, 'password_reset_requested', ctx);
-      await mailer.send({
-        to: user.email,
-        subject: 'Réinitialisation de votre mot de passe ORIGIN',
-        text: `Pour choisir un nouveau mot de passe (lien valable 1 heure) : ${config.publicAppUrl}/reinitialiser?token=${token}\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez ce message.`,
-      });
+      // Envoi « sans attendre » et sans jamais échouer vers l'appelant : la réponse (et son délai) doit être la même
+      // que l'adresse existe ou non, et une panne du fournisseur d'e-mails ne doit pas révéler qu'un compte existe.
+      void mailer
+        .send({
+          to: user.email,
+          subject: 'Réinitialisation de votre mot de passe ORIGIN',
+          text: `Pour choisir un nouveau mot de passe (lien valable 1 heure) : ${config.publicAppUrl}/reinitialiser?token=${token}\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez ce message.`,
+        })
+        .catch(error => logger.error({ err: error, userId: user.id }, 'e-mail de réinitialisation non envoyé'));
     },
 
     async resetPassword(input: { token: string; newPassword: string }, ctx: RequestContext): Promise<void> {

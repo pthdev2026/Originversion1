@@ -8,7 +8,7 @@ import { ConfigError, loadConfig } from './config/env.ts';
 import { connect } from './platform/database/client.ts';
 import { migrate } from './platform/database/migrate.ts';
 import { createLogger } from './platform/logger.ts';
-import { createLogMailer } from './platform/mail.ts';
+import { createLogMailer, createResendMailer } from './platform/mail.ts';
 import { StorageLayout } from './platform/storage/layout.ts';
 import { createIdentityService } from './modules/identity/service.ts';
 import { createBunnySigner, createOriginSigner } from './modules/playback/delivery.ts';
@@ -39,10 +39,16 @@ try {
 
 // 3. Application et serveur.
 const storage = new StorageLayout(config.storageRoot);
+const mailer = config.mail.provider === 'resend' && config.mail.apiKey && config.mail.from
+  ? createResendMailer({ apiKey: config.mail.apiKey, from: config.mail.from })
+  : createLogMailer(logger, { includeBody: !config.isProduction });
+if (config.isProduction && config.mail.provider === 'log') {
+  logger.warn('MAIL_PROVIDER=log : aucun e-mail n’est envoyé (réinitialisation de mot de passe inutilisable).');
+}
 const identity = createIdentityService({
   sql,
   logger,
-  mailer: createLogMailer(logger),
+  mailer: mailer,
   config: {
     registrationMode: config.identity.registrationMode,
     sessionTtlSeconds: config.identity.sessionTtlSeconds,

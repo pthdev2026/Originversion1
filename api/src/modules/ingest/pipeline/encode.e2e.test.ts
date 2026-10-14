@@ -17,7 +17,7 @@ import { migrate } from '../../../platform/database/migrate.ts';
 import { StorageLayout } from '../../../platform/storage/layout.ts';
 import { BunnyMediaStore, LocalMediaStore } from '../../../platform/storage/media-store.ts';
 import { createBunnySigner } from '../../playback/delivery.ts';
-import { findPlayableAsset } from '../../playback/repository.ts';
+import { findPlayableAsset } from '../repository.ts';
 import { claimNextJob, enqueueJob, getJob } from '../jobs.repository.ts';
 import { processNextJob } from '../worker.ts';
 import { JobAbortedError } from './errors.ts';

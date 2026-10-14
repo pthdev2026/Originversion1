@@ -10,7 +10,7 @@ import { isValidId } from '../../platform/storage/layout.ts';
 import { findProgress, hasProgressInProgram, hasProgressInSeason } from '../progress/repository.ts';
 import type { DeliverySigner } from './delivery.ts';
 import { decideIdent, parsePlaybackId, type IdentPolicy, type IdentReason } from './ident-policy.ts';
-import { findPlayableAsset } from './repository.ts';
+import { findPlayableAsset } from '../ingest/repository.ts';
 
 export interface IdentSession {
   /** Faut-il jouer l'ident avant le programme ? Le front suit cette valeur sans la réinterpréter. */

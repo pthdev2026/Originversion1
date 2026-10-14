@@ -64,6 +64,11 @@ const schema = z.object({
   BUNNY_STORAGE_ZONE: z.string().min(1).optional(),
   BUNNY_STORAGE_KEY: z.string().min(8).optional(),
   BUNNY_STORAGE_HOST: z.string().min(1).default('storage.bunnycdn.com'),
+  /** E-mails : `log` (écrit dans les journaux) ou `resend` (envoi réel). */
+  MAIL_PROVIDER: z.enum(['log', 'resend']).default('log'),
+  MAIL_API_KEY: z.string().min(8).optional(),
+  /** Expéditeur, ex. « ORIGIN <no-reply@origin.example> ». */
+  MAIL_FROM: z.string().min(3).optional(),
   /** Exploitation : dossier des sauvegardes (idéalement un AUTRE disque), phrase secrète de chiffrement, seuil d'espace disque. */
   BACKUP_DIR: z.string().min(1).optional(),
   BACKUP_PASSPHRASE: z.string().min(16, 'BACKUP_PASSPHRASE doit faire au moins 16 caractères').optional(),
@@ -102,6 +107,7 @@ export interface AppConfig {
   rateLimits: { apiPerMinute: number; mediaPerMinute: number; authPerMinute: number; metricsPerMinute: number };
   media: { ffmpegPath: string; ffprobePath: string; encodePreset: string; uploadMaxBytes: number };
   ident: { policy: 'title' | 'season' | 'always' | 'off'; playbackId: string; skippableAfterSeconds: number };
+  mail: { provider: 'log' | 'resend'; apiKey: string | null; from: string | null };
   ops: {
     backupDir: string;
     backupPassphrase: string | null;
@@ -150,6 +156,8 @@ export function loadConfig(source: Record<string, string | undefined> = process.
   if (isProduction && !raw.CORS_ORIGINS) missing.push('CORS_ORIGINS est obligatoire en production');
   if (raw.DELIVERY_MODE === 'bunny' && !raw.BUNNY_CDN_URL) missing.push('BUNNY_CDN_URL est obligatoire quand DELIVERY_MODE=bunny');
   if (raw.DELIVERY_MODE === 'bunny' && !raw.BUNNY_TOKEN_KEY) missing.push('BUNNY_TOKEN_KEY est obligatoire quand DELIVERY_MODE=bunny');
+  if (raw.MAIL_PROVIDER === 'resend' && !raw.MAIL_API_KEY) missing.push('MAIL_API_KEY est obligatoire quand MAIL_PROVIDER=resend');
+  if (raw.MAIL_PROVIDER === 'resend' && !raw.MAIL_FROM) missing.push('MAIL_FROM est obligatoire quand MAIL_PROVIDER=resend');
   if (missing.length > 0) throw new ConfigError(missing);
 
   const corsOrigins = raw.CORS_ORIGINS?.split(',').map(origin => origin.trim()).filter(Boolean);
@@ -179,6 +187,7 @@ export function loadConfig(source: Record<string, string | undefined> = process.
       encodePreset: raw.ENCODE_PRESET,
       uploadMaxBytes: raw.UPLOAD_MAX_BYTES,
     },
+    mail: { provider: raw.MAIL_PROVIDER, apiKey: raw.MAIL_API_KEY ?? null, from: raw.MAIL_FROM ?? null },
     ident: { policy: raw.IDENT_POLICY, playbackId: raw.BRAND_IDENT_PLAYBACK_ID, skippableAfterSeconds: raw.IDENT_SKIPPABLE_AFTER_SECONDS },
     ops: {
       backupDir: path.resolve(raw.BACKUP_DIR ?? path.join(PROJECT_ROOT, 'backups')),

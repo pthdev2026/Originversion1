@@ -230,4 +230,33 @@ describe('catalogue éditorial', () => {
     assert.deepEqual(detail.seasons[0].episodes.map((e: any) => [e.number, e.playbackId, e.playable]),
       [[1, 'serie-media-s1-e1', true], [2, 'serie-media-s1-e2', true]]);
   });
+
+  it('recherche : sans accents ni casse, tous les mots, titres en premier', async t => {
+    if (!available) return t.skip('PostgreSQL indisponible');
+    const put = (slug: string, body: Record<string, unknown>) => send('PUT', `/api/admin/programs/${slug}`, { kind: 'film', published: true, ...body }, adminCookie);
+    await put('s-ete', { title: 'Un été d’espérance', category: 'Film original', genres: ['Drame'] });
+    await put('s-esperance', { title: 'Les chemins', tagline: 'Une espérance tenace', category: 'Documentaire' });
+    await put('s-brouillon', { title: 'Espérance cachée', published: false });
+    const search = async (q: string) => (await json(await send('GET', `/api/search?q=${encodeURIComponent(q)}`))).programs.map((p: any) => p.slug);
+    assert.deepEqual(await search('ESPERANCE'), ['s-ete', 's-esperance'], 'titre avant accroche, brouillon exclu');
+    assert.deepEqual(await search('espérance été'), ['s-ete'], 'tous les mots requis');
+    assert.deepEqual(await search('drame'), ['s-ete'], 'genre');
+    assert.deepEqual(await search('temoignages'), ['les-secrets'].filter(() => false), 'thème sans programme lié à ce mot');
+    assert.deepEqual(await search('foi'), ['les-secrets'], 'thématique');
+    assert.deepEqual(await search('100%_'), []);
+    assert.equal((await send('GET', '/api/search?q=a')).status, 400);
+    assert.equal((await send('GET', '/api/search')).status, 400);
+    await send('PUT', '/api/admin/creators/yvan', { name: 'Apôtre Yvan Castanou', published: true }, adminCookie);
+    const withCreator = await json(await send('GET', '/api/search?q=apotre%20yvan'));
+    assert.deepEqual(withCreator.creators.map((c: any) => c.slug), ['yvan']);
+  });
+
+  it('cache : catalogue public mis en cache 30 s, tout le reste jamais', async t => {
+    if (!available) return t.skip('PostgreSQL indisponible');
+    assert.match((await send('GET', '/api/home')).headers.get('cache-control') ?? '', /public, max-age=30/);
+    assert.match((await send('GET', '/api/programs/derniere-sortie')).headers.get('cache-control') ?? '', /public, max-age=30/);
+    assert.equal((await send('GET', '/api/programs/introuvable')).headers.get('cache-control'), 'no-store', 'les erreurs ne sont pas mises en cache');
+    assert.equal((await send('GET', '/api/me', undefined, adminCookie)).headers.get('cache-control'), 'no-store');
+    assert.equal((await send('GET', '/api/admin/catalog', undefined, adminCookie)).headers.get('cache-control'), 'no-store');
+  });
 });

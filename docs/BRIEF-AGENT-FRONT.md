@@ -150,3 +150,17 @@ Pour chaque mission : (1) reformule la demande, (2) signale risques et conséque
 | `docs/API-CONTRACT.md` | Back-end | Toute évolution y est annoncée avant déploiement |
 | `docs/API-REQUESTS.md` | Front écrit, back-end répond | Seul canal pour demander un changement d'API |
 | Intégration (fusion dans `main`) | Toi | Aucune fusion sans ta validation |
+
+
+════════════════════════════════════════
+ADDENDUM v0.7 (15/10/2026) — LE CATALOGUE EST MAINTENANT DANS L'API
+════════════════════════════════════════
+Lire docs/API-CONTRACT.md (v0.7), sections « Catalogue éditorial », « Recommandations », « Administration ». Ordre de branchement proposé,
+une branche `front/<sujet>` par étape, sans toucher au design validé :
+1. Client typé pour `GET /api/home`, `/api/programs/:slug`, `/api/search` ; **garder les fichiers `origin-*.ts` comme repli** tant que l'API est absente (isDemo reste vrai).
+2. Accueil : Hero, Top 10, Suggestions, Univers, rails et thématiques alimentés par `collections[].layout` + `themes` + `creators`.
+3. Fiche programme : `GET /api/programs/:slug` ; utiliser `episodes[].playbackId` et `playable` (plus de reconstruction d'identifiant).
+4. Recherche : `GET /api/search` ; « Dans le même esprit » : `GET /api/programs/:slug/similar`.
+5. Comptes, reprise, « Ma liste », ident, mesure : routes déjà livrées (B2/B3) mais non branchées ; page `/reinitialiser` à créer.
+6. « Pour vous » : `GET /api/recommendations` — afficher le titre « Pour vous » seulement si `personalized: true`, et la `reason` de chaque carte.
+Rappel : images = valeur reçue, préfixée par l'adresse de l'API si elle commence par `/images/`.
