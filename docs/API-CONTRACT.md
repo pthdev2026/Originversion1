@@ -1,4 +1,4 @@
-# ORIGIN — Contrat d'API (v1.0, 16/10/2026)
+# ORIGIN — Contrat d'API (v1.1, 16/10/2026)
 
 Propriétaire : l'agent back-end. Toute modification est annoncée ici avant d'être déployée.
 Limites : 120 requêtes par minute et par adresse IP sur `/api/*` ; en-têtes `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
@@ -309,6 +309,16 @@ La réponse de `GET /api/programs/:id/playback` contient désormais **`subtitles
   (1 Mo au plus, doit commencer par `WEBVTT`) → `204` · `400` fichier invalide · `404` média inconnu · `413` trop gros.
   Suppression : `DELETE /files/subtitles/:playbackId/:lang` → `204` · `404`.
 - `lang` : `fr`, `en`, `es`, `pt-BR`…
+
+## Vos données (RGPD) (disponible — v1.1)
+
+| Route | Réponse |
+|---|---|
+| `GET /api/me/export` | Fichier JSON téléchargeable (`Content-Disposition: attachment`) : compte, progression de lecture, « Ma liste », nombre de sessions actives, événements de sécurité. **Jamais** de secret (mot de passe, jeton, double authentification). `401` sans compte. |
+| `POST /api/me/delete` | Droit à l'effacement (déjà disponible) : supprime le compte et toutes ses données. |
+
+Le front doit proposer ces deux actions dans « Mon compte » (« Télécharger mes données », « Supprimer mon compte »).
+Conservation : mesures de lecture anonymes 180 jours, journal de sécurité 365 jours, sessions et jetons expirés supprimés automatiquement.
 
 ## Vérification d'adresse e-mail (disponible — v1.0)
 

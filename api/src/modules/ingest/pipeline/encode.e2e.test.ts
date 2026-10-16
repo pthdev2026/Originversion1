@@ -21,7 +21,7 @@ import { findPlayableAsset } from '../repository.ts';
 import { claimNextJob, enqueueJob, getJob } from '../jobs.repository.ts';
 import { processNextJob } from '../worker.ts';
 import { JobAbortedError } from './errors.ts';
-import { checkTools, type Tools } from './ffmpeg.ts';
+import { checkTools, DEFAULT_LOUDNESS, measureLoudness, type Tools } from './ffmpeg.ts';
 import { runEncodeJob } from './run-job.ts';
 import { validateRendition } from './qc.ts';
 
@@ -139,6 +139,46 @@ describe('pipeline d’encodage (ffmpeg réel)', () => {
     for (const rung of ['720p', '480p', '360p']) await validateRendition(path.join(hls, rung), 6);
     assert.ok((await stat(path.join(hls, 'poster.jpg'))).size > 0);
     assert.equal(existsSyncSafe(layout.workDir(queued?.id ?? '')), false, 'dossier de travail déplacé à la publication');
+  });
+
+  it('normalise le volume : une source très faible est ramenée à la cible, une piste muette n’échoue pas', async t => {
+    if (!ready) return t.skip('ffmpeg ou PostgreSQL indisponible');
+    const make = async (name: string, audio: string) => {
+      const file = path.join(layout.sourcesRoot, name, 'original.mp4');
+      await mkdir(path.dirname(file), { recursive: true });
+      const result = spawnSync(tools.ffmpeg, [
+        '-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc=duration=10:size=640x360:rate=24',
+        '-f', 'lavfi', '-i', audio, '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', file,
+      ]);
+      assert.equal(result.status, 0, String(result.stderr));
+      return `${name}/original.mp4`;
+    };
+    const run = async (playbackId: string, sourcePath: string) => {
+      await enqueueJob(sql, { id: randomUUID(), playbackId, programSlug: playbackId, kind: 'film', title: playbackId, isDemo: true, sourcePath, preset: 'ultrafast', uploadId: null, createdBy: null });
+      const worked = await processNextJob({
+        sql, logger, layout, store: new LocalMediaStore(layout), tools, workerId: 'test', signal: new AbortController().signal, leaseSeconds: 30,
+        loudness: DEFAULT_LOUDNESS,
+      });
+      assert.equal(worked, true);
+      return (await sql<{ status: string; last_error: string | null }[]>`SELECT status, last_error FROM media_jobs WHERE playback_id = ${playbackId}`)[0];
+    };
+
+    // Source très faible (~ -40 LUFS) : la sortie doit être proche de -16 LUFS.
+    const quiet = await make('e2e-faible', 'sine=frequency=440:duration=10,volume=0.01');
+    const before = await measureLoudness(tools, path.join(layout.sourcesRoot, quiet), DEFAULT_LOUDNESS);
+    assert.ok(before && before.inputI < -30, `source attendue très faible, mesurée ${before?.inputI}`);
+    const job = await run('e2e-faible', quiet);
+    assert.equal(job?.status, 'succeeded', job?.last_error ?? '');
+    const after = await measureLoudness(tools, path.join(layout.hlsDir('e2e-faible'), '360p', 'index.m3u8'), DEFAULT_LOUDNESS);
+    assert.ok(after && Math.abs(after.inputI - DEFAULT_LOUDNESS.lufs) <= 1.5, `volume de sortie ${after?.inputI} LUFS, cible ${DEFAULT_LOUDNESS.lufs}`);
+    assert.ok(after && after.inputTP <= DEFAULT_LOUDNESS.truePeak + 0.6, `crête ${after?.inputTP} dBTP`);
+
+    // Piste muette : la mesure vaut « -inf » → pas de correction, et surtout pas d'échec de la tâche.
+    const silent = await make('e2e-muet', 'anullsrc=r=48000:cl=stereo');
+    const silentJob = await run('e2e-muet', silent);
+    assert.equal(silentJob?.status, 'succeeded', silentJob?.last_error ?? '');
+    const state = (await sql<{ state: { loudness?: unknown } }[]>`SELECT state FROM media_jobs WHERE playback_id = 'e2e-muet'`)[0]?.state;
+    assert.ok(!state || state.loudness === null || state.loudness === undefined);
   });
 
   it('reprend après une interruption sans refaire les qualités terminées', async t => {

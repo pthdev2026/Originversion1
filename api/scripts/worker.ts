@@ -1,6 +1,7 @@
 // Travailleur d'encodage. Usage : npm run worker   (laisser tourner ; Ctrl+C l'arrête proprement)
 import { loadConfig } from '../src/config/env.ts';
 import { startWorker } from '../src/modules/ingest/worker.ts';
+import { DEFAULT_LOUDNESS } from '../src/modules/ingest/pipeline/ffmpeg.ts';
 import { checkTools } from '../src/modules/ingest/pipeline/ffmpeg.ts';
 import { connect } from '../src/platform/database/client.ts';
 import { createLogger } from '../src/platform/logger.ts';
@@ -38,7 +39,9 @@ if (config.delivery.mode === 'bunny') {
 } else {
   store = new LocalMediaStore(layout);
 }
-const worker = startWorker({ sql, logger, layout, store, tools });
+const loudness = config.media.loudnessLufs === null ? null : { ...DEFAULT_LOUDNESS, lufs: config.media.loudnessLufs };
+logger.info({ loudness }, loudness ? `normalisation du volume activée (${loudness.lufs} LUFS)` : 'normalisation du volume désactivée');
+const worker = startWorker({ sql, logger, layout, store, tools, loudness });
 
 async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, 'arrêt demandé : la tâche en cours est remise en file');

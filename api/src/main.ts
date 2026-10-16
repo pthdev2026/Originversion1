@@ -10,6 +10,7 @@ import { migrate } from './platform/database/migrate.ts';
 import { createLogger } from './platform/logger.ts';
 import { createLogMailer, createResendMailer } from './platform/mail.ts';
 import { StorageLayout } from './platform/storage/layout.ts';
+import { purgeExpired } from './modules/ops/maintenance.repository.ts';
 import { createIdentityService } from './modules/identity/service.ts';
 import { createBunnySigner, createOriginSigner } from './modules/playback/delivery.ts';
 
@@ -103,10 +104,13 @@ server.on('error', (error: NodeJS.ErrnoException) => {
   throw error;
 });
 
-// Entretien : retire les sessions expirées une fois par heure.
-const purgeTimer = setInterval(() => {
-  identity.purgeSessions().then(count => count > 0 && logger.info({ count }, 'sessions expirées supprimées'), error => logger.error({ err: error }, 'purge des sessions impossible'));
-}, 60 * 60 * 1000);
+// Entretien horaire : sessions expirées, jetons périmés, mesures et journal au-delà de leur durée de conservation.
+const maintain = () => purgeExpired(sql, config.retention).then(
+  report => Object.values(report).some(count => count > 0) && logger.info(report, 'entretien : données périmées supprimées'),
+  error => logger.error({ err: error }, 'entretien impossible'),
+);
+setTimeout(() => void maintain(), 30_000).unref(); // un premier passage peu après le démarrage
+const purgeTimer = setInterval(() => void maintain(), 60 * 60 * 1000);
 purgeTimer.unref();
 
 // 4. Arrêt propre : on finit les requêtes en cours, puis on ferme la base.

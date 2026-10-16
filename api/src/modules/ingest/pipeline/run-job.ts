@@ -18,7 +18,7 @@ import type { Sql } from '../../../platform/database/client.ts';
 import { registerAsset } from '../repository.ts';
 import type { MediaJob } from '../jobs.repository.ts';
 import { JobAbortedError } from './errors.ts';
-import { encodeRung, extractPoster, probe, probeCodecString, type Tools } from './ffmpeg.ts';
+import { encodeRung, extractPoster, loudnormFilter, measureLoudness, probe, probeCodecString, type LoudnessTarget, type Tools } from './ffmpeg.ts';
 import { buildMasterPlaylist, type RenditionEntry } from './playlist.ts';
 import { QcError, validateRendition } from './qc.ts';
 
@@ -41,6 +41,8 @@ export interface JobContext {
   /** Publie la progression et renouvelle le bail. Retourne false si la tâche ne nous appartient plus. */
   report: (progress: number, step: string, state?: MediaJob['state']) => Promise<boolean>;
   signal: AbortSignal;
+  /** Normalisation du volume (EBU R128). Absent : aucune correction. */
+  loudness?: LoudnessTarget | null;
 }
 
 export async function runEncodeJob(job: MediaJob, ctx: JobContext): Promise<void> {
@@ -63,6 +65,21 @@ export async function runEncodeJob(job: MediaJob, ctx: JobContext): Promise<void
   // 2. Dossier de travail (conservé entre les tentatives pour reprendre là où on s'est arrêté).
   const work = layout.workDir(job.id);
   await mkdir(work, { recursive: true });
+
+  // 2 bis. Volume : mesuré UNE fois (et conservé pour les reprises) ; toutes les qualités reçoivent la même correction.
+  let loudness = job.state.loudness;
+  if (ctx.loudness && info.hasAudio && loudness === undefined) {
+    await guard(2, 'mesure du volume');
+    try {
+      loudness = await measureLoudness(tools, source, ctx.loudness, signal);
+    } catch (error) {
+      if (error instanceof JobAbortedError) throw error;
+      log.warn({ err: error }, 'mesure du volume impossible : encodage sans normalisation');
+      loudness = null;
+    }
+    log.info({ loudness }, loudness ? 'volume mesuré' : 'volume non corrigé (piste muette ou illisible)');
+  }
+  const audioFilter = ctx.loudness && loudness ? loudnormFilter(ctx.loudness, loudness) : undefined;
 
   // 3. Encodage qualité par qualité, avec points de reprise.
   const completed = new Set<string>(job.state.completedRungs ?? []);
@@ -87,7 +104,7 @@ export async function runEncodeJob(job: MediaJob, ctx: JobContext): Promise<void
     let lastReported = 0;
     await encodeRung(tools, {
       source, outDir: dir, height: rung.height, videoKbps: rung.videoKbps, audioKbps: rung.audioKbps,
-      preset: job.preset, hasAudio: info.hasAudio, segmentSeconds: SEGMENT_SECONDS, durationSeconds: info.durationSeconds,
+      preset: job.preset, hasAudio: info.hasAudio, ...(audioFilter ? { audioFilter } : {}), segmentSeconds: SEGMENT_SECONDS, durationSeconds: info.durationSeconds,
       signal,
       onProgress: fraction => {
         const now = Date.now();
@@ -98,7 +115,7 @@ export async function runEncodeJob(job: MediaJob, ctx: JobContext): Promise<void
     });
     stats.set(rung.name, await validateRendition(dir, info.durationSeconds));
     completed.add(rung.name);
-    await guard(base + span, `qualité ${rung.name} terminée`, { completedRungs: [...completed] });
+    await guard(base + span, `qualité ${rung.name} terminée`, { completedRungs: [...completed], ...(loudness !== undefined ? { loudness } : {}) });
     log.info({ rung: rung.name }, 'qualité terminée');
   }
 

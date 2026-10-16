@@ -13,7 +13,7 @@ import type { MediaStore } from '../../platform/storage/media-store.ts';
 import type { StorageLayout } from '../../platform/storage/layout.ts';
 import { claimNextJob, heartbeat, markFailed, markSucceeded, release, stillOwns, type MediaJob } from './jobs.repository.ts';
 import { JobAbortedError, PermanentJobError } from './pipeline/errors.ts';
-import type { Tools } from './pipeline/ffmpeg.ts';
+import type { LoudnessTarget, Tools } from './pipeline/ffmpeg.ts';
 import { QcError } from './pipeline/qc.ts';
 import { runEncodeJob } from './pipeline/run-job.ts';
 
@@ -23,6 +23,8 @@ export interface WorkerOptions {
   layout: StorageLayout;
   store: MediaStore;
   tools: Tools;
+  /** Normalisation du volume (voir pipeline/ffmpeg.ts). Absent : aucune. */
+  loudness?: LoudnessTarget | null;
   /** Durée du bail en secondes : si le travailleur ne donne pas signe de vie, la tâche est reprise. */
   leaseSeconds?: number;
   /** Délai entre deux interrogations de la file quand elle est vide, en millisecondes. */
@@ -71,7 +73,7 @@ export async function processNextJob(options: WorkerOptions & { workerId: string
   }, Math.max(5, lease / 3) * 1000);
 
   try {
-    await runEncodeJob(job, { sql, logger, layout: options.layout, store: options.store, tools: options.tools, report, signal: controller.signal });
+    await runEncodeJob(job, { sql, logger, layout: options.layout, store: options.store, tools: options.tools, loudness: options.loudness ?? null, report, signal: controller.signal });
     await markSucceeded(sql, job.id, workerId);
     log.info('tâche terminée');
   } catch (error) {

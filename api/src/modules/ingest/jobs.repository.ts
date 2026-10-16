@@ -5,6 +5,7 @@
  * et la renouvelle régulièrement. S'il disparaît (panne, redémarrage), le bail expire et la tâche est
  * reprise par un autre. `FOR UPDATE SKIP LOCKED` garantit que deux travailleurs ne prennent jamais la même.
  */
+import type { LoudnessMeasure } from './pipeline/ffmpeg.ts';
 import type { Executor, Sql } from '../../platform/database/client.ts';
 
 export type JobStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'canceled';
@@ -23,7 +24,8 @@ export interface MediaJob {
   progress: number;
   attempts: number;
   maxAttempts: number;
-  state: { completedRungs?: string[] };
+  /** `loudness` : mesure du volume de la source (conservée entre les tentatives) ; null = mesurée mais non corrigée (muet). */
+  state: { completedRungs?: string[]; loudness?: LoudnessMeasure | null };
   lastError: string | null;
   createdAt: Date;
   startedAt: Date | null;

@@ -52,9 +52,14 @@ const schema = z.object({
   RATE_LIMIT_AUTH_PER_MIN: z.coerce.number().int().min(1).max(10_000).default(10),
   /** Rapports de mesure de lecture par minute et par adresse IP (un lecteur en envoie ~4 par minute). */
   RATE_LIMIT_METRICS_PER_MIN: z.coerce.number().int().min(1).max(100_000).default(120),
+  /** Conservation des données : mesures de lecture (jours) et journal d'audit (jours). */
+  RETENTION_TELEMETRY_DAYS: z.coerce.number().int().min(7).max(3650).default(180),
+  RETENTION_AUDIT_DAYS: z.coerce.number().int().min(30).max(3650).default(365),
   /** Chemin des outils d'encodage (par défaut : `ffmpeg` et `ffprobe` du PATH). */
   FFMPEG_PATH: z.string().min(1).default('ffmpeg'),
   FFPROBE_PATH: z.string().min(1).default('ffprobe'),
+  /** Normalisation du volume à l'encodage (EBU R128) : volume cible en LUFS, ou `off`. */
+  LOUDNESS_TARGET_LUFS: z.string().regex(/^(off|-(?:[1-3]?\d)(?:\.\d)?)$/, 'LOUDNESS_TARGET_LUFS : « off » ou un nombre négatif (ex. -16)').default('-16'),
   /** Préréglage x264 : `slow` (meilleure qualité par Mo) … `ultrafast` (tests). */
   ENCODE_PRESET: z.enum(['ultrafast', 'veryfast', 'fast', 'medium', 'slow', 'slower']).default('medium'),
   /** Taille maximale d'un envoi, en octets (défaut : 60 Go). */
@@ -109,8 +114,9 @@ export interface AppConfig {
   corsOrigins: string[] | undefined;
   trustProxy: boolean;
   rateLimits: { apiPerMinute: number; mediaPerMinute: number; authPerMinute: number; metricsPerMinute: number };
-  media: { ffmpegPath: string; ffprobePath: string; encodePreset: string; uploadMaxBytes: number };
+  media: { loudnessLufs: number | null; ffmpegPath: string; ffprobePath: string; encodePreset: string; uploadMaxBytes: number };
   ident: { policy: 'title' | 'season' | 'always' | 'off'; playbackId: string; skippableAfterSeconds: number };
+  retention: { telemetryDays: number; auditDays: number };
   mail: { provider: 'log' | 'resend'; apiKey: string | null; from: string | null };
   ops: {
     backupDir: string;
@@ -190,11 +196,13 @@ export function loadConfig(source: Record<string, string | undefined> = process.
       metricsPerMinute: raw.RATE_LIMIT_METRICS_PER_MIN,
     },
     media: {
+      loudnessLufs: raw.LOUDNESS_TARGET_LUFS === 'off' ? null : Number(raw.LOUDNESS_TARGET_LUFS),
       ffmpegPath: raw.FFMPEG_PATH,
       ffprobePath: raw.FFPROBE_PATH,
       encodePreset: raw.ENCODE_PRESET,
       uploadMaxBytes: raw.UPLOAD_MAX_BYTES,
     },
+    retention: { telemetryDays: raw.RETENTION_TELEMETRY_DAYS, auditDays: raw.RETENTION_AUDIT_DAYS },
     mail: { provider: raw.MAIL_PROVIDER, apiKey: raw.MAIL_API_KEY ?? null, from: raw.MAIL_FROM ?? null },
     ident: { policy: raw.IDENT_POLICY, playbackId: raw.BRAND_IDENT_PLAYBACK_ID, skippableAfterSeconds: raw.IDENT_SKIPPABLE_AFTER_SECONDS },
     ops: {

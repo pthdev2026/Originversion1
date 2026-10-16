@@ -82,6 +82,67 @@ export async function probeCodecString(tools: Tools, playlist: string): Promise<
   return `avc1.${profileHex}00${levelHex}`;
 }
 
+// ---- Normalisation du volume (EBU R128) ------------------------------------------------------------------------------
+// Pourquoi : sans elle, un film mixé fort et une interview mixée bas obligent le spectateur à toucher au volume, et
+// l'ident ORIGIN pourrait « crier » avant un programme discret. On amène tous les contenus à un même volume perçu
+// (LUFS) en DEUX passes : mesure de la source, puis correction linéaire (pas de « pompage » de la dynamique).
+
+export interface LoudnessMeasure {
+  inputI: number;
+  inputTP: number;
+  inputLRA: number;
+  inputThresh: number;
+  targetOffset: number;
+}
+
+export interface LoudnessTarget {
+  /** Volume cible en LUFS (streaming web : -16 ; plus fort que le cinéma, adapté aux téléphones). */
+  lufs: number;
+  /** Crête maximale autorisée, en dBTP (évite la saturation après compression AAC). */
+  truePeak: number;
+}
+
+export const DEFAULT_LOUDNESS: LoudnessTarget = { lufs: -16, truePeak: -1.5 };
+
+const finite = (value: unknown): number | null => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+};
+
+/** Mesure le volume de la piste audio d'une source. Retourne null si la piste est muette ou illisible. */
+export async function measureLoudness(tools: Tools, source: string, target: LoudnessTarget, signal?: AbortSignal): Promise<LoudnessMeasure | null> {
+  const { stderr } = await run(tools.ffmpeg, [
+    '-hide_banner', '-nostats', '-i', source, '-map', '0:a:0',
+    '-af', `loudnorm=I=${target.lufs}:TP=${target.truePeak}:LRA=11:print_format=json`, '-f', 'null', '-',
+  ], signal);
+  const start = stderr.lastIndexOf('{');
+  const end = stderr.lastIndexOf('}');
+  if (start < 0 || end < start) return null;
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(stderr.slice(start, end + 1)) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+  const inputI = finite(parsed['input_i']);
+  const inputTP = finite(parsed['input_tp']);
+  const inputLRA = finite(parsed['input_lra']);
+  const inputThresh = finite(parsed['input_thresh']);
+  const targetOffset = finite(parsed['target_offset']);
+  // Silence complet : la mesure vaut « -inf », on ne corrige pas (corriger du silence n'a pas de sens).
+  if (inputI === null || inputTP === null || inputLRA === null || inputThresh === null || targetOffset === null || inputI < -70) return null;
+  return { inputI, inputTP, inputLRA, inputThresh, targetOffset };
+}
+
+/** Filtre audio de la deuxième passe : correction linéaire avec les valeurs mesurées. */
+export function loudnormFilter(target: LoudnessTarget, measured: LoudnessMeasure): string {
+  return [
+    `loudnorm=I=${target.lufs}:TP=${target.truePeak}:LRA=11`,
+    `measured_I=${measured.inputI}:measured_TP=${measured.inputTP}:measured_LRA=${measured.inputLRA}`,
+    `measured_thresh=${measured.inputThresh}:offset=${measured.targetOffset}:linear=true`,
+  ].join(':') + ',aresample=48000'; // loudnorm travaille en 192 kHz : on revient à 48 kHz
+}
+
 export interface RungOptions {
   source: string;
   outDir: string;
@@ -90,6 +151,8 @@ export interface RungOptions {
   audioKbps: number;
   preset: string;
   hasAudio: boolean;
+  /** Filtre audio facultatif (normalisation du volume). */
+  audioFilter?: string;
   segmentSeconds: number;
   durationSeconds: number;
   onProgress: (fraction: number) => void;
@@ -111,7 +174,7 @@ export async function encodeRung(tools: Tools, options: RungOptions): Promise<vo
     '-c:v', 'libx264', '-preset', options.preset, '-profile:v', 'high',
     '-b:v', `${videoKbps}k`, '-maxrate', `${Math.round(videoKbps * 1.07)}k`, '-bufsize', `${Math.round(videoKbps * 1.5)}k`,
     '-force_key_frames', `expr:gte(t,n_forced*${segmentSeconds})`, '-sc_threshold', '0',
-    ...(options.hasAudio ? ['-c:a', 'aac', '-b:a', `${audioKbps}k`, '-ac', '2'] : []),
+    ...(options.hasAudio ? [...(options.audioFilter ? ['-af', options.audioFilter] : []), '-c:a', 'aac', '-b:a', `${audioKbps}k`, '-ac', '2'] : []),
     '-f', 'hls', '-hls_time', String(segmentSeconds), '-hls_playlist_type', 'vod', '-hls_segment_type', 'fmp4',
     '-hls_flags', 'independent_segments', '-hls_fmp4_init_filename', 'init.mp4',
     '-hls_segment_filename', `${options.outDir}/seg_%05d.m4s`, `${options.outDir}/index.m3u8`,

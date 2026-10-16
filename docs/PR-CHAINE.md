@@ -99,3 +99,29 @@ film lisible (lecture réelle avec l'identifiant de l'API, 1,4 s jusqu'à la pre
 - Un test (`playback-experience`) a échoué une fois sous charge CPU (build en parallèle) puis repassé seul.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+---
+
+## PR n°7 — `front/catalogue-recherche` : recherche et « dans le même esprit » (étape 4)
+
+**Base** : `front/catalogue-programme` · [ouvrir](https://github.com/pthdev2026/hero-stream-magic/compare/front/catalogue-programme...front/catalogue-recherche?expand=1)
+
+### Contenu
+- **Recherche** : `GET /api/search` dès 2 caractères (anti-rebond 200 ms, requête précédente annulée) ; champ vide :
+  `GET /api/trending`, titre « Populaire en ce moment » (ou « Pour vous » **seulement** si `personalized` vaut `true`).
+- **Repli** : API absente, lente (2,5 s) ou en erreur → recherche locale comme avant ; 1 seul caractère → locale (le contrat en exige 2).
+- **Fiche programme** : `GET /api/programs/:slug/similar`, titre « Dans le même esprit », **raison de chaque carte
+  affichée telle quelle** (recommandation explicable). Sans réponse : calcul local et mention « Sélection de démonstration ».
+- Vignette absente : emplacement neutre plutôt qu'une image cassée.
+
+### Vérifications
+`tsc` 0 erreur · 47 tests · build OK. Navigateur + API locale : champ vide → tendances (`/api/trending`), « sil » →
+*Le Silence*, *Le poids du silence*, *Se relever en silence* (`/api/search`), « zzzzqq » → message d'absence ;
+fiche *Deux fois oui* → 3 titres avec leur raison (« Même catégorie : Série documentaire »).
+
+### Limites
+- Les créateurs renvoyés par `/api/search` ne sont pas affichés (aucune page de destination pour l'instant).
+- Les tendances actuelles sont « Sélection ORIGIN » (donnée éditoriale tant que le visionnage réel manque) ; le titre
+  « Populaire en ce moment » est celui prescrit par le contrat.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)

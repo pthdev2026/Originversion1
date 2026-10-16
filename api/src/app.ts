@@ -34,6 +34,7 @@ import type { StorageLayout } from './platform/storage/layout.ts';
 import { catalogRoutes } from './modules/catalog/routes.ts';
 import { healthRoutes } from './modules/health/routes.ts';
 import { mediaRoutes } from './modules/media/routes.ts';
+import { privacyRoutes } from './modules/privacy/routes.ts';
 import { recommendationRoutes } from './modules/recommendation/routes.ts';
 import { subtitleRoutes } from './modules/subtitles/routes.ts';
 import { imageRoutes } from './modules/catalog/images.ts';
@@ -127,6 +128,7 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
     clientKey: byIp,
   }));
   app.route('/', recommendationRoutes({ sql: deps.sql }));
+  app.route('/', privacyRoutes({ sql: deps.sql }));
   app.route('/', progressRoutes({ sql: deps.sql }));
   app.route('/', myListRoutes({ sql: deps.sql }));
   app.route('/', analyticsRoutes({ sql: deps.sql }));

@@ -124,3 +124,10 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Double authentification TOTP (RFC 6238, sans dépendance, vecteurs officiels testés) : codes de secours à usage unique, rejeu impossible, secret chiffré AES-256-GCM avec une clé hors base (`AUTH_ENCRYPTION_KEY`)
 - ✅ `REQUIRE_ADMIN_2FA=true` impose la double authentification aux administrateurs (recommandé dès la mise en ligne)
 - 🟡 Perte du téléphone ET des codes de secours : réinitialisation par l'exploitant en base (procédure à documenter dans EXPLOITATION.md)
+
+## Données personnelles et volume sonore (16/10/2026)
+- ✅ Droit d'accès/portabilité : `GET /api/me/export` (JSON, sans secret, uniquement les données du compte) ; effacement déjà en place
+- ✅ Minimisation : entretien horaire automatique — sessions et jetons périmés, mesures de lecture > 180 j (`RETENTION_TELEMETRY_DAYS`), journal d'audit > 365 j (`RETENTION_AUDIT_DAYS`)
+- ✅ Normalisation du volume à l'encodage (EBU R128, deux passes, correction linéaire) vers -16 LUFS, crête -1,5 dBTP (`LOUDNESS_TARGET_LUFS`, `off` pour désactiver) : vérifiée avec un vrai ffmpeg (source à ≈ -40 LUFS ramenée à ±1,5 LU de la cible) ; piste muette = pas de correction, pas d'échec ; l'ident ORIGIN passe par le même pipeline, donc le même volume
+- 🟡 Les médias encodés AVANT cette date ne sont pas normalisés (à ré-encoder si besoin)
+- 🟡 Version courte de l'ident (3,5–4 s) : décision éditoriale, non technique
