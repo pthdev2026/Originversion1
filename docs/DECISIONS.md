@@ -131,3 +131,9 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Normalisation du volume à l'encodage (EBU R128, deux passes, correction linéaire) vers -16 LUFS, crête -1,5 dBTP (`LOUDNESS_TARGET_LUFS`, `off` pour désactiver) : vérifiée avec un vrai ffmpeg (source à ≈ -40 LUFS ramenée à ±1,5 LU de la cible) ; piste muette = pas de correction, pas d'échec ; l'ident ORIGIN passe par le même pipeline, donc le même volume
 - 🟡 Les médias encodés AVANT cette date ne sont pas normalisés (à ré-encoder si besoin)
 - 🟡 Version courte de l'ident (3,5–4 s) : décision éditoriale, non technique
+
+## Passage à l'échelle du catalogue (16/10/2026)
+- ✅ Test de charge « parcours du catalogue » (scénario `browse`, catalogue synthétique jusqu'à 5 000 programmes) : une erreur d'estimation corrigée (27,7 % d'échecs → 0 %)
+- ✅ Cache serveur du catalogue public (`CATALOG_CACHE_SECONDS`, défaut 30 s), borné, avec regroupement des chargements simultanés, vidé à chaque écriture éditoriale ; cache des caractéristiques de recommandation et des tendances
+- ✅ Calcul de proximité allégé (genres normalisés une seule fois)
+- 🟡 Au-delà de ~20 000 titres : pré-calculer les recommandations

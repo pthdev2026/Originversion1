@@ -54,6 +54,8 @@ export interface AppDependencies {
   cookieSecure: boolean;
   sessionTtlSeconds: number;
   playbackRequiresLogin: boolean;
+  /** Durée du cache serveur des lectures publiques du catalogue (ms). 0 = aucun (défaut, pour les tests). */
+  catalogCacheTtlMs?: number;
   /** Les routes d'administration exigent un administrateur ayant activé la double authentification. */
   requireAdminTwoFactor?: boolean;
   uploadMaxBytes: number;
@@ -113,7 +115,7 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
 
   // Modules fonctionnels. Recommandations : voir modules/recommendation/README.md.
   app.route('/', healthRoutes({ sql: deps.sql }));
-  app.route('/', catalogRoutes({ sql: deps.sql }));
+  app.route('/', catalogRoutes({ sql: deps.sql, cacheTtlMs: deps.catalogCacheTtlMs ?? 0 }));
   app.route('/', playbackRoutes({
     sql: deps.sql,
     signer: deps.deliverySigner ?? createOriginSigner({ secret: deps.mediaSecrets[0], ttlSeconds: deps.mediaTtlSeconds }),
@@ -127,7 +129,7 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
     authPerMinute: deps.rateLimits.authPerMinute,
     clientKey: byIp,
   }));
-  app.route('/', recommendationRoutes({ sql: deps.sql }));
+  app.route('/', recommendationRoutes({ sql: deps.sql, catalogTtlMs: deps.catalogCacheTtlMs ?? 0 }));
   app.route('/', privacyRoutes({ sql: deps.sql }));
   app.route('/', progressRoutes({ sql: deps.sql }));
   app.route('/', myListRoutes({ sql: deps.sql }));

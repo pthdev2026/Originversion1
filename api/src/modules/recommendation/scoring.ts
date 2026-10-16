@@ -24,19 +24,55 @@ const WEIGHTS = { theme: 3, genre: 2, kind: 1, category: 1 } as const;
 
 const norm = (value: string) => value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 
+/**
+ * Genres « pliés » (sans accents ni casse), calculés UNE fois par programme. Ce calcul (normalisation Unicode) était
+ * refait pour chaque paire comparée : avec 5 000 programmes et un historique de 10, cela coûtait ~50 ms par requête
+ * et bloquait tout le serveur (mesuré au test de charge, voir docs/TEST-DE-CHARGE.md).
+ */
+interface GenreInfo {
+  keys: ReadonlySet<string>;
+  entries: readonly (readonly [label: string, key: string])[];
+}
+const genreInfoCache = new WeakMap<ProgramFeatures, GenreInfo>();
+function genreInfo(program: ProgramFeatures): GenreInfo {
+  let info = genreInfoCache.get(program);
+  if (!info) {
+    const entries = program.genres.map(label => [label, norm(label)] as const);
+    info = { keys: new Set(entries.map(([, key]) => key)), entries };
+    genreInfoCache.set(program, info);
+  }
+  return info;
+}
+
 export function similarity(a: ProgramFeatures, b: ProgramFeatures): Similarity {
-  const sharedThemes = [...a.themes.entries()].filter(([slug]) => b.themes.has(slug)).map(([, label]) => label);
-  const bGenres = new Set(b.genres.map(norm));
-  const sharedGenres = a.genres.filter(genre => bGenres.has(norm(genre)));
+  let themeCount = 0;
+  const sharedThemes: string[] = [];
+  for (const [slug, label] of a.themes) {
+    if (b.themes.has(slug)) {
+      themeCount += 1;
+      if (sharedThemes.length < 2) sharedThemes.push(label);
+    }
+  }
+  let genreCount = 0;
+  let firstGenre: string | null = null;
+  const bKeys = genreInfo(b).keys;
+  if (bKeys.size > 0) {
+    for (const [label, key] of genreInfo(a).entries) {
+      if (bKeys.has(key)) {
+        genreCount += 1;
+        firstGenre ??= label;
+      }
+    }
+  }
   const sameKind = a.kind === b.kind;
   const sameCategory = a.category !== null && a.category === b.category;
 
-  const score = sharedThemes.length * WEIGHTS.theme + sharedGenres.length * WEIGHTS.genre
+  const score = themeCount * WEIGHTS.theme + genreCount * WEIGHTS.genre
     + (sameKind ? WEIGHTS.kind : 0) + (sameCategory ? WEIGHTS.category : 0);
 
   let reason = 'Dans le même esprit';
-  if (sharedThemes.length > 0) reason = `Même thématique : ${sharedThemes.slice(0, 2).join(', ')}`;
-  else if (sharedGenres.length > 0) reason = `Même genre : ${sharedGenres[0]}`;
+  if (themeCount > 0) reason = `Même thématique : ${sharedThemes.join(', ')}`;
+  else if (firstGenre !== null) reason = `Même genre : ${firstGenre}`;
   else if (sameCategory) reason = `Même catégorie : ${a.category}`;
   return { score, reason };
 }

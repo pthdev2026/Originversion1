@@ -79,6 +79,7 @@ const app = createApp({
   sessionTtlSeconds: config.identity.sessionTtlSeconds,
   playbackRequiresLogin: config.identity.playbackRequiresLogin,
   requireAdminTwoFactor: config.identity.requireAdminTwoFactor,
+  catalogCacheTtlMs: config.catalogCacheSeconds * 1000,
   ops: { backupDir: config.ops.backupDir, minFreeBytes: config.ops.minFreeBytes, metricsToken: config.ops.metricsToken },
   uploadMaxBytes: config.media.uploadMaxBytes,
   encodePreset: config.media.encodePreset,

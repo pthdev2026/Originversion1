@@ -52,6 +52,8 @@ const schema = z.object({
   RATE_LIMIT_AUTH_PER_MIN: z.coerce.number().int().min(1).max(10_000).default(10),
   /** Rapports de mesure de lecture par minute et par adresse IP (un lecteur en envoie ~4 par minute). */
   RATE_LIMIT_METRICS_PER_MIN: z.coerce.number().int().min(1).max(100_000).default(120),
+  /** Cache serveur du catalogue public, en secondes (0 = aucun). Une modification éditoriale faite sur une AUTRE instance est visible après ce délai. */
+  CATALOG_CACHE_SECONDS: z.coerce.number().int().min(0).max(300).default(30),
   /** Conservation des données : mesures de lecture (jours) et journal d'audit (jours). */
   RETENTION_TELEMETRY_DAYS: z.coerce.number().int().min(7).max(3650).default(180),
   RETENTION_AUDIT_DAYS: z.coerce.number().int().min(30).max(3650).default(365),
@@ -116,6 +118,7 @@ export interface AppConfig {
   rateLimits: { apiPerMinute: number; mediaPerMinute: number; authPerMinute: number; metricsPerMinute: number };
   media: { loudnessLufs: number | null; ffmpegPath: string; ffprobePath: string; encodePreset: string; uploadMaxBytes: number };
   ident: { policy: 'title' | 'season' | 'always' | 'off'; playbackId: string; skippableAfterSeconds: number };
+  catalogCacheSeconds: number;
   retention: { telemetryDays: number; auditDays: number };
   mail: { provider: 'log' | 'resend'; apiKey: string | null; from: string | null };
   ops: {
@@ -202,6 +205,7 @@ export function loadConfig(source: Record<string, string | undefined> = process.
       encodePreset: raw.ENCODE_PRESET,
       uploadMaxBytes: raw.UPLOAD_MAX_BYTES,
     },
+    catalogCacheSeconds: raw.CATALOG_CACHE_SECONDS,
     retention: { telemetryDays: raw.RETENTION_TELEMETRY_DAYS, auditDays: raw.RETENTION_AUDIT_DAYS },
     mail: { provider: raw.MAIL_PROVIDER, apiKey: raw.MAIL_API_KEY ?? null, from: raw.MAIL_FROM ?? null },
     ident: { policy: raw.IDENT_POLICY, playbackId: raw.BRAND_IDENT_PLAYBACK_ID, skippableAfterSeconds: raw.IDENT_SKIPPABLE_AFTER_SECONDS },

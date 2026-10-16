@@ -1,0 +1,49 @@
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+import { createTtlCache } from './ttl-cache.ts';
+
+describe('cache à durée de vie', () => {
+  it('ne charge qu’une fois dans la durée de vie, puis recharge', async () => {
+    let clock = 0;
+    let loads = 0;
+    const cache = createTtlCache<number>({ ttlMs: 1000, now: () => clock });
+    const load = async () => ++loads;
+    assert.equal(await cache.getOrLoad('a', load), 1);
+    clock = 999;
+    assert.equal(await cache.getOrLoad('a', load), 1);
+    clock = 1000;
+    assert.equal(await cache.getOrLoad('a', load), 2);
+  });
+
+  it('regroupe les chargements simultanés (une seule lecture pour 100 demandes)', async () => {
+    let loads = 0;
+    const cache = createTtlCache<string>({ ttlMs: 1000 });
+    const slow = async () => { loads += 1; await new Promise(resolve => setTimeout(resolve, 20)); return 'ok'; };
+    const results = await Promise.all(Array.from({ length: 100 }, () => cache.getOrLoad('k', slow)));
+    assert.equal(loads, 1);
+    assert.ok(results.every(value => value === 'ok'));
+  });
+
+  it('ne mémorise jamais une erreur', async () => {
+    const cache = createTtlCache<number>({ ttlMs: 1000 });
+    let attempt = 0;
+    const flaky = async () => { attempt += 1; if (attempt === 1) throw new Error('panne'); return attempt; };
+    await assert.rejects(cache.getOrLoad('k', flaky), /panne/);
+    assert.equal(await cache.getOrLoad('k', flaky), 2, 'la requête suivante réessaie');
+  });
+
+  it('reste borné, vide à la demande, et ttl 0 désactive tout', async () => {
+    const bounded = createTtlCache<number>({ ttlMs: 1000, maxEntries: 3 });
+    for (let i = 0; i < 10; i += 1) await bounded.getOrLoad(`k${i}`, async () => i);
+    assert.equal(bounded.size, 3);
+    bounded.clear();
+    assert.equal(bounded.size, 0);
+
+    let loads = 0;
+    const off = createTtlCache<number>({ ttlMs: 0 });
+    await off.getOrLoad('a', async () => ++loads);
+    await off.getOrLoad('a', async () => ++loads);
+    assert.equal(loads, 2);
+    assert.equal(off.size, 0);
+  });
+});

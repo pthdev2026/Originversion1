@@ -30,3 +30,27 @@ Objectif : prouver que le back-end tient **1 000 spectateurs × 2 h**. Outils : 
 ## À refaire après la mise en ligne
 - Générateur sur une machine distincte, contre le vrai CDN Bunny (scénario `origin` avec `--base` du CDN).
 - Rejouer la rafale de connexions avec le correctif argon2 en conditions réelles.
+
+
+## Complément du 16/10/2026 — parcours du catalogue (accueil, fiches, recherche, « pour vous »)
+
+Scénario `browse` (`npm run load:run -- --scenario browse`), catalogue synthétique (`load:prepare -- --catalog N`) :
+1 000 spectateurs enchaînant accueil → fiche → similaires → recherche → « pour vous », pause de 2 à 6 s entre les pages,
+45 s, **sans aucun cache navigateur** (pire cas), soit environ 230 requêtes/s (≈ 10× un usage réel).
+
+| Catalogue | État du serveur | Erreurs | accueil p50 / p99 | « pour vous » p50 / p99 |
+|---|---|---|---|---|
+| 500 programmes | avant optimisation | 0 | 7 ms / 571 ms | 19 ms / 1,5 s |
+| **5 000 programmes** | avant optimisation | **27,7 %** (délais) | 4,7 s / 39 s | 4,7 s / 39 s |
+| 5 000 programmes | caches + calcul allégé | **0** | **9 ms / 0,8 s** | **120 ms / 1,2 s** |
+
+**Ce que le test a révélé** : la revue d'architecture avait estimé que les recommandations « calculées à la demande » tenaient jusqu'à
+~5 000 titres. **C'était faux** : à 5 000 titres, le calcul (≈ 75 ms de processeur par demande) saturait le serveur à 230 req/s.
+Corrections (mesurées) :
+1. cache serveur du catalogue public, 30 s, chargements simultanés regroupés, vidé à chaque écriture éditoriale (`CATALOG_CACHE_SECONDS`) ;
+2. cache partagé des caractéristiques du catalogue et des tendances (60 s) pour les recommandations ;
+3. calcul de proximité sans allocation ni normalisation répétée (genres « pliés » une seule fois par programme).
+
+Latences séquentielles à 5 000 programmes (hors charge) : accueil 13 ms, recherche 11 ms, fiche 1 ms, similaires 4 ms, « pour vous » 26 ms.
+**Limite restante** : le calcul « pour vous » reste proportionnel au nombre de programmes (≈ 20 ms à 5 000). Au-delà de ~20 000 titres
+ou d'un usage soutenu supérieur à 50 req/s sur cette route, il faudra pré-calculer par thématique ou déplacer le calcul hors du processus.

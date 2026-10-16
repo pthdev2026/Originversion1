@@ -125,3 +125,29 @@ fiche *Deux fois oui* → 3 titres avec leur raison (« Même catégorie : Séri
   « Populaire en ce moment » est celui prescrit par le contrat.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+---
+
+## PR n°8 — `front/comptes-socle` : session, connexion, création de compte, déconnexion (phase C1)
+
+**Base** : `front/catalogue-recherche` · [ouvrir](https://github.com/pthdev2026/hero-stream-magic/compare/front/catalogue-recherche...front/comptes-socle?expand=1)
+Plan : `docs/PLAN-COMPTES-FRONT.md` (phase C1 sur 5).
+
+### Contenu
+- `auth-api.ts` : client typé (contrat « Comptes »), `credentials: 'include'`, erreurs explicites, message français du serveur affiché tel quel.
+- `auth-context.tsx` : `AuthProvider` / `useAuth` (`loading` · `anonymous` · `authenticated` · `unavailable`) ; session vérifiée dans le navigateur ;
+  la déconnexion purge les données de compte.
+- Panneau de la Hero : **Connexion / Créer un compte**, code d'invitation seulement si l'API l'exige, validation locale minimale, accessibilité (`role="alert"`, champs étiquetés).
+- Bouton de la barre : « Se connecter » ↔ prénom du compte.
+- **API de développement sur `localhost`** (et non `127.0.0.1`) : le cookie de session exige le même site que le front.
+
+### Vérifications
+`tsc` 0 erreur · 59 tests · build OK. Navigateur + API locale avec un compte jetable créé depuis l'interface : création → connecté (bouton « Testeuse »),
+rechargement → session conservée, déconnexion → `/api/me` répond 401, mauvais mot de passe → message du serveur, reconnexion OK ; le cookie est invisible pour JavaScript (httpOnly).
+
+### Limites
+- Pas encore : mot de passe oublié, `/reinitialiser`, profil (phase C2) ; « Ma liste » et reprise (C3, C4).
+- Non testé : verrouillage 429 (5 échecs), inscription sur invitation avec un vrai code, e-mails.
+- `CORS_ORIGINS` du déploiement devra contenir l'origine du front (demande au back-end déposée dans `API-REQUESTS.md`).
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)

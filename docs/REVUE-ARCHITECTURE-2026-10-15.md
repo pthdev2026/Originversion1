@@ -29,7 +29,7 @@ Ces règles échouent désormais en CI si elles sont cassées : l'architecture n
 | Risque | Pourquoi on l'accepte | Seuil de révision |
 |---|---|---|
 | **Limiteur de débit en mémoire** (par processus) | Un seul processus API à 1 000 utilisateurs ; simple et sans dépendance | Dès qu'on lance plusieurs instances (→ Redis ou limite au proxy) |
-| **Recommandations calculées à la demande** (catalogue entier chargé par requête) | Quelques centaines de lignes, ~ms ; le cache évite la complexité | Catalogue > ~5 000 titres ou > 50 req/s sur `/recommendations` |
+| **Recommandations calculées à la demande** | **Corrigé le 16/10 après mesure** : la première estimation (« tient jusqu'à 5 000 titres ») était fausse ; à 5 000 titres le serveur saturait. Caches ajoutés, 0 erreur ensuite (`TEST-DE-CHARGE.md`). | Catalogue > ~20 000 titres ou > 50 req/s sur `/recommendations` : pré-calcul |
 | **Sessions et files d'encodage dans PostgreSQL** | Une seule technologie à exploiter ; la file tient largement le débit d'ingestion | Plusieurs encodeurs simultanés à forte cadence |
 | **Pas de versionnement d'API** (`/api/v1`) | Un seul client (le front) géré par la même équipe ; contrat versionné dans `API-CONTRACT.md` | Ouverture à des clients tiers (applications TV, mobile) |
 | **E-mails non transactionnels en file** (envoi direct, erreurs journalisées) | Volume faible ; réponses uniformes pour ne rien révéler | Mails de masse ou exigences de délivrabilité |
@@ -38,3 +38,8 @@ Ces règles échouent désormais en CI si elles sont cassées : l'architecture n
 - Tout nouveau module : un `README.md`, des tests, et une dépendance **vers le bas** seulement (jamais vers un module qui dépend de lui).
 - Toute colonne ajoutée à `programs` doit être gérée par `catalog/admin.ts` **et** par le trigger de recherche si elle est cherchable.
 - Les chemins d'image doivent passer par `assetUrl` (validation) : ne jamais accepter d'adresse libre.
+
+
+## Addendum du 16/10/2026 — leçon de méthode
+Un seuil annoncé sans mesure (« 5 000 titres ») s'est révélé faux dès le premier test de charge à cette taille. Règle retenue : **tout seuil
+d'échelle inscrit dans un document doit renvoyer à une mesure** (scénario `browse` pour le catalogue, `api`/`origin` pour la lecture).

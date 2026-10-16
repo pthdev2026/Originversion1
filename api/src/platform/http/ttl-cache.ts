@@ -1,0 +1,49 @@
+/**
+ * Petit cache en mémoire avec durée de vie, borné, qui REGROUPE les chargements simultanés.
+ *
+ * Pourquoi : le catalogue public est identique pour tous les visiteurs. Sans cache, 1 000 personnes qui ouvrent l'accueil
+ * provoquent 1 000 lectures de la base ; avec lui, une seule toutes les N secondes (« ruée » évitée : les requêtes qui
+ * arrivent pendant un chargement attendent le MÊME résultat).
+ *
+ * Limites assumées : cache propre à CE processus (chaque instance a le sien) ; une erreur de chargement n'est jamais
+ * mémorisée ; `ttlMs = 0` désactive tout (utile en test).
+ */
+export interface TtlCache<T> {
+  getOrLoad(key: string, loader: () => Promise<T>): Promise<T>;
+  clear(): void;
+  readonly size: number;
+}
+
+export function createTtlCache<T>(options: { ttlMs: number; maxEntries?: number; now?: () => number }): TtlCache<T> {
+  const { ttlMs } = options;
+  const maxEntries = options.maxEntries ?? 1000;
+  const now = options.now ?? Date.now;
+  const done = new Map<string, { at: number; value: T }>();
+  const pending = new Map<string, Promise<T>>();
+
+  return {
+    async getOrLoad(key, loader) {
+      if (ttlMs <= 0) return loader();
+      const hit = done.get(key);
+      if (hit && now() - hit.at < ttlMs) return hit.value;
+      const inFlight = pending.get(key);
+      if (inFlight) return inFlight;
+
+      const promise = loader().then(
+        value => {
+          if (done.size >= maxEntries) done.delete(done.keys().next().value as string); // la plus ancienne sort
+          done.set(key, { at: now(), value });
+          return value;
+        },
+      ).finally(() => pending.delete(key));
+      pending.set(key, promise);
+      return promise;
+    },
+    clear() {
+      done.clear();
+    },
+    get size() {
+      return done.size;
+    },
+  };
+}

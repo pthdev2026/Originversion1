@@ -13,6 +13,7 @@ import {
   foldQuery, getCollection, getHome, getProgramDetail, listCreators, listProgramsByTheme, listThemes, searchCreators, searchPrograms,
 } from './content.ts';
 import { listPlayablePrograms } from './repository.ts';
+import { createTtlCache } from '../../platform/http/ttl-cache.ts';
 import { collectionSchema, creatorSchema, parseBody, programSchema, themeSchema } from './schemas.ts';
 
 /**
@@ -23,8 +24,11 @@ import { collectionSchema, creatorSchema, parseBody, programSchema, themeSchema 
 const PUBLIC_CACHE = 'public, max-age=30, stale-while-revalidate=120';
 const cacheable = (c: { header: (name: string, value: string) => void }) => c.header('Cache-Control', PUBLIC_CACHE);
 
-export function catalogRoutes(deps: { sql: Sql }): Hono<AppEnv> {
+export function catalogRoutes(deps: { sql: Sql; cacheTtlMs?: number }): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
+  // Cache serveur des lectures publiques (même durée que le cache navigateur). Vidé à chaque écriture éditoriale de CE processus.
+  const cache = createTtlCache<unknown>({ ttlMs: deps.cacheTtlMs ?? 0, maxEntries: 2000 });
+  const cached = <T>(key: string, loader: () => Promise<T>): Promise<T> => cache.getOrLoad(key, loader) as Promise<T>;
   const slugOf = (raw: string) => {
     if (!isValidId(raw)) throw errors.badRequest('Identifiant invalide.');
     return raw;
@@ -44,40 +48,43 @@ export function catalogRoutes(deps: { sql: Sql }): Hono<AppEnv> {
 
   // L'accueil entier en un seul appel : collections ordonnées, thématiques, créateurs.
   routes.get('/api/home', async c => {
-    const home = await getHome(deps.sql);
+    const home = await cached('home', () => getHome(deps.sql));
     cacheable(c);
     return c.json(home);
   });
 
   routes.get('/api/programs/:slug', async c => {
-    const detail = await getProgramDetail(deps.sql, slugOf(c.req.param('slug')));
+    const slug = slugOf(c.req.param('slug'));
+    const detail = await cached(`program:${slug}`, () => getProgramDetail(deps.sql, slug));
     if (!detail) throw errors.notFound('Programme introuvable.');
     cacheable(c);
     return c.json(detail);
   });
 
   routes.get('/api/collections/:slug', async c => {
-    const collection = await getCollection(deps.sql, slugOf(c.req.param('slug')));
+    const slug = slugOf(c.req.param('slug'));
+    const collection = await cached(`collection:${slug}`, () => getCollection(deps.sql, slug));
     if (!collection) throw errors.notFound('Collection introuvable.');
     cacheable(c);
     return c.json(collection);
   });
 
   routes.get('/api/themes', async c => {
-    const themes = await listThemes(deps.sql);
+    const themes = await cached('themes', () => listThemes(deps.sql));
     cacheable(c);
     return c.json({ themes });
   });
 
   routes.get('/api/themes/:slug', async c => {
-    const programs = await listProgramsByTheme(deps.sql, slugOf(c.req.param('slug')));
+    const slug = slugOf(c.req.param('slug'));
+    const programs = await cached(`theme:${slug}`, () => listProgramsByTheme(deps.sql, slug));
     if (!programs) throw errors.notFound('Thématique introuvable.');
     cacheable(c);
     return c.json({ programs });
   });
 
   routes.get('/api/creators', async c => {
-    const creators = await listCreators(deps.sql);
+    const creators = await cached('creators', () => listCreators(deps.sql));
     cacheable(c);
     return c.json({ creators });
   });
@@ -88,7 +95,8 @@ export function catalogRoutes(deps: { sql: Sql }): Hono<AppEnv> {
     if (q.length < 2 || q.length > 80) throw errors.badRequest('La recherche doit faire entre 2 et 80 caractères.');
     const limit = Math.min(Math.max(Number(c.req.query('limit') ?? 20) || 20, 1), 50);
     const tokens = foldQuery(q);
-    const [programs, creators] = await Promise.all([searchPrograms(deps.sql, tokens, limit), searchCreators(deps.sql, tokens, 10)]);
+    const [programs, creators] = await cached(`search:${limit}:${tokens.join(' ')}`, () =>
+      Promise.all([searchPrograms(deps.sql, tokens, limit), searchCreators(deps.sql, tokens, 10)]));
     cacheable(c);
     return c.json({ query: q, programs, creators });
   });
@@ -98,6 +106,12 @@ export function catalogRoutes(deps: { sql: Sql }): Hono<AppEnv> {
   routes.get('/api/admin/catalog', async c => {
     requireAdmin(c);
     return c.json(await listAllForAdmin(deps.sql));
+  });
+
+  // Toute écriture éditoriale vide le cache : l'administrateur voit son changement tout de suite (les autres instances, après la durée du cache).
+  routes.use('/api/admin/*', async (c, next) => {
+    await next();
+    if (c.req.method !== 'GET') cache.clear();
   });
 
   routes.put('/api/admin/programs/:slug', async c => {

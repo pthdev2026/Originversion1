@@ -110,6 +110,30 @@ async function readManifest(manifestUrl: string): Promise<string[]> {
 }
 
 // --wall <s> : durée maximale de l'essai en secondes réelles (les spectateurs s'arrêtent à l'échéance).
+// ── Scénario « browse » : parcourir le catalogue (accueil, fiches, recherche, similaires, « pour vous ») ──────────
+// Chaque spectateur enchaîne des pages avec une pause de réflexion de 2 à 6 s, pendant `--seconds` secondes.
+// Aucun cache HTTP côté client : c'est le pire cas (un navigateur réel réutiliserait les réponses de 30 s).
+const SEARCH_WORDS = ['lumière', 'chemin', 'silence', 'retour', 'espérance', 'nuit', 'racines', 'pardon', 'voix', 'horizon', 'drame', 'foi'];
+const randomItem = <T>(items: T[]): T => items[Math.floor(Math.random() * items.length)] as T;
+async function browseViewer(index: number, deadline: number, slugs: string[]): Promise<void> {
+  const user = viewers[index];
+  if (!user) return;
+  await sleep((index / viewers.length) * rampSeconds * 1000);
+  const cookie = cookieOf(user);
+  while (Date.now() < deadline) {
+    await get('accueil', `${base}/api/home`, cookie);
+    await sleep(2000 + Math.random() * 4000);
+    const slug = randomItem(slugs);
+    await get('fiche', `${base}/api/programs/${slug}`, cookie);
+    await get('similaires', `${base}/api/programs/${slug}/similar`, cookie);
+    await sleep(2000 + Math.random() * 4000);
+    await get('recherche', `${base}/api/search?q=${encodeURIComponent(randomItem(SEARCH_WORDS))}`, cookie);
+    await sleep(2000 + Math.random() * 4000);
+    await get('pour vous', `${base}/api/recommendations`, cookie);
+    await sleep(2000 + Math.random() * 4000);
+  }
+}
+
 // ── Scénario « api » : 2 h de lecture accélérées, avec reprise et mesure ─────────────
 async function apiViewer(index: number): Promise<void> {
   const user = viewers[index];
@@ -208,6 +232,12 @@ console.log(`Scénario « ${scenario} » : ${viewers.length} spectateurs → ${b
 if (scenario === 'api') {
   console.log(`Compression ×${compress} : 2 h de lecture en ${(FILM_SECONDS / compress / 60).toFixed(1)} min, montée en charge ${rampSeconds} s`);
   await Promise.all(viewers.map((_, index) => ipStore.run(ipOf(index), () => apiViewer(index))));
+} else if (scenario === 'browse') {
+  const home = await get('accueil', `${base}/api/home`, cookieOf(viewers[0] as { token: string }));
+  const slugs = home.response ? ((await home.response.json()) as { collections: { items: { slug: string }[] }[] }).collections.flatMap(c => c.items.map(i => i.slug)) : [];
+  if (slugs.length === 0) { console.error('Catalogue vide : lancez load:prepare avec --catalog 500.'); process.exit(1); }
+  const deadline = Date.now() + seconds * 1000;
+  await Promise.all(viewers.map((_, index) => ipStore.run(ipOf(index), () => browseViewer(index, deadline, slugs))));
 } else if (scenario === 'startup') {
   await Promise.all(viewers.map((_, index) => ipStore.run(ipOf(index), () => startupViewer(index))));
 } else if (scenario === 'origin') {
