@@ -140,6 +140,44 @@ describe('comptes', () => {
     assert.ok(events.length >= 1, 'le verrouillage est inscrit au journal d’audit');
   });
 
+  it('vérification d’adresse : lien à usage unique, renvoi limité, reset vaut preuve', async t => {
+    if (!available) return t.skip('PostgreSQL injoignable');
+    const app = makeApp();
+    const before = sentMails.length;
+    const reg = await app.request('/api/auth/register', json({ email: 'verif@mail.fr', password: 'Premier mot de passe 1' }));
+    assert.equal(reg.status, 201);
+    const cookie = cookieOf(reg);
+    assert.equal(((await reg.json()) as { user: { emailVerified: boolean } }).user.emailVerified, false);
+
+    await new Promise(resolve => setTimeout(resolve, 20)); // l'envoi se fait « sans attendre »
+    assert.equal(sentMails.length, before + 1);
+    const token = /verifier-email\?token=([\w-]+)/.exec(sentMails.at(-1)?.text ?? '')?.[1] ?? '';
+    assert.ok(token.length > 20);
+
+    // Renvoi immédiat : refusé (au plus un par minute).
+    const again = await app.request('/api/me/email/verification', { method: 'POST', headers: { cookie } });
+    assert.equal(again.status, 429);
+
+    assert.equal((await app.request('/api/auth/email/verify', json({ token: 'x'.repeat(30) }))).status, 400, 'jeton inconnu');
+    assert.equal((await app.request('/api/auth/email/verify', json({ token }))).status, 200);
+    assert.equal((await app.request('/api/auth/email/verify', json({ token }))).status, 400, 'usage unique');
+    const me = (await (await app.request('/api/me', { headers: { cookie } })).json()) as { user: { emailVerified: boolean } };
+    assert.equal(me.user.emailVerified, true);
+    // Déjà vérifiée : le renvoi est sans effet (202, aucun e-mail).
+    const count = sentMails.length;
+    assert.equal((await app.request('/api/me/email/verification', { method: 'POST', headers: { cookie } })).status, 202);
+    assert.equal(sentMails.length, count);
+
+    // Un compte non vérifié qui réinitialise son mot de passe prouve le contrôle de l'adresse.
+    await app.request('/api/auth/register', json({ email: 'verif2@mail.fr', password: 'Premier mot de passe 1' }));
+    await app.request('/api/auth/password/forgot', json({ email: 'verif2@mail.fr' }));
+    await new Promise(resolve => setTimeout(resolve, 20));
+    const resetToken = /reinitialiser\?token=([\w-]+)/.exec(sentMails.at(-1)?.text ?? '')?.[1] ?? '';
+    await app.request('/api/auth/password/reset', json({ token: resetToken, password: 'Nouveau mot de passe 2' }));
+    const login = await app.request('/api/auth/login', json({ email: 'verif2@mail.fr', password: 'Nouveau mot de passe 2' }));
+    assert.equal(((await login.json()) as { user: { emailVerified: boolean } }).user.emailVerified, true);
+  });
+
   it('une panne d’envoi d’e-mail ne change pas la réponse (pas de fuite sur l’existence du compte)', async t => {
     if (!available) return t.skip('PostgreSQL injoignable');
     const app = makeApp({ failingMailer: true });

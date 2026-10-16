@@ -62,6 +62,7 @@ const identity = createIdentityService({
     registrationMode: config.identity.registrationMode,
     sessionTtlSeconds: config.identity.sessionTtlSeconds,
     publicAppUrl: config.identity.publicAppUrl,
+    encryptionKey: config.identity.encryptionKey,
   },
 });
 const deliverySigner =
@@ -76,6 +77,7 @@ const app = createApp({
   cookieSecure: config.identity.cookieSecure,
   sessionTtlSeconds: config.identity.sessionTtlSeconds,
   playbackRequiresLogin: config.identity.playbackRequiresLogin,
+  requireAdminTwoFactor: config.identity.requireAdminTwoFactor,
   ops: { backupDir: config.ops.backupDir, minFreeBytes: config.ops.minFreeBytes, metricsToken: config.ops.metricsToken },
   uploadMaxBytes: config.media.uploadMaxBytes,
   encodePreset: config.media.encodePreset,

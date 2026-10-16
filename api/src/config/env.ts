@@ -38,6 +38,10 @@ const schema = z.object({
   RATE_LIMIT_MEDIA_PER_MIN: z.coerce.number().int().min(1).max(1_000_000).default(3000),
   /** Inscription : `open` (ouverte à tous) ou `invite` (code d'invitation obligatoire). */
   REGISTRATION_MODE: z.enum(['open', 'invite']).default('open'),
+  /** Clé de chiffrement des secrets de double authentification (32 caractères minimum). Obligatoire en production pour l'activer. */
+  AUTH_ENCRYPTION_KEY: z.string().min(32, 'AUTH_ENCRYPTION_KEY doit faire au moins 32 caractères').optional(),
+  /** À « true » : un administrateur sans double authentification ne peut utiliser aucune route d'administration. */
+  REQUIRE_ADMIN_2FA: z.enum(['true', 'false']).default('false'),
   /** Durée d'une session de connexion, en jours. */
   SESSION_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
   /** À « true » : la lecture exige un compte connecté. Par défaut, la lecture reste ouverte. */
@@ -129,6 +133,9 @@ export interface AppConfig {
     playbackRequiresLogin: boolean;
     publicAppUrl: string;
     cookieSecure: boolean;
+    /** `undefined` : clé de développement ; `null` : double authentification indisponible (production sans clé). */
+    encryptionKey: string | null | undefined;
+    requireAdminTwoFactor: boolean;
   };
 }
 
@@ -156,6 +163,7 @@ export function loadConfig(source: Record<string, string | undefined> = process.
   if (isProduction && !raw.CORS_ORIGINS) missing.push('CORS_ORIGINS est obligatoire en production');
   if (raw.DELIVERY_MODE === 'bunny' && !raw.BUNNY_CDN_URL) missing.push('BUNNY_CDN_URL est obligatoire quand DELIVERY_MODE=bunny');
   if (raw.DELIVERY_MODE === 'bunny' && !raw.BUNNY_TOKEN_KEY) missing.push('BUNNY_TOKEN_KEY est obligatoire quand DELIVERY_MODE=bunny');
+  if (raw.REQUIRE_ADMIN_2FA === 'true' && !raw.AUTH_ENCRYPTION_KEY && isProduction) missing.push('AUTH_ENCRYPTION_KEY est obligatoire quand REQUIRE_ADMIN_2FA=true');
   if (raw.MAIL_PROVIDER === 'resend' && !raw.MAIL_API_KEY) missing.push('MAIL_API_KEY est obligatoire quand MAIL_PROVIDER=resend');
   if (raw.MAIL_PROVIDER === 'resend' && !raw.MAIL_FROM) missing.push('MAIL_FROM est obligatoire quand MAIL_PROVIDER=resend');
   if (missing.length > 0) throw new ConfigError(missing);
@@ -210,6 +218,8 @@ export function loadConfig(source: Record<string, string | undefined> = process.
       playbackRequiresLogin: raw.PLAYBACK_REQUIRES_LOGIN === 'true',
       publicAppUrl: raw.PUBLIC_APP_URL.replace(/\/$/, ''),
       cookieSecure: isProduction,
+      encryptionKey: raw.AUTH_ENCRYPTION_KEY ?? (isProduction ? null : undefined),
+      requireAdminTwoFactor: raw.REQUIRE_ADMIN_2FA === 'true',
     },
   };
 }

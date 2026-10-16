@@ -34,7 +34,7 @@ const config = loadConfig();
 const sql = connect(config.databaseUrl);
 try {
   const passwordHash = await hashPassword(password);
-  const created = await insertUser(sql, { id: randomUUID(), email, passwordHash, displayName: null, role: 'admin' });
+  const created = await insertUser(sql, { id: randomUUID(), email, passwordHash, displayName: null, role: 'admin', emailVerified: true });
   if (created) {
     console.log(`Administrateur créé : ${email}`);
   } else {

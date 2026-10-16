@@ -9,6 +9,7 @@
  *   requête ─▶ middlewares (id, journal, sécurité, CORS) ─▶ module (routes ▶ service ▶ repository) ─▶ réponse
  */
 import { Hono } from 'hono';
+import type { MiddlewareHandler } from 'hono';
 import { registerErrorHandlers } from './platform/http/error-handler.ts';
 import { bodyLimit } from 'hono/body-limit';
 import type { AppEnv } from './platform/http/types.ts';
@@ -24,7 +25,7 @@ import { progressRoutes } from './modules/progress/routes.ts';
 import { loadSession } from './modules/identity/middleware.ts';
 import type { IdentityService } from './modules/identity/service.ts';
 import { createOriginSigner, type DeliverySigner } from './modules/playback/delivery.ts';
-import { errors } from './platform/errors.ts';
+import { AppError, errors } from './platform/errors.ts';
 import { accessLog, noStore, requestTimeout, requireTrustedOrigin, withCors, withRequestId, withSecurityHeaders } from './platform/http/middleware.ts';
 import { clientIp, rateLimit } from './platform/http/rate-limit.ts';
 import type { Sql } from './platform/database/client.ts';
@@ -52,6 +53,8 @@ export interface AppDependencies {
   cookieSecure: boolean;
   sessionTtlSeconds: number;
   playbackRequiresLogin: boolean;
+  /** Les routes d'administration exigent un administrateur ayant activé la double authentification. */
+  requireAdminTwoFactor?: boolean;
   uploadMaxBytes: number;
   encodePreset: string;
   /** Façon de signer les URLs de lecture. Par défaut : l'API sert elle-même les fichiers (mode « origin »). */
@@ -80,6 +83,15 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
   app.use('/api/*', requireTrustedOrigin(deps.corsOrigins));
   app.use('/api/*', loadSession({ identity: deps.identity, cookieSecure: deps.cookieSecure }));
   app.use('/api/playback-sessions', rateLimit({ windowMs: minute, max: deps.rateLimits.metricsPerMinute, keyOf: c => `metrics:${byIp(c)}` }));
+  // Administration : si exigé, un administrateur sans double authentification est refusé (il peut l'activer via /api/me/2fa/*).
+  const adminTwoFactor: MiddlewareHandler<AppEnv> = async (c, next) => {
+    const user = c.get('user');
+    if (deps.requireAdminTwoFactor && user?.role === 'admin' && !user.twoFactorEnabled) {
+      throw new AppError('two_factor_required', 403, 'Activez la double authentification pour accéder à l’administration.');
+    }
+    await next();
+  };
+  app.use('/api/admin/*', adminTwoFactor);
   app.use('/api/*', bodyLimit({ maxSize: 64 * 1024, onError: () => { throw errors.tooLarge(); } }));
   app.use('/api/*', requestTimeout(10_000));
   app.use('/api/*', noStore);
@@ -87,12 +99,14 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
   // mais réservés aux administrateurs et soumis à la même protection d'origine et de session.
   app.use('/uploads/*', requireTrustedOrigin(deps.corsOrigins));
   app.use('/uploads/*', loadSession({ identity: deps.identity, cookieSecure: deps.cookieSecure }));
+  app.use('/uploads/*', adminTwoFactor);
   app.use('/uploads/*', rateLimit({ windowMs: minute, max: 600, keyOf: c => `uploads:${byIp(c)}` }));
   app.use('/subtitles/*', rateLimit({ windowMs: minute, max: deps.rateLimits.mediaPerMinute, keyOf: c => `subtitles:${byIp(c)}` }));
   app.use('/images/*', rateLimit({ windowMs: minute, max: deps.rateLimits.mediaPerMinute, keyOf: c => `images:${byIp(c)}` }));
   // Dépôts de petits fichiers administrés (sous-titres) : même protection que les envois, limite de taille propre à la route.
   app.use('/files/*', requireTrustedOrigin(deps.corsOrigins));
   app.use('/files/*', loadSession({ identity: deps.identity, cookieSecure: deps.cookieSecure }));
+  app.use('/files/*', adminTwoFactor);
   app.use('/files/*', rateLimit({ windowMs: minute, max: 120, keyOf: c => `files:${byIp(c)}` }));
   app.use('/media/*', rateLimit({ windowMs: minute, max: deps.rateLimits.mediaPerMinute, keyOf: c => `media:${byIp(c)}` }));
 

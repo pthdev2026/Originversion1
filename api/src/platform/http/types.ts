@@ -12,6 +12,10 @@ export interface AuthenticatedUser {
   displayName: string | null;
   role: Role;
   status: 'active' | 'disabled';
+  /** Vrai quand la personne a prouvé contrôler son adresse e-mail (lien reçu par e-mail). */
+  emailVerified: boolean;
+  /** Double authentification activée sur ce compte. */
+  twoFactorEnabled: boolean;
   createdAt: Date;
 }
 

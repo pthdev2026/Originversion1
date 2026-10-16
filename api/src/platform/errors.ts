@@ -10,6 +10,7 @@ export type ErrorStatus = 400 | 401 | 403 | 404 | 409 | 413 | 429 | 500 | 503;
 export type ErrorCode =
   | 'bad_request'
   | 'unauthorized'
+  | 'two_factor_required'
   | 'forbidden'
   | 'not_found'
   | 'not_available'

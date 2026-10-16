@@ -1,4 +1,4 @@
-# ORIGIN — Contrat d'API (v0.9, 15/10/2026)
+# ORIGIN — Contrat d'API (v1.0, 16/10/2026)
 
 Propriétaire : l'agent back-end. Toute modification est annoncée ici avant d'être déployée.
 Limites : 120 requêtes par minute et par adresse IP sur `/api/*` ; en-têtes `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
@@ -309,6 +309,35 @@ La réponse de `GET /api/programs/:id/playback` contient désormais **`subtitles
   (1 Mo au plus, doit commencer par `WEBVTT`) → `204` · `400` fichier invalide · `404` média inconnu · `413` trop gros.
   Suppression : `DELETE /files/subtitles/:playbackId/:lang` → `204` · `404`.
 - `lang` : `fr`, `en`, `es`, `pt-BR`…
+
+## Vérification d'adresse e-mail (disponible — v1.0)
+
+À l'inscription, un e-mail contient `{PUBLIC_APP_URL}/verifier-email?token=<jeton>` (valable 24 h, usage unique). **Le front doit fournir cette page**,
+qui appelle l'API. L'utilisateur n'est **pas bloqué** tant que l'adresse n'est pas confirmée : afficher un bandeau « Confirmez votre adresse ».
+Un compte qui réinitialise son mot de passe est automatiquement considéré comme vérifié.
+
+| Route | Corps | Réponses |
+|---|---|---|
+| `POST /api/auth/email/verify` | `{token}` | `200` · `400` (lien invalide, expiré ou déjà utilisé) — sans compte requis |
+| `POST /api/me/email/verification` | — | `202` (renvoie un lien ; sans effet si déjà vérifiée) · `429` (un seul par minute) · `401` |
+
+Le champ `user.emailVerified` (booléen) est présent dans toutes les réponses contenant un utilisateur.
+
+## Double authentification TOTP (disponible — v1.0)
+
+Application d'authentification standard (Google Authenticator, Microsoft Authenticator, 1Password, Authy). `user.twoFactorEnabled` indique l'état.
+
+| Route | Corps | Réponses |
+|---|---|---|
+| `POST /api/me/2fa/setup` | — | `200 {secret, otpauthUrl}` (afficher en QR code ; **secret non encore actif**) · `409` (déjà activée) · `503` (clé serveur absente) |
+| `POST /api/me/2fa/enable` | `{code}` (6 chiffres) | `200 {recoveryCodes: string[8]}` — **à afficher UNE seule fois**, à faire noter · `400` (code incorrect) |
+| `POST /api/me/2fa/disable` | `{password, code}` (code TOTP ou de secours) | `204` · `401` |
+| `POST /api/auth/login` | `{email, password, code?}` | si 2FA active et `code` absent : `401 {"error":"two_factor_required"}` → afficher le champ code puis renvoyer avec `code` |
+
+- Un code TOTP ne sert qu'une fois ; ±30 s de tolérance d'horloge. Un **code de secours** (`xxxxx-xxxxx`) remplace le code TOTP, à usage unique.
+- Des codes faux comptent comme des échecs de connexion (verrouillage de 15 min après 5).
+- Si l'administration exige la double authentification (`REQUIRE_ADMIN_2FA=true`), un administrateur qui ne l'a pas activée reçoit
+  `403 {"error":"two_factor_required"}` sur `/api/admin/*`, `/uploads/*`, `/files/*` : le rediriger vers la configuration (`/api/me/2fa/*` reste accessible).
 
 ## Tableau de bord éditorial (disponible — v0.9, administrateur uniquement)
 

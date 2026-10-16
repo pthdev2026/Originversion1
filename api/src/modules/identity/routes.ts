@@ -24,8 +24,12 @@ const registerSchema = z.object({
   displayName: z.string().trim().min(1).max(60, 'Le nom ne doit pas dépasser 60 caractères.').optional(),
   inviteCode: z.string().trim().max(64).optional(),
 });
-const loginSchema = z.object({ email, password });
+const code = z.string().trim().min(6).max(24);
+const loginSchema = z.object({ email, password, code: code.optional() });
+const twoFactorEnableSchema = z.object({ code });
+const twoFactorDisableSchema = z.object({ password, code });
 const forgotSchema = z.object({ email });
+const verifyEmailSchema = z.object({ token: z.string().min(20).max(200) });
 const resetSchema = z.object({ token: z.string().min(20).max(200), password });
 const changePasswordSchema = z.object({ currentPassword: password, newPassword: password });
 const deleteAccountSchema = z.object({ password });
@@ -48,7 +52,9 @@ async function readJson<T>(c: Context, schema: z.ZodType<T, z.ZodTypeDef, unknow
 }
 
 /** Ce qu'on expose d'un utilisateur : jamais d'empreinte de mot de passe ni d'état interne. */
-const publicUser = (user: User) => ({ id: user.id, email: user.email, displayName: user.displayName, role: user.role });
+const publicUser = (user: User) => ({
+  id: user.id, email: user.email, displayName: user.displayName, role: user.role, emailVerified: user.emailVerified, twoFactorEnabled: user.twoFactorEnabled,
+});
 
 export interface IdentityRoutesDeps {
   identity: IdentityService;
@@ -101,6 +107,33 @@ export function identityRoutes(deps: IdentityRoutesDeps): Hono<AppEnv> {
     const body = await readJson(c, resetSchema);
     await deps.identity.resetPassword({ token: body.token, newPassword: body.password }, ctx(c));
     return c.json({ message: 'Mot de passe mis à jour. Vous pouvez vous connecter.' });
+  });
+
+  // Lien reçu par e-mail. Pas besoin d'être connecté (le lien s'ouvre souvent dans un autre navigateur).
+  routes.post('/api/auth/email/verify', async c => {
+    const body = await readJson(c, verifyEmailSchema);
+    await deps.identity.verifyEmail(body.token, ctx(c));
+    return c.json({ message: 'Adresse e-mail confirmée.' });
+  });
+
+  routes.post('/api/me/email/verification', async c => {
+    await deps.identity.resendVerification(requireUser(c).id, ctx(c));
+    return c.json({ message: 'Si votre adresse n’est pas encore confirmée, un e-mail vient d’être envoyé.' }, 202);
+  });
+
+  // Double authentification (TOTP). Configuration en deux temps : setup (secret) puis enable (premier code).
+  routes.post('/api/me/2fa/setup', async c => c.json(await deps.identity.twoFactorSetup(requireUser(c).id, ctx(c))));
+
+  routes.post('/api/me/2fa/enable', async c => {
+    const body = await readJson(c, twoFactorEnableSchema);
+    const recoveryCodes = await deps.identity.twoFactorEnable(requireUser(c).id, body.code, ctx(c));
+    return c.json({ recoveryCodes });
+  });
+
+  routes.post('/api/me/2fa/disable', async c => {
+    const body = await readJson(c, twoFactorDisableSchema);
+    await deps.identity.twoFactorDisable({ userId: requireUser(c).id, password: body.password, code: body.code }, ctx(c));
+    return c.body(null, 204);
   });
 
   routes.get('/api/me', c => c.json({ user: publicUser(requireUser(c)) }));

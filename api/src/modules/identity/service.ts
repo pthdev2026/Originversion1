@@ -13,6 +13,7 @@ import type { Sql } from '../../platform/database/client.ts';
 import { AppError, errors } from '../../platform/errors.ts';
 import type { Logger } from '../../platform/logger.ts';
 import type { Mailer } from '../../platform/mail.ts';
+import { newRecoveryCode, openSecret, otpauthUrl, generateSecret, sealSecret, stepAt, verifyTotp } from './totp.ts';
 import { checkPasswordPolicy, dummyPasswordHash, hashPassword, verifyPassword } from './password.ts';
 import * as repo from './repository.ts';
 import type { ActiveSession, User } from './repository.ts';
@@ -21,7 +22,15 @@ export interface IdentityConfig {
   registrationMode: 'open' | 'invite';
   sessionTtlSeconds: number;
   publicAppUrl: string;
+  /**
+   * Clé de chiffrement des secrets de double authentification (AUTH_ENCRYPTION_KEY).
+   * `undefined` : clé de développement intégrée (tests, poste local) ; `null` : double authentification indisponible.
+   */
+  encryptionKey?: string | null;
 }
+
+/** Valeur de développement uniquement : ne protège rien en production (qui exige AUTH_ENCRYPTION_KEY). */
+const DEV_ENCRYPTION_KEY = 'origin-dev-only-encryption-key-not-secret';
 
 export interface RequestContext {
   requestId: string | null;
@@ -30,6 +39,8 @@ export interface RequestContext {
 const MAX_LOGIN_FAILURES = 5;
 const LOCK_SECONDS = 15 * 60;
 const RESET_TTL_SECONDS = 60 * 60;
+const VERIFY_TTL_SECONDS = 24 * 60 * 60;
+const VERIFY_RESEND_COOLDOWN_MS = 60 * 1000;
 const SESSION_RENEW_AFTER_MS = 24 * 60 * 60 * 1000;
 const GENERIC_LOGIN_ERROR = 'Adresse e-mail ou mot de passe incorrect.';
 
@@ -66,6 +77,39 @@ export function createIdentityService(deps: { sql: Sql; config: IdentityConfig; 
     return token;
   }
 
+  /** Envoie le lien de vérification. Sans attendre et sans jamais échouer vers l'appelant (voir requestPasswordReset). */
+  async function sendVerification(user: User): Promise<void> {
+    const token = newToken();
+    await repo.insertEmailVerification(sql, {
+      tokenHash: sha256(token), userId: user.id, email: user.email, expiresAt: new Date(Date.now() + VERIFY_TTL_SECONDS * 1000),
+    });
+    void mailer
+      .send({
+        to: user.email,
+        subject: 'Confirmez votre adresse e-mail ORIGIN',
+        text: `Bienvenue sur ORIGIN. Pour confirmer votre adresse (lien valable 24 heures) : ${config.publicAppUrl}/verifier-email?token=${token}\n\nSi vous n'êtes pas à l'origine de cette inscription, ignorez ce message.`,
+      })
+      .catch(error => logger.error({ err: error, userId: user.id }, 'e-mail de vérification non envoyé'));
+  }
+
+  const encryptionKey = (): string => {
+    const key = config.encryptionKey === undefined ? DEV_ENCRYPTION_KEY : config.encryptionKey;
+    if (!key) throw new AppError('unavailable', 503, 'La double authentification n’est pas configurée sur ce serveur (AUTH_ENCRYPTION_KEY).');
+    return key;
+  };
+
+  /** Vérifie un code de double authentification (TOTP, sinon code de secours). Un TOTP ne sert qu'une fois. */
+  async function checkSecondFactor(userId: string, code: string): Promise<boolean> {
+    const totp = await repo.findTotp(sql, userId);
+    if (!totp?.enabledAt) return false;
+    const trimmed = code.trim();
+    if (/^\d{6}$/.test(trimmed)) {
+      const step = verifyTotp(openSecret(encryptionKey(), totp.secretEnc), trimmed, Date.now());
+      return step !== null && (await repo.advanceTotpStep(sql, userId, step));
+    }
+    return repo.consumeRecoveryCode(sql, userId, sha256(trimmed.toLowerCase()));
+  }
+
   return {
     async register(
       input: { email: string; password: string; displayName: string | null; inviteCode: string | null },
@@ -87,10 +131,11 @@ export function createIdentityService(deps: { sql: Sql; config: IdentityConfig; 
       });
 
       await audit(user.id, 'register', ctx);
+      await sendVerification(user).catch(error => logger.error({ err: error, userId: user.id }, 'jeton de vérification non créé'));
       return { user, sessionToken: await startSession(user.id) };
     },
 
-    async login(input: { email: string; password: string }, ctx: RequestContext): Promise<AuthResult> {
+    async login(input: { email: string; password: string; code?: string | undefined }, ctx: RequestContext): Promise<AuthResult> {
       const email = normalizeEmail(input.email);
       const found = await repo.findUserByEmail(sql, email);
 
@@ -110,6 +155,16 @@ export function createIdentityService(deps: { sql: Sql; config: IdentityConfig; 
         const { locked } = await repo.recordLoginFailure(sql, found.id, MAX_LOGIN_FAILURES, LOCK_SECONDS);
         await audit(found.id, locked ? 'account_locked' : 'login_failure', ctx);
         throw new AppError('unauthorized', 401, GENERIC_LOGIN_ERROR);
+      }
+
+      // Deuxième facteur. Un code absent n'est pas un échec (le front affiche le champ) ; un code faux en est un.
+      if (found.twoFactorEnabled) {
+        if (!input.code) throw new AppError('two_factor_required', 401, 'Saisissez le code de votre application d’authentification.');
+        if (!(await checkSecondFactor(found.id, input.code))) {
+          const { locked } = await repo.recordLoginFailure(sql, found.id, MAX_LOGIN_FAILURES, LOCK_SECONDS);
+          await audit(found.id, locked ? 'account_locked' : 'login_failure', ctx, { reason: 'second_factor' });
+          throw new AppError('unauthorized', 401, 'Code de vérification incorrect.');
+        }
       }
 
       await repo.recordLoginSuccess(sql, found.id);
@@ -132,6 +187,67 @@ export function createIdentityService(deps: { sql: Sql; config: IdentityConfig; 
     async logout(tokenHash: string, userId: string, ctx: RequestContext): Promise<void> {
       await repo.revokeSession(sql, tokenHash);
       await audit(userId, 'logout', ctx);
+    },
+
+    // ── Double authentification ──────────────────────────────────────────────────────────────────────────
+
+    /** Étape 1 : génère un secret (non actif) à scanner dans l'application d'authentification. */
+    async twoFactorSetup(userId: string, ctx: RequestContext): Promise<{ secret: string; otpauthUrl: string }> {
+      const user = await repo.findUserById(sql, userId);
+      if (!user) throw errors.unauthorized();
+      const secret = generateSecret();
+      const stored = await repo.upsertPendingTotp(sql, userId, sealSecret(encryptionKey(), secret));
+      if (!stored) throw new AppError('conflict', 409, 'La double authentification est déjà activée. Désactivez-la d’abord pour la reconfigurer.');
+      await audit(userId, 'two_factor_setup_started', ctx);
+      return { secret, otpauthUrl: otpauthUrl({ secret, email: user.email, issuer: 'ORIGIN' }) };
+    },
+
+    /** Étape 2 : confirme avec un premier code ; retourne les codes de secours (affichés UNE seule fois). */
+    async twoFactorEnable(userId: string, code: string, ctx: RequestContext): Promise<string[]> {
+      const totp = await repo.findTotp(sql, userId);
+      if (!totp || totp.enabledAt) throw errors.badRequest('Aucun enrôlement en cours. Recommencez la configuration.');
+      const step = verifyTotp(openSecret(encryptionKey(), totp.secretEnc), code.trim(), Date.now());
+      if (step === null) throw errors.badRequest('Code incorrect. Vérifiez l’heure de votre téléphone et réessayez.');
+      const codes = Array.from({ length: 8 }, () => newRecoveryCode());
+      await sql.begin(async tx => {
+        await repo.advanceTotpStep(tx, userId, step);
+        await repo.enableTotp(tx, userId, codes.map(value => sha256(value)));
+      });
+      await audit(userId, 'two_factor_enabled', ctx);
+      return codes;
+    },
+
+    /** Désactivation : mot de passe ET un code (TOTP ou secours). */
+    async twoFactorDisable(input: { userId: string; password: string; code: string }, ctx: RequestContext): Promise<void> {
+      const user = await repo.findUserById(sql, input.userId);
+      if (!user || !(await verifyPassword(input.password, user.passwordHash))) throw new AppError('unauthorized', 401, 'Mot de passe incorrect.');
+      if (!user.twoFactorEnabled) return;
+      if (!(await checkSecondFactor(user.id, input.code))) throw new AppError('unauthorized', 401, 'Code de vérification incorrect.');
+      await repo.disableTotp(sql, user.id);
+      await audit(user.id, 'two_factor_disabled', ctx);
+    },
+
+    async recoveryCodesLeft(userId: string): Promise<number> {
+      return repo.countRecoveryCodes(sql, userId);
+    },
+
+    /** Confirme l'adresse avec le lien reçu. Jeton invalide, expiré ou déjà utilisé : 400. */
+    async verifyEmail(token: string, ctx: RequestContext): Promise<void> {
+      const userId = await repo.consumeEmailVerification(sql, sha256(token));
+      if (!userId) throw errors.badRequest('Ce lien de confirmation est invalide ou expiré.');
+      await audit(userId, 'email_verified', ctx);
+    },
+
+    /** Renvoie un lien (au plus un par minute). Sans effet si l'adresse est déjà confirmée. */
+    async resendVerification(userId: string, ctx: RequestContext): Promise<void> {
+      const user = await repo.findUserById(sql, userId);
+      if (!user || user.emailVerified) return;
+      const last = await repo.lastEmailVerificationAt(sql, userId);
+      if (last && Date.now() - last.getTime() < VERIFY_RESEND_COOLDOWN_MS) {
+        throw new AppError('rate_limited', 429, 'Un e-mail vient d’être envoyé. Patientez une minute avant d’en demander un autre.');
+      }
+      await sendVerification(user);
+      await audit(userId, 'email_verification_resent', ctx);
     },
 
     /** Réponse identique que l'adresse existe ou non : on ne permet pas de deviner qui a un compte. */
@@ -166,6 +282,7 @@ export function createIdentityService(deps: { sql: Sql; config: IdentityConfig; 
       if (!userId) throw errors.badRequest('Ce lien de réinitialisation est invalide ou expiré.');
 
       await repo.updatePassword(sql, userId, passwordHash);
+      await repo.markEmailVerified(sql, userId); // avoir reçu le lien de réinitialisation prouve le contrôle de l'adresse
       await repo.revokeUserSessions(sql, userId); // toute session existante est coupée
       await audit(userId, 'password_reset_done', ctx);
     },

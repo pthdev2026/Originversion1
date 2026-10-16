@@ -118,3 +118,9 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Écritures éditoriales simultanées sérialisées par verrou (programme, collection) ; `uncaughtException` → arrêt propre et relance
 - ✅ Tests de robustesse : concurrence, entrées hostiles (injection, chemins, Unicode, JSON malformé), panne de base en cours de service
 - ✅ Tableau de bord éditorial : audience, achèvement, qualité par programme, santé du catalogue
+
+## Comptes renforcés (16/10/2026)
+- ✅ Vérification d'adresse e-mail (lien 24 h, usage unique) ; non bloquante pour regarder ; la réinitialisation de mot de passe vaut preuve
+- ✅ Double authentification TOTP (RFC 6238, sans dépendance, vecteurs officiels testés) : codes de secours à usage unique, rejeu impossible, secret chiffré AES-256-GCM avec une clé hors base (`AUTH_ENCRYPTION_KEY`)
+- ✅ `REQUIRE_ADMIN_2FA=true` impose la double authentification aux administrateurs (recommandé dès la mise en ligne)
+- 🟡 Perte du téléphone ET des codes de secours : réinitialisation par l'exploitant en base (procédure à documenter dans EXPLOITATION.md)

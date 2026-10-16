@@ -20,6 +20,8 @@ interface UserRow {
   display_name: string | null;
   role: Role;
   status: 'active' | 'disabled';
+  email_verified_at: Date | null;
+  two_factor_enabled: boolean;
   created_at: Date;
   password_hash: string;
   failed_login_count: number;
@@ -32,6 +34,8 @@ const toUser = (row: UserRow): User => ({
   displayName: row.display_name,
   role: row.role,
   status: row.status,
+  emailVerified: row.email_verified_at !== null,
+  twoFactorEnabled: row.two_factor_enabled,
   createdAt: row.created_at,
 });
 
@@ -55,11 +59,11 @@ export async function findUserById(sql: Sql, id: string): Promise<UserWithSecret
 /** Crée un compte. Retourne null si l'adresse existe déjà (contrainte d'unicité). */
 export async function insertUser(
   sql: Executor,
-  input: { id: string; email: string; passwordHash: string; displayName: string | null; role: Role },
+  input: { id: string; email: string; passwordHash: string; displayName: string | null; role: Role; emailVerified?: boolean },
 ): Promise<User | null> {
   const [row] = await sql<UserRow[]>`
-    INSERT INTO users (id, email, password_hash, display_name, role)
-    VALUES (${input.id}, ${input.email}, ${input.passwordHash}, ${input.displayName}, ${input.role})
+    INSERT INTO users (id, email, password_hash, display_name, role, email_verified_at)
+    VALUES (${input.id}, ${input.email}, ${input.passwordHash}, ${input.displayName}, ${input.role}, ${input.emailVerified ? new Date() : null})
     ON CONFLICT (email) DO NOTHING
     RETURNING *`;
   return row ? toUser(row) : null;
@@ -145,6 +149,96 @@ export async function consumePasswordReset(sql: Sql, tokenHash: string): Promise
     WHERE token_hash = ${tokenHash} AND used_at IS NULL AND expires_at > now()
     RETURNING user_id`;
   return row?.user_id ?? null;
+}
+
+// ── Vérification d'adresse e-mail ──────────────────────────────────────────
+
+/** Nouveau jeton : les précédents non utilisés sont invalidés (un seul lien valable à la fois). */
+export async function insertEmailVerification(sql: Sql, input: { tokenHash: string; userId: string; email: string; expiresAt: Date }): Promise<void> {
+  await sql`UPDATE email_verifications SET used_at = now() WHERE user_id = ${input.userId} AND used_at IS NULL`;
+  await sql`INSERT INTO email_verifications (token_hash, user_id, email, expires_at) VALUES (${input.tokenHash}, ${input.userId}, ${input.email}, ${input.expiresAt})`;
+}
+
+export async function lastEmailVerificationAt(sql: Sql, userId: string): Promise<Date | null> {
+  const [row] = await sql<{ created_at: Date }[]>`SELECT created_at FROM email_verifications WHERE user_id = ${userId} ORDER BY created_at DESC LIMIT 1`;
+  return row?.created_at ?? null;
+}
+
+/**
+ * Consomme un jeton valide (usage unique) et marque l'adresse comme vérifiée — seulement si le compte porte toujours
+ * l'adresse pour laquelle le jeton a été émis. Retourne l'identifiant du compte, ou null.
+ */
+export async function consumeEmailVerification(sql: Executor, tokenHash: string): Promise<string | null> {
+  const [row] = await sql<{ user_id: string }[]>`
+    WITH used AS (
+      UPDATE email_verifications SET used_at = now()
+      WHERE token_hash = ${tokenHash} AND used_at IS NULL AND expires_at > now()
+      RETURNING user_id, email
+    )
+    UPDATE users SET email_verified_at = COALESCE(email_verified_at, now()), updated_at = now()
+    FROM used WHERE users.id = used.user_id AND users.email = used.email
+    RETURNING users.id AS user_id`;
+  return row?.user_id ?? null;
+}
+
+export async function markEmailVerified(sql: Executor, userId: string): Promise<void> {
+  await sql`UPDATE users SET email_verified_at = COALESCE(email_verified_at, now()), updated_at = now() WHERE id = ${userId}`;
+}
+
+// ── Double authentification ────────────────────────────────────────────────
+
+export interface TotpRecord {
+  secretEnc: string;
+  enabledAt: Date | null;
+  lastStep: number;
+}
+
+export async function findTotp(sql: Executor, userId: string): Promise<TotpRecord | null> {
+  const [row] = await sql<{ secret_enc: string; enabled_at: Date | null; last_step: string }[]>`
+    SELECT secret_enc, enabled_at, last_step::text FROM user_totp WHERE user_id = ${userId}`;
+  return row ? { secretEnc: row.secret_enc, enabledAt: row.enabled_at, lastStep: Number(row.last_step) } : null;
+}
+
+/** Démarre (ou redémarre) un enrôlement non confirmé. Ne touche pas un enrôlement déjà actif. */
+export async function upsertPendingTotp(sql: Executor, userId: string, secretEnc: string): Promise<boolean> {
+  const rows = await sql`
+    INSERT INTO user_totp (user_id, secret_enc) VALUES (${userId}, ${secretEnc})
+    ON CONFLICT (user_id) DO UPDATE SET secret_enc = EXCLUDED.secret_enc, last_step = 0, created_at = now()
+    WHERE user_totp.enabled_at IS NULL
+    RETURNING user_id`;
+  return rows.length > 0;
+}
+
+/** Accepte un pas strictement plus récent que le dernier utilisé (un code ne sert qu'une fois). Atomique. */
+export async function advanceTotpStep(sql: Executor, userId: string, step: number): Promise<boolean> {
+  const rows = await sql`UPDATE user_totp SET last_step = ${step} WHERE user_id = ${userId} AND last_step < ${step} RETURNING user_id`;
+  return rows.length > 0;
+}
+
+export async function enableTotp(sql: Executor, userId: string, recoveryHashes: string[]): Promise<void> {
+  await sql`UPDATE user_totp SET enabled_at = now() WHERE user_id = ${userId}`;
+  await sql`UPDATE users SET two_factor_enabled = true, updated_at = now() WHERE id = ${userId}`;
+  await sql`DELETE FROM user_recovery_codes WHERE user_id = ${userId}`;
+  for (const hash of recoveryHashes) await sql`INSERT INTO user_recovery_codes (code_hash, user_id) VALUES (${hash}, ${userId})`;
+}
+
+export async function disableTotp(sql: Executor, userId: string): Promise<void> {
+  await sql`DELETE FROM user_totp WHERE user_id = ${userId}`;
+  await sql`DELETE FROM user_recovery_codes WHERE user_id = ${userId}`;
+  await sql`UPDATE users SET two_factor_enabled = false, updated_at = now() WHERE id = ${userId}`;
+}
+
+/** Consomme un code de secours (usage unique). */
+export async function consumeRecoveryCode(sql: Executor, userId: string, codeHash: string): Promise<boolean> {
+  const rows = await sql`
+    UPDATE user_recovery_codes SET used_at = now()
+    WHERE user_id = ${userId} AND code_hash = ${codeHash} AND used_at IS NULL RETURNING code_hash`;
+  return rows.length > 0;
+}
+
+export async function countRecoveryCodes(sql: Executor, userId: string): Promise<number> {
+  const [row] = await sql<{ count: string }[]>`SELECT count(*)::text AS count FROM user_recovery_codes WHERE user_id = ${userId} AND used_at IS NULL`;
+  return Number(row?.count ?? 0);
 }
 
 // ── Invitations ────────────────────────────────────────────────────────────
