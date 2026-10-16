@@ -13,7 +13,7 @@ export function createLogger(options: { level: string; pretty: boolean }): Logge
   return pino({
     level: options.level,
     base: { service: 'origin-api' },
-    redact: { paths: ['req.headers.authorization', 'req.headers.cookie', '*.password', '*.token'], censor: '[masqué]' },
+    redact: { paths: ['req.headers.authorization', 'req.headers.cookie', '*.password', '*.newPassword', '*.currentPassword', '*.token', '*.code', '*.secret', '*.recoveryCodes', '*.apiKey'], censor: '[masqué]' },
     ...(options.pretty
       ? { transport: { target: 'pino-pretty', options: { colorize: true, translateTime: 'HH:MM:ss', ignore: 'pid,hostname,service' } } }
       : {}),

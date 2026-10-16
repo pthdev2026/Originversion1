@@ -46,20 +46,37 @@ et on écrit noir sur blanc ce qui N'est PAS encore couvert.
 | Tests de sécurité automatisés | 26 tests : jeton, expiration, falsification, rotation, sortie de dossier, pourcentage mal formé, limitation de débit, en-têtes, corps trop gros |
 | Type strict | `tsc` sans erreur |
 
-## 5. Ce qui N'EST PAS couvert (à traiter)
+## 5. Ce qui N'EST PAS couvert (à traiter) — mis à jour le 16/10/2026
 
 | Manque | Pourquoi c'est un risque | Quand |
 |---|---|---|
 | Lecture réservée aux comptes | Par défaut la lecture reste ouverte (`PLAYBACK_REQUIRES_LOGIN=false`) : n'importe qui peut obtenir une URL | Un réglage, à activer quand le front a son écran de connexion |
-| Envoi réel des e-mails | La réinitialisation écrit le lien dans les journaux, aucun e-mail n'est envoyé | À brancher avant l'ouverture |
-| Vérification de l'adresse e-mail | On ne prouve pas que l'adresse appartient à la personne | Plus tard |
-| Authentification à deux facteurs | Un mot de passe volé suffit | Plus tard |
+| E-mails réels non validés | Le fournisseur (Resend) est branché et testé avec un faux serveur, jamais sur un vrai domaine : SPF/DKIM à configurer | À la création du compte Resend |
+| Double authentification facultative pour les spectateurs | Seuls les administrateurs peuvent y être obligés (`REQUIRE_ADMIN_2FA`) | Selon le public visé |
 | Compteurs de limite partagés entre instances | La limite est par instance | Quand on aura plusieurs instances |
 | Jeton du CDN validé sur une vraie zone | Le code suit la documentation Bunny mais n'a pas pu être testé sans compte : `npm run cdn:check` est le juge | À la création du compte |
 | Protection DDoS réseau | Hors de portée de l'application | Fournisseur / CDN |
-| Sauvegardes chiffrées, journal d'audit | Pas encore de données à protéger | B2 / B6 |
 | Chiffrement du contenu (DRM) | Les URLs signées empêchent le partage facile, pas la copie par un spectateur | Si un ayant droit l'exige |
-| HTTPS | Fourni par le reverse proxy en production | B8 |
+| HTTPS | Fourni par Caddy dans `deploy/` (certificat automatique), jamais testé sur un vrai domaine | B8 |
+| Sauvegarde hors site | Les sauvegardes sont chiffrées et testées, mais restent sur la même machine par défaut | À la mise en ligne |
+| Analyse de vulnérabilités continue | `npm audit` propre aujourd'hui (0 faille), pas de veille automatique | Activer Dependabot / audit en CI |
+
+## 11. Protections ajoutées depuis (13 → 16/10/2026)
+
+| Domaine | Protection | Où c'est vérifié |
+|---|---|---|
+| Comptes | Vérification d'adresse e-mail (lien 24 h, usage unique) ; la réinitialisation vaut preuve | `identity.test.ts` |
+| Comptes | Double authentification TOTP (RFC 6238), codes de secours à usage unique, rejeu impossible, secret chiffré AES-256-GCM avec une clé hors base | `totp.test.ts`, `two-factor.test.ts` |
+| Administration | `REQUIRE_ADMIN_2FA` : routes d'administration, envois et dépôts refusés sans double authentification | `two-factor.test.ts` |
+| Réinitialisation | Réponse identique (contenu et délai) que le compte existe ou non, même si l'envoi d'e-mail échoue | `identity.test.ts` |
+| Données | Export des données du compte (jamais de secret) ; conservation limitée (mesures 180 j, journal 365 j) ; sessions et jetons périmés purgés | `privacy.test.ts` |
+| Entrées | Validation stricte des documents d'administration (zod `strict`, adresses d'image `https://` ou `/images/` seulement), fichiers de sous-titres contrôlés (WebVTT, 1 Mo, sans script) | `catalog.test.ts`, `subtitles.test.ts` |
+| Entrées hostiles | Injection SQL, chemins `../`, Unicode, JSON malformé, corps trop gros : jamais de 500 | `robustness.test.ts` |
+| Base de données | Délai maximal de 15 s par requête, transactions oubliées coupées à 30 s, migrations sérialisées, pannes traduites en 503 | `robustness.test.ts` |
+| Journaux | Masquage des mots de passe, codes, secrets, jetons, clés ; jeton de lecture masqué dans les chemins | `middleware.ts`, `logger.ts` |
+| Visuels | Pas de SVG (peut contenir du script) ; en-tête `nosniff` ; chemins confinés au dossier | `catalog.test.ts` |
+| Architecture | Le socle ne dépend d'aucun module, aucun cycle, SQL localisé : contrôlés à chaque test | `architecture.test.ts` |
+| Contrat | Les routes du code et `API-CONTRACT.md` ne peuvent plus diverger | `contract.test.ts` |
 
 ## 6. Liste de contrôle avant la mise en ligne
 
@@ -70,6 +87,9 @@ et on écrit noir sur blanc ce qui N'est PAS encore couvert.
 - [ ] Sauvegardes testées (restauration complète)
 - [ ] `npm audit` propre le jour du déploiement
 - [ ] Journaux vérifiés : aucun jeton, aucun secret
+- [ ] `AUTH_ENCRYPTION_KEY` générée et conservée hors de la machine ; `REQUIRE_ADMIN_2FA=true` ; chaque administrateur a activé sa double authentification
+- [ ] `MAIL_PROVIDER=resend` avec domaine d'envoi vérifié (SPF, DKIM) ; un e-mail de réinitialisation reçu pour de vrai
+- [ ] Copie hors site des sauvegardes et de `BACKUP_PASSPHRASE` + `AUTH_ENCRYPTION_KEY`
 
 ## 7. Comptes (étape B2) — protections ajoutées
 

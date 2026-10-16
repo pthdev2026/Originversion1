@@ -19,6 +19,9 @@ Expression régulière : `^[a-z0-9][a-z0-9-]*$`.
 ### `GET /ready`
 `200 {"status":"ready","checks":{database,storage,disk}}` · `503 {"status":"not_ready",...}` — le service peut-il travailler (base, stockage, espace disque) ? Pour la supervision, pas pour l'interface.
 
+### `GET /metrics`
+Exposition Prometheus (texte) pour la supervision. Exige `Authorization: Bearer <METRICS_TOKEN>` ; `404` si `METRICS_TOKEN` n'est pas configuré. Pas pour l'interface.
+
 ### `GET /health`
 `200 {"status":"ok","database":"ok"}` · `503 {"status":"degraded","database":"unreachable"}`
 
@@ -201,7 +204,7 @@ Remplace les fichiers `src/lib/origin-*.ts`, `productions.ts`, `pth-originals.ts
 `Cache-Control: public, max-age=30` (une modification éditoriale est visible en 30 s au plus). Les brouillons
 (`published: false`) et les contenus de marque n'apparaissent jamais.
 
-Visuels : `images.*`, `heroVideoUrl`, `image` valent soit `https://…`, soit un chemin **à préfixer par l'adresse de l'API**
+Visuels (`GET /images/:slug/:file`, public, cache 24 h ; jpg, jpeg, png, webp, avif et mp4 avec requêtes partielles) : `images.*`, `heroVideoUrl`, `image` valent soit `https://…`, soit un chemin **à préfixer par l'adresse de l'API**
 (`/images/<slug>/<fichier>`). Le front ne construit jamais d'adresse : il utilise la valeur reçue. `null` = pas de visuel.
 
 ### Fiche résumée d'un programme (`ProgramCard`)
@@ -287,7 +290,9 @@ Par défaut un élément est un **brouillon** (`published: false`) : rien n'est 
 | `PUT /api/admin/themes/:slug` | `{title, imageUrl?, position?}` | `204` |
 | `PUT /api/admin/creators/:slug` | `{name, showTitle?, intro?, themes?, ambience?, imageUrl?, imageAlt?, imageFocus?, isProvisional?, published?, position?}` | `204` |
 | `PUT /api/admin/collections/:slug` | `{title, layout, badge?, viewAllUrl?, homePosition?, published?, items: [slug,…]}` (l'ordre = l'affichage) | `204` · `400` (programme inconnu) |
-| `DELETE …/themes|creators|collections/:slug` | — | `204` · `404` |
+| `DELETE /api/admin/themes/:slug` | — | `204` · `404` |
+| `DELETE /api/admin/creators/:slug` | — | `204` · `404` |
+| `DELETE /api/admin/collections/:slug` | — | `204` · `404` |
 
 `homePosition` : place sur l'accueil (`null` = hors accueil). L'identifiant de lecture d'un épisode est toujours `<slug>-<key>`.
 Import en masse : `npm run catalog:import -- fichier.json` ; export du catalogue de démo du front : `npm run catalog:export-front`.
@@ -304,7 +309,7 @@ La réponse de `GET /api/programs/:id/playback` contient désormais **`subtitles
 ```
 - `url` est absolue, à donner telle quelle à `<track kind="subtitles" srclang={lang} label={label} src={url} default={default}>`
   (ajouter `crossOrigin="anonymous"` sur `<video>` : l'API envoie les en-têtes CORS).
-- Une seule piste `default: true` au plus. Le fichier est du WebVTT UTF-8 ; `GET` public, cache 1 h.
+- Une seule piste `default: true` au plus. Le fichier est du WebVTT UTF-8, servi par `GET /subtitles/:playbackId/:file` où `:file` vaut `<lang>.vtt` (public, cache 1 h).
 - Dépôt (administrateur) : `PUT /files/subtitles/:playbackId/:lang?label=Français&default=true` avec le fichier WebVTT brut comme corps
   (1 Mo au plus, doit commencer par `WEBVTT`) → `204` · `400` fichier invalide · `404` média inconnu · `413` trop gros.
   Suppression : `DELETE /files/subtitles/:playbackId/:lang` → `204` · `404`.

@@ -38,16 +38,18 @@ api/
 │   │   └── storage/layout.ts   Plan de rangement des fichiers (vidéos, images, sous-titres).
 │   └── modules/                Le « métier », un dossier par domaine.
 │       ├── health/             Le service est-il vivant ?
-│       ├── ops/                Disponibilité (/ready), supervision (/metrics), tableau de bord administrateur.
-│       ├── catalog/            Quels programmes sont lisibles ?
-│       ├── playback/           « Je veux regarder » → URL signée.
+│       ├── ops/                Disponibilité (/ready), supervision (/metrics), tableau de bord, entretien horaire (conservation des données).
+│       ├── catalog/            Catalogue éditorial : fiches, saisons/épisodes, collections, thèmes, créateurs, visuels, recherche, administration.
+│       ├── playback/           « Je veux regarder » → URL signée, ident, sous-titres.
+│       ├── subtitles/          Pistes WebVTT (dépôt administrateur, distribution publique).
+│       ├── privacy/            Droits RGPD : export des données d'un compte.
 │       ├── media/              Jetons de lecture et distribution des fichiers HLS.
 │       ├── ingest/             Envoi reprenable, file de tâches, encodage, contrôle qualité, publication.
-│       ├── identity/           Comptes, sessions, droits, invitations, journal d'audit.
+│       ├── identity/           Comptes, sessions, droits, invitations, e-mail vérifié, double authentification (TOTP), journal d'audit.
 │       ├── progress/           Reprise de lecture (« Reprendre »).
 │       ├── mylist/             « Ma liste ».
 │       ├── analytics/          Mesure de la qualité de lecture.
-│       └── recommendation/     (à construire) que proposer à cette personne ?
+│       └── recommendation/     Similaires, tendances, « pour vous » — chaque proposition porte sa raison.
 ├── migrations/                 Évolutions de la base, en SQL numéroté (001_, 002_…).
 ├── scripts/                    Commandes d'administration : db:start, db:migrate, ingest.
 └── tsconfig.json               Règles strictes de TypeScript (vérifiées par `npm run typecheck`).
@@ -65,6 +67,11 @@ routes  ─▶  service  ─▶  repository  ─▶  base de données
 - Un **repository** est le seul à écrire du SQL.
 - Un module **ne va jamais lire à l'intérieur d'un autre** : il passe par ce que l'autre expose.
 - `platform/` ne dépend d'**aucun** module.
+- Les modules ne forment **aucun cycle** : une dépendance va toujours « vers le bas » (ex. `playback → ingest`, jamais l'inverse).
+
+Ces règles ne sont pas que des principes : `src/architecture.test.ts` les vérifie à chaque exécution des tests (socle indépendant,
+aucun cycle, SQL uniquement dans les fichiers prévus), et `src/contract.test.ts` vérifie que `docs/API-CONTRACT.md` et les routes du code
+sont identiques. Une entorse fait échouer la CI.
 
 Pourquoi : si ces règles sont respectées, on peut changer la base, le CDN ou la façon de signer sans toucher aux routes,
 et on peut tester chaque couche seule.
@@ -113,8 +120,8 @@ thèmes sans être dupliqué, et un thème se modifie en une ligne.
 
 On n'invente pas d'« intelligence » avant d'avoir des données. Voir `modules/recommendation/README.md` :
 
-1. **Éditorial** : sélections choisies par l'équipe, par thème (aucune donnée nécessaire).
-2. **Règles** : thèmes proches de ce qu'on a terminé, nouveautés, popularité récente.
+1. **Éditorial** : sélections choisies par l'équipe, par thème (aucune donnée nécessaire). ✅ en place (repli « Sélection ORIGIN »).
+2. **Règles** : thèmes proches de ce qu'on a terminé, tendances réelles. ✅ en place.
 3. **Similarité** : « ceux qui ont vu X ont aussi vu Y » (quelques milliers d'utilisateurs actifs).
 4. **Modèle appris** : hors périmètre à 1 000 utilisateurs.
 
