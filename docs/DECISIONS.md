@@ -137,3 +137,9 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Cache serveur du catalogue public (`CATALOG_CACHE_SECONDS`, défaut 30 s), borné, avec regroupement des chargements simultanés, vidé à chaque écriture éditoriale ; cache des caractéristiques de recommandation et des tendances
 - ✅ Calcul de proximité allégé (genres normalisés une seule fois)
 - 🟡 Au-delà de ~20 000 titres : pré-calculer les recommandations
+
+## Dossier de contexte des agents (30/10/2026)
+- ✅ `contexte-agents/` : 13 fiches thématiques + 5 fiches par compartiment (catalogue/reco, pipeline vidéo, comptes/sécurité, exploitation, qualité) + README de routage ; hiérarchie de vérité : code et tests > contrat d'API > décisions > documents thématiques > ce dossier
+- ✅ Garde-fou `context-docs.test.ts` : le dossier doit mentionner chaque migration, module, table et variable d'environnement, porter une date de vérification et ne contenir aucun lien cassé (couverture vérifiée, pas le sens)
+- 🟡 Demandes du front du 16/10 (`docs/API-REQUESTS.md`) restées sans réponse du back-end : liste de « Ma liste » enrichie, progression par programme ; à traiter en priorité
+- 🟡 SagePlus et Angels : applications de référence citées par le propriétaire, non documentées à ce jour

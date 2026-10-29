@@ -8,6 +8,7 @@ Dossier de travail **local** du projet ORIGIN (source de vérité).
 
 | Dossier | Contenu |
 |---|---|
+| `contexte-agents/` | **Dossier de contexte des agents** : point d'entrée (`README.md`), fiches thématiques 01–13, fiches par compartiment (`agents/`) |
 | `docs/` | Contexte, décisions validées, audits, notes de mission |
 | `maquettes/` | Maquettes finales (Hero, Top 10, Ce qui pourrait vous plaire, À découvrir…) |
 | `assets/logos/` | Logo ORIGIN, logos-titres des productions |

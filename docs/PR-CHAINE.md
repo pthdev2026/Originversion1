@@ -151,3 +151,32 @@ rechargement → session conservée, déconnexion → `/api/me` répond 401, mau
 - `CORS_ORIGINS` du déploiement devra contenir l'origine du front (demande au back-end déposée dans `API-REQUESTS.md`).
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+---
+
+## PR n°9 — `front/comptes-securite` : mot de passe, e-mail, profil, données (phase C2)
+
+**Base** : `front/comptes-socle` · [ouvrir](https://github.com/pthdev2026/hero-stream-magic/compare/front/comptes-socle...front/comptes-securite?expand=1)
+Plan : `docs/PLAN-COMPTES-FRONT.md` (phase C2 sur 5) ; contrat d'API v1.1.
+
+### Contenu
+- **Mot de passe oublié** : réponse neutre, identique que l'adresse existe ou non (seules les pannes sont annoncées).
+- **`/reinitialiser?token=…`** (page exigée par le lien de l'e-mail) : lien invalide/expiré/déjà utilisé → message clair ; `noindex` et `referrer: no-referrer` (le jeton est dans l'adresse).
+- **Profil** : changer le mot de passe (autres appareils déconnectés par le serveur), **supprimer le compte** (mot de passe + case de confirmation, droit à l'effacement), **« Télécharger mes données »** (`GET /api/me/export`).
+- **`/verifier-email?token=…`** + notice « Confirmez votre adresse » (renvoi du lien, `429` géré) + pastille discrète sur le bouton de compte.
+- **Connexion avec double authentification** : `401 two_factor_required` → champ « Code de vérification », puis renvoi avec le code.
+- Champs accessibles : étiquette liée, aide/erreur reliées par `aria-describedby`.
+
+### Vérifications
+`tsc` 0 erreur · 75 tests · build OK. Parcours réel contre l'API locale (comptes jetables, supprimés ensuite) : création → mot de passe oublié (API journalise un seul e-mail,
+pour l'adresse réelle ; l'écran est identique pour une adresse inconnue) → page `/reinitialiser` (confirmation différente refusée, succès, **réutilisation du lien refusée**) →
+ancien mot de passe refusé, nouveau accepté → changement du mot de passe (mauvais mot de passe actuel refusé) → page `/verifier-email` (l'API passe `emailVerified` à `true`) →
+suppression du compte (champs vides refusés, mauvais mot de passe refusé, succès, `/api/me` → 401, reconnexion impossible).
+
+### Limites
+- **Activation de la double authentification** depuis le site (QR code, codes de secours) : **non faite** ; seule la connexion avec code l'est. À planifier (phase C2b) si vous voulez l'offrir aux comptes.
+- E-mails en mode journal en local (`MAIL_PROVIDER=log`) : l'envoi réel via Resend n'a pas été essayé.
+- Le fichier d'export est servi par l'API en pièce jointe ; son contenu n'a pas été inspecté.
+- Verrouillage 429 non provoqué volontairement.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
