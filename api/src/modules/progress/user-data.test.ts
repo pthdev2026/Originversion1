@@ -174,6 +174,71 @@ describe('ma liste', () => {
   });
 });
 
+describe('demandes du front du 16/10 (liste enrichie, progression par programme)', () => {
+  const putProgram = (slug: string, body: Record<string, unknown>) =>
+    send('PUT', `/api/admin/programs/${slug}`, { kind: 'serie', title: slug, ...body }, adminCookie);
+  const asset = (id: string, slug: string) => registerAsset(sql, {
+    playbackId: id, programSlug: slug, kind: 'serie', title: slug, storagePath: id, durationSeconds: 100,
+    sourceWidth: 1280, sourceHeight: 720, renditions: [], preset: null, encodeSeconds: null, encodedAt: null, isDemo: true,
+  });
+
+  it('progression de TOUS les épisodes d’un programme, terminés inclus, sans fuite entre programmes ni comptes', async t => {
+    if (!available) return t.skip('PostgreSQL injoignable');
+    const erin = await signUp('erin@mail.fr');
+    await putProgram('serie-x', { published: true });
+    await putProgram('serie-y', { published: true });
+    await asset('serie-x-s1-e1', 'serie-x');
+    await asset('serie-x-s1-e2', 'serie-x');
+    await asset('serie-y-s1-e1', 'serie-y');
+    await send('PUT', '/api/me/progress/serie-x-s1-e1', { positionSeconds: 99 }, erin); // terminé (95 %)
+    await send('PUT', '/api/me/progress/serie-x-s1-e2', { positionSeconds: 40 }, erin);
+    await send('PUT', '/api/me/progress/serie-y-s1-e1', { positionSeconds: 10 }, erin);
+
+    const response = await send('GET', '/api/me/progress?program=serie-x', undefined, erin);
+    assert.equal(response.status, 200);
+    const body = (await response.json()) as { items: { playbackId: string; positionSeconds: number; durationSeconds: number; completed: boolean; updatedAt: string }[] };
+    assert.deepEqual(body.items.map(item => [item.playbackId, item.completed]).sort(), [['serie-x-s1-e1', true], ['serie-x-s1-e2', false]]);
+    assert.equal(body.items.find(item => item.playbackId === 'serie-x-s1-e2')?.positionSeconds, 40);
+    assert.match(body.items[0]?.updatedAt ?? '', /^\d{4}-\d{2}-\d{2}T/);
+
+    assert.deepEqual(((await (await send('GET', '/api/me/progress?program=serie-x', undefined, bob)).json()) as { items: unknown[] }).items, [], 'isolé par compte');
+    assert.deepEqual(((await (await send('GET', '/api/me/progress?program=inconnu', undefined, erin)).json()) as { items: unknown[] }).items, []);
+    // Un programme dont le slug est le préfixe d'un autre ne « mord » pas sur lui.
+    await putProgram('serie', { published: true });
+    assert.deepEqual(((await (await send('GET', '/api/me/progress?program=serie', undefined, erin)).json()) as { items: unknown[] }).items, []);
+  });
+
+  it('progression par programme : compte et paramètre obligatoires', async t => {
+    if (!available) return t.skip('PostgreSQL injoignable');
+    assert.equal((await send('GET', '/api/me/progress?program=serie-x')).status, 401);
+    assert.equal((await send('GET', '/api/me/progress', undefined, alice)).status, 400, 'jamais tout l’historique d’un coup');
+    assert.equal((await send('GET', '/api/me/progress?program=Mauvais_ID', undefined, alice)).status, 400);
+    assert.equal((await send('GET', '/api/me/progress?program=a%25b', undefined, alice)).status, 400);
+  });
+
+  it('« Ma liste » enrichie : fiche résumée par élément, null si non publié ou inconnu, ordre conservé', async t => {
+    if (!available) return t.skip('PostgreSQL injoignable');
+    const dave = await signUp('dave@mail.fr');
+    await putProgram('liste-ok', { published: true, tagline: 'Une accroche', category: 'Série originale' });
+    await putProgram('liste-brouillon', { published: false });
+    for (const slug of ['liste-ok', 'liste-brouillon', 'liste-inconnu']) await send('PUT', `/api/me/list/${slug}`, undefined, dave);
+
+    const response = await send('GET', '/api/me/list', undefined, dave);
+    assert.equal(response.status, 200);
+    const body = (await response.json()) as { items: { slug: string; addedAt: string; program: { slug: string; title: string; tagline: string; playable: boolean } | null }[] };
+    assert.deepEqual(body.items.map(item => item.slug), ['liste-inconnu', 'liste-brouillon', 'liste-ok'], 'récents d’abord');
+    const ok = body.items.find(item => item.slug === 'liste-ok');
+    assert.equal(ok?.program?.title, 'liste-ok');
+    assert.equal(ok?.program?.tagline, 'Une accroche');
+    assert.equal(ok?.program?.playable, false);
+    assert.match(ok?.addedAt ?? '', /^\d{4}-\d{2}-\d{2}T/);
+    assert.equal(body.items.find(item => item.slug === 'liste-brouillon')?.program, null, 'un brouillon n’est jamais exposé');
+    assert.equal(body.items.find(item => item.slug === 'liste-inconnu')?.program, null);
+    // Compatibilité : les anciens champs sont toujours là.
+    assert.ok(body.items.every(item => typeof item.slug === 'string' && typeof item.addedAt === 'string'));
+  });
+});
+
 describe('mesure de lecture', () => {
   const report = (overrides: Record<string, unknown> = {}) => ({
     id: randomUUID(), playbackId: 'long-film', startupMs: 800, rebufferCount: 0, rebufferMs: 0, watchSeconds: 60,

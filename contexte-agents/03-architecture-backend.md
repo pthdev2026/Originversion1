@@ -43,7 +43,7 @@ routes ─▶ service ─▶ repository ─▶ base de données
 4. `platform/` ne dépend d'**aucun** module.
 5. **Aucun cycle** entre modules : une dépendance va toujours « vers le bas ». Carte actuelle :
    `playback → ingest, media, progress, subtitles` · `progress → identity, ingest` · `media → ingest` · `recommendation → catalog` ·
-   `catalog, ingest, mylist, analytics, ops, privacy, subtitles → identity` · `identity, health → ∅` (hors socle).
+   `mylist → catalog, identity` · `catalog, ingest, analytics, ops, privacy, subtitles → identity` · `identity, health → ∅` (hors socle).
 6. Un module **ne lit pas à l'intérieur d'un autre** : il passe par ce que l'autre expose.
 
 ## 4. Chaîne de middlewares (ordre = `app.ts`)

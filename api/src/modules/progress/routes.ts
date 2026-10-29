@@ -6,7 +6,7 @@ import { errors } from '../../platform/errors.ts';
 import type { AppEnv } from '../../platform/http/types.ts';
 import { isValidId } from '../../platform/storage/layout.ts';
 import { requireUser } from '../identity/middleware.ts';
-import { deleteProgress, findProgress, listContinueWatching, type Progress } from './repository.ts';
+import { deleteProgress, findProgress, listContinueWatching, listProgramProgress, type Progress } from './repository.ts';
 import { saveProgress } from './service.ts';
 
 const bodySchema = z.object({
@@ -62,6 +62,16 @@ export function progressRoutes(deps: { sql: Sql }): Hono<AppEnv> {
     const user = requireUser(c);
     await deleteProgress(deps.sql, user.id, playbackIdOf(c.req.param('playbackId')));
     return c.body(null, 204);
+  });
+
+  // Progression de tous les épisodes d'un programme (état « Reprendre » / « Vu » d'une liste d'épisodes).
+  // `?program=<slug>` est obligatoire : on ne renvoie jamais tout l'historique d'un coup.
+  routes.get('/api/me/progress', async c => {
+    const user = requireUser(c);
+    const program = c.req.query('program');
+    if (!program) throw errors.badRequest('Le paramètre « program » (identifiant du programme) est obligatoire.');
+    if (!isValidId(program)) throw errors.badRequest('Identifiant de programme invalide.');
+    return c.json({ items: (await listProgramProgress(deps.sql, user.id, program)).map(present) });
   });
 
   routes.get('/api/me/continue-watching', async c => {

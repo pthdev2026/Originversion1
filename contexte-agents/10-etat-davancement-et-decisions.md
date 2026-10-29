@@ -35,7 +35,7 @@ Vérifié le : 30/10/2026 (code `e5ebaaa`, 16/10/2026) · Sources : `docs/DECISI
 | Vrais contenus encodés (57 titres sur 60 n'avaient pas de vidéo ; 2 programmes lisibles, tous de démonstration) | Propriétaire / production | Catalogue réel |
 | Droits des images/personnalités ; CGU, confidentialité, mentions | Propriétaire | Publication légale |
 | Branchement du front (progression, liste, ident, mesure, sous-titres, 2FA) | Agent front | Expérience complète |
-| **Réponse aux 3 demandes du front** (`docs/API-REQUESTS.md`, ouvertes depuis le 16/10) | **Agent back-end** | « Ma liste » et état « Vu » côté front |
+| ~~Réponse aux 3 demandes du front~~ (traitées le 30/10, contrat v1.2) | Agent back-end | Le front peut brancher « Ma liste » et l'état « Vu » |
 | Copie hors site des sauvegardes + des clés | Propriétaire | Reprise après sinistre |
 
 ## 3. Mesures de référence (toute affirmation d'échelle doit renvoyer ici)
@@ -74,7 +74,7 @@ Tout nouveau contenu est brouillon par défaut. · Recommandations explicables, 
 5. Réseau de sauvegarde hors site. 6. Contenus de lancement (combien d'heures, quels programmes). 7. Qui valide les droits d'image. 8. **SagePlus et Angels** : nature et fonctions à reprendre (voir `01-…` §6).
 
 ## 7. Prochaines actions recommandées (ordre)
-1. Répondre aux 3 demandes de `docs/API-REQUESTS.md` (petit, débloque le front).
+1. ~~Répondre aux 3 demandes de `docs/API-REQUESTS.md`~~ — fait le 30/10. Audit d'architecture cible (hébergement de PostgreSQL, Mux, composants à déployer) : `docs/AUDIT-ARCHITECTURE-CIBLE-2026-10-30.md`.
 2. Dès qu'un serveur/domaine existe : construire l'image Docker, lancer le compose, `/health`, premier admin.
 3. Dès que le compte Bunny existe : `cdn:check`, puis `DELIVERY_MODE=bunny`, puis refaire le test de charge depuis une autre machine.
 4. Dès qu'un compte Resend existe : un vrai e-mail de réinitialisation reçu.

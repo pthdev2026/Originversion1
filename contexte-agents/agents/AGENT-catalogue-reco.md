@@ -15,8 +15,7 @@
 - Reprise : terminé à 95 % ou < 30 s de la fin ; envois en retard ignorés ; durée de référence = celle du média.
 
 ## Chantiers ouverts (priorité)
-1. **`GET /api/me/list` enrichi** (`ProgramCard` par élément) — demande du front du 16/10, `docs/API-REQUESTS.md`.
-2. **Progression de tous les épisodes d'un programme** (`GET /api/me/progress?program=<slug>`) — idem.
+1. ~~`GET /api/me/list` enrichi~~ et ~~progression par programme~~ : faits le 30/10 (contrat v1.2). Vérifier `docs/API-REQUESTS.md` pour de nouvelles demandes.
 3. Édition du nom d'affichage (`PATCH /api/me`) si le front en a besoin.
 4. Au-delà de ~20 000 titres : pré-calcul des recommandations (seuil mesuré, `docs/TEST-DE-CHARGE.md`).
 

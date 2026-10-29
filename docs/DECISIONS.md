@@ -143,3 +143,8 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Garde-fou `context-docs.test.ts` : le dossier doit mentionner chaque migration, module, table et variable d'environnement, porter une date de vérification et ne contenir aucun lien cassé (couverture vérifiée, pas le sens)
 - 🟡 Demandes du front du 16/10 (`docs/API-REQUESTS.md`) restées sans réponse du back-end : liste de « Ma liste » enrichie, progression par programme ; à traiter en priorité
 - 🟡 SagePlus et Angels : applications de référence citées par le propriétaire, non documentées à ce jour
+
+## Demandes du front traitées (30/10/2026)
+- ✅ `GET /api/me/list` renvoie une fiche résumée (`program`, ou `null` si non publié/inconnu) par élément — champs historiques inchangés (additif). Dépendance `mylist → catalog` (sans cycle, vérifiée par `architecture.test.ts`)
+- ✅ `GET /api/me/progress?program=<slug>` : progression de chaque contenu d'un programme, terminés inclus ; paramètre obligatoire (jamais tout l'historique) ; programme retrouvé par `program_slug` ou par le média
+- ✅ Aucune modification de la vidéo, du CDN, de l'authentification, de l'infrastructure ; Supabase et Mux **non intégrés** (audit d'architecture d'abord : `docs/AUDIT-ARCHITECTURE-CIBLE-2026-10-30.md`)

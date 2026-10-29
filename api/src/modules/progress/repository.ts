@@ -71,6 +71,22 @@ export async function listContinueWatching(sql: Sql, userId: string, limit: numb
   return rows.map(row => ({ ...toProgress(row), title: row.title, kind: row.kind }));
 }
 
+/**
+ * Progression de CHAQUE contenu d'un programme (tous les épisodes d'une série en un appel), du plus récent au plus ancien.
+ * Le programme est retrouvé par `program_slug`, ou à défaut par le média (jointure sur `media_assets`) : même règle
+ * que l'historique des recommandations. Terminés INCLUS (c'est ce qui permet d'afficher l'état « Vu »).
+ */
+export async function listProgramProgress(sql: Sql, userId: string, programSlug: string, limit = 500): Promise<Progress[]> {
+  const rows = await sql<ProgressRow[]>`
+    SELECT w.*
+    FROM watch_progress w
+    LEFT JOIN media_assets m ON m.playback_id = w.playback_id
+    WHERE w.user_id = ${userId} AND COALESCE(w.program_slug, m.program_slug) = ${programSlug}
+    ORDER BY w.updated_at DESC
+    LIMIT ${limit}`;
+  return rows.map(toProgress);
+}
+
 export async function deleteProgress(sql: Sql, userId: string, playbackId: string): Promise<void> {
   await sql`DELETE FROM watch_progress WHERE user_id = ${userId} AND playback_id = ${playbackId}`;
 }

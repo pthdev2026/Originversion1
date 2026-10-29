@@ -1,4 +1,4 @@
-# ORIGIN — Contrat d'API (v1.1, 16/10/2026)
+# ORIGIN — Contrat d'API (v1.2, 30/10/2026)
 
 Propriétaire : l'agent back-end. Toute modification est annoncée ici avant d'être déployée.
 Limites : 120 requêtes par minute et par adresse IP sur `/api/*` ; en-têtes `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
@@ -130,8 +130,9 @@ Toutes ces routes exigent un compte connecté (`401` sinon) et `credentials: 'in
 | `PUT /api/me/progress/:playbackId` | `{positionSeconds, durationSeconds?, sentAt?}` | `200 {playbackId, positionSeconds, durationSeconds, completed, updatedAt}` |
 | `GET /api/me/progress/:playbackId` | — | `200` (même forme) · `404` = jamais commencé |
 | `DELETE /api/me/progress/:playbackId` | — | `204` (retire de « Reprendre ») |
+| `GET /api/me/progress?program=<slug>` | `program` **obligatoire** | `200 {items:[{playbackId, positionSeconds, durationSeconds, completed, updatedAt}]}` (v1.2) : progression de **chaque** contenu du programme (tous les épisodes d'une série), terminés **inclus** — c'est ce qui permet l'état « Vu » ; récents d'abord. Programme sans progression : `items: []`. `400` si `program` absent ou invalide. |
 | `GET /api/me/continue-watching?limit=20` | — | `200 {items:[{playbackId, programSlug, title, kind, positionSeconds, durationSeconds, progressRatio, completed, updatedAt}]}` |
-| `GET /api/me/list` | — | `200 {items:[{slug, addedAt}]}` (récents d'abord) |
+| `GET /api/me/list` | — | `200 {items:[{slug, addedAt, program}]}` (récents d'abord). **`program`** (v1.2) = fiche résumée `ProgramCard` du catalogue, ou **`null`** si le contenu n'est pas publié ou n'existe pas (l'élément reste dans la liste : à l'utilisateur de le retirer). Les champs `slug` et `addedAt` sont inchangés. |
 | `PUT /api/me/list/:slug` | — | `204` (idempotent, 500 contenus au plus) |
 | `DELETE /api/me/list/:slug` | — | `204` |
 

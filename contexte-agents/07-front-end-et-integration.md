@@ -44,10 +44,10 @@ Vérifié le : 30/10/2026 (d'après l'historique git du dépôt `app/`, branche 
 ## 4. Demandes du front en attente de réponse du back-end (`docs/API-REQUESTS.md`)
 | Date | Demande | Statut au 30/10 |
 |---|---|---|
-| 16/10 | `GET /api/me/list` doit renvoyer des `ProgramCard` (`{items:[{slug, addedAt, program}]}`) pour éviter N appels | **Ouverte — non traitée** |
-| 16/10 | Route de progression de **tous les épisodes d'un programme** (`GET /api/me/progress?program=<slug>`) pour l'état « Reprendre/Vu » | **Ouverte — non traitée** |
-| 16/10 | Confirmer `CORS_ORIGINS` ∋ `http://localhost:3210` et API en `http://localhost:4000` (cookie : même site `localhost`) | À confirmer (c'est une configuration locale : `CORS_ORIGINS=http://localhost:3210`) |
-> Ces demandes bloquent l'avancement du front sur « Ma liste » et la reprise : **première chose à traiter** pour un agent back-end (voir `10-…`).
+| 16/10 | `GET /api/me/list` doit renvoyer des `ProgramCard` (`{items:[{slug, addedAt, program}]}`) pour éviter N appels | ✅ **Traitée le 30/10** (contrat v1.2 ; `program` = fiche ou `null`) |
+| 16/10 | Route de progression de **tous les épisodes d'un programme** (`GET /api/me/progress?program=<slug>`) pour l'état « Reprendre/Vu » | ✅ **Traitée le 30/10** (contrat v1.2 ; terminés inclus) |
+| 16/10 | Confirmer `CORS_ORIGINS` ∋ `http://localhost:3210` et API en `http://localhost:4000` (cookie : même site `localhost`) | ✅ Confirmé le 30/10 |
+> Les trois demandes sont closes. Le front peut brancher « Ma liste » (rail avec fiches) et l'état « Vu » par épisode. Vérifier `docs/API-REQUESTS.md` avant chaque session pour de nouvelles demandes.
 
 ## 5. Contraintes du front que le back-end doit respecter
 - **Même site** pour le cookie : en local `http://localhost:3210` ↔ `http://localhost:4000` (pas `127.0.0.1`) ; en production `origin.example` ↔ `api.origin.example`.
