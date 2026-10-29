@@ -69,9 +69,12 @@ Vidéo : HLS fMP4 4 s, 4 qualités sans sur-échantillonnage, H.264/AAC, URLs si
 Lecture ouverte par défaut (`PLAYBACK_REQUIRES_LOGIN=false`). · Ident : une fois par titre, décidé par le serveur. · Typographie : Manrope (Michroma = mot-symbole). ·
 Tout nouveau contenu est brouillon par défaut. · Recommandations explicables, jamais de faux « pour vous ». · Pas de microservices, pas de ML à cette échelle.
 
+## 5 bis. Audit d'architecture cible (30/10/2026) — conclusions
+PostgreSQL sur Supabase : **compatible sans toucher à l'authentification**, mais **non recommandé pour le pilote** (coût, dépendance) et **dangereux si l'API de données n'est pas verrouillée** (tables `users`/`sessions` exposables). Mux : coexistence **par média** possible (migration `provider`, interface d'ingestion, webhook, signataire JWT), **non construite** : tester d'abord 1 vidéo sur chaque voie. Déploiement de référence : **T1 = tout sur un VPS + Bunny + Resend**. Contrainte : le **front doit avoir un domaine personnalisé du même site que l'API**. Détail : `docs/AUDIT-ARCHITECTURE-CIBLE-2026-10-30.md`.
+
 ## 6. Questions ouvertes (décisions du propriétaire)
 1. Fournisseur VPS et nom de domaine. 2. Version courte de l'ident (3,5–4 s). 3. Double authentification obligatoire pour les spectateurs ? 4. Passage à l'invitation : quand ?
-5. Réseau de sauvegarde hors site. 6. Contenus de lancement (combien d'heures, quels programmes). 7. Qui valide les droits d'image. 8. **SagePlus et Angels** : nature et fonctions à reprendre (voir `01-…` §6).
+5. Réseau de sauvegarde hors site. 6. Contenus de lancement (combien d'heures, quels programmes). 7. Qui valide les droits d'image. 8. Domaine personnalisé pour le front (même site que l'API) — préalable à l'achat du domaine. 9. Essai comparatif « 1 vidéo, 2 voies » (FFmpeg+Bunny / Mux) : lancer ? 10. **SagePlus et Angels** : nature et fonctions à reprendre (voir `01-…` §6).
 
 ## 7. Prochaines actions recommandées (ordre)
 1. ~~Répondre aux 3 demandes de `docs/API-REQUESTS.md`~~ — fait le 30/10. Audit d'architecture cible (hébergement de PostgreSQL, Mux, composants à déployer) : `docs/AUDIT-ARCHITECTURE-CIBLE-2026-10-30.md`.

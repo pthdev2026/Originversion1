@@ -148,3 +148,9 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ `GET /api/me/list` renvoie une fiche résumée (`program`, ou `null` si non publié/inconnu) par élément — champs historiques inchangés (additif). Dépendance `mylist → catalog` (sans cycle, vérifiée par `architecture.test.ts`)
 - ✅ `GET /api/me/progress?program=<slug>` : progression de chaque contenu d'un programme, terminés inclus ; paramètre obligatoire (jamais tout l'historique) ; programme retrouvé par `program_slug` ou par le média
 - ✅ Aucune modification de la vidéo, du CDN, de l'authentification, de l'infrastructure ; Supabase et Mux **non intégrés** (audit d'architecture d'abord : `docs/AUDIT-ARCHITECTURE-CIBLE-2026-10-30.md`)
+
+## Audit d'architecture cible (30/10/2026)
+- ✅ Conserver Hono + PostgreSQL + authentification maison ; **pas de Supabase Auth** ; **pas de migration vers Supabase pour le pilote** (compatible mais coûteux/dépendant ; l'API de données doit être verrouillée si on y vient)
+- ✅ Déploiement de référence du pilote : **tout sur un VPS** (Caddy, API, PostgreSQL, travailleur, sauvegarde, chien de garde) + Bunny + Resend
+- ✅ Mux : **coexistence par média** envisageable (colonne `provider`), **rien construit** ; décision après un essai « 1 vidéo, 2 voies » ; vérifier d'abord les CGU et la résidence des données de Mux
+- 🟡 Domaine personnalisé du front à trancher avant d'acheter le domaine (cookie de session : même site que l'API)

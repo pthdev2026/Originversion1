@@ -23,6 +23,7 @@ Vérifié le : 30/10/2026
 | Déploiement, exploitation | `docs/DEPLOIEMENT.md`, `docs/EXPLOITATION.md`, `deploy/` | 09 |
 | Charge et performance | `docs/TEST-DE-CHARGE.md` | 10 §3 |
 | Décisions | `docs/DECISIONS.md` | 10 §5 |
+| Choix d'hébergement (PostgreSQL géré ? Supabase ?), Mux vs FFmpeg+Bunny, composants à déployer | `docs/AUDIT-ARCHITECTURE-CIBLE-2026-10-30.md` | 09, 10 |
 | Benchmark Netflix/Prime, coûts | `docs/BENCHMARK-TECHNIQUE.md`, `docs/PLAN-1000-UTILISATEURS.md` | 01 §5 |
 | Audit initial, diagnostics historiques | `docs/AUDIT-EXISTANT.md`, `docs/BACKEND-DIAGNOSTIC-ET-PLAN.md`, `docs/FRONT-DIAGNOSTIC-2026-10-13.md` | (historique, ne pas traiter comme actuel) |
 | Intro « Prisme » (générée par IA) | `docs/INTRO-PRISME-PROMPTS.md`, `assets/intro/` | (hors back-end) |
@@ -32,7 +33,7 @@ Vérifié le : 30/10/2026
 | Statut | Documents |
 |---|---|
 | **Vivants (à tenir à jour)** | `API-CONTRACT`, `DECISIONS`, `ARCHITECTURE-BACKEND`, `SECURITE-BACKEND`, `EXPLOITATION`, `DEPLOIEMENT`, `TEST-DE-CHARGE`, `GUIDE-BUNNY`, `API-REQUESTS`, `DESIGN` |
-| **Instantanés datés (ne pas modifier, ne pas croire sans date)** | `ANALYSE-GLOBALE-2026-10-13`, `REVUE-ARCHITECTURE-2026-10-15`, `AUDIT-EXISTANT`, `BACKEND-DIAGNOSTIC-ET-PLAN`, `FRONT-DIAGNOSTIC-2026-10-13`, `BENCHMARK-TECHNIQUE`, `PLAN-1000-UTILISATEURS` |
+| **Instantanés datés (ne pas modifier, ne pas croire sans date)** | `ANALYSE-GLOBALE-2026-10-13`, `REVUE-ARCHITECTURE-2026-10-15`, `AUDIT-ARCHITECTURE-CIBLE-2026-10-30`, `AUDIT-EXISTANT`, `BACKEND-DIAGNOSTIC-ET-PLAN`, `FRONT-DIAGNOSTIC-2026-10-13`, `BENCHMARK-TECHNIQUE`, `PLAN-1000-UTILISATEURS` |
 | **Processus front (agent front)** | `BRIEF-AGENT-FRONT`, `PLAN-COMPTES-FRONT`, `PROMPT-AGENT-FRONT-BRANCHEMENT`, `PR-CHAINE`, `PR-*.md` |
 | **Pack créatif** | `INTRO-PRISME-PROMPTS` |
 
