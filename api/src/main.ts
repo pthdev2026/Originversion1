@@ -103,6 +103,7 @@ if (config.mux) {
 const app = createApp({
   account,
   mailer,
+  supportEmail: config.supportEmail,
   ident: config.ident,
   deliverySigner: createRoutingSigner({ self: deliverySigner, mux: muxSigner }),
   mux: { service: muxService, defaultProvider: config.videoProvider, playbackPolicy: config.mux?.playbackPolicy ?? 'public' },

@@ -6,15 +6,15 @@ import type { AppEnv } from '../../platform/http/types.ts';
 import { isValidId } from '../../platform/storage/layout.ts';
 import { requireAdmin } from '../identity/middleware.ts';
 import {
-  deleteCollection, deleteCreator, deleteProgram, deleteTheme, getProgramForAdmin, listAllForAdmin,
+  deleteCollection, deleteCreator, deleteProgram, deleteTheme, getCreatorForAdmin, getProgramForAdmin, listAllForAdmin, listCreatorsForAdmin, replaceCreatorContents,
   upsertCollection, upsertCreator, upsertProgram, upsertTheme,
 } from './admin.ts';
 import {
-  foldQuery, getCollection, getHome, getProgramDetail, listCreators, listProgramsByTheme, listThemes, searchCreators, searchPrograms,
+  foldQuery, getCollection, getCreatorUniverse, getHome, getProgramDetail, listCreators, listProgramsByTheme, listThemes, searchCreators, searchPrograms,
 } from './content.ts';
 import { listPlayablePrograms } from './repository.ts';
 import { createTtlCache } from '../../platform/http/ttl-cache.ts';
-import { collectionSchema, creatorSchema, parseBody, programSchema, themeSchema } from './schemas.ts';
+import { collectionSchema, creatorContentsSchema, creatorSchema, parseBody, programSchema, themeSchema } from './schemas.ts';
 
 /**
  * Le catalogue public est identique pour tous les visiteurs : un cache court (30 s, puis 2 min en rafraîchissement
@@ -101,6 +101,15 @@ export function catalogRoutes(deps: { sql: Sql; cacheTtlMs?: number }): Hono<App
     return c.json({ query: q, programs, creators });
   });
 
+  // Page d'un créateur : présentation, chapitres et contenus classés par rubrique. 404 si inconnu ou non publié.
+  routes.get('/api/creators/:slug', async c => {
+    const slug = slugOf(c.req.param('slug'));
+    const universe = await cached(`creator:${slug}`, () => getCreatorUniverse(deps.sql, slug));
+    if (!universe) throw errors.notFound('Créateur introuvable.');
+    cacheable(c);
+    return c.json(universe);
+  });
+
   // ---- Administration éditoriale ----------------------------------------------------------------------------------
 
   routes.get('/api/admin/catalog', async c => {
@@ -145,6 +154,27 @@ export function catalogRoutes(deps: { sql: Sql; cacheTtlMs?: number }): Hono<App
   routes.delete('/api/admin/themes/:slug', async c => {
     requireAdmin(c);
     if (!(await deleteTheme(deps.sql, slugOf(c.req.param('slug'))))) throw errors.notFound('Thématique introuvable.');
+    return c.body(null, 204);
+  });
+
+  routes.get('/api/admin/creators', async c => {
+    requireAdmin(c);
+    return c.json({ creators: await listCreatorsForAdmin(deps.sql) });
+  });
+
+  // Fiche admin d'un créateur (brouillon compris) : `document` et `contents` se renvoient tels quels aux deux routes PUT.
+  routes.get('/api/admin/creators/:slug', async c => {
+    requireAdmin(c);
+    const view = await getCreatorForAdmin(deps.sql, slugOf(c.req.param('slug')));
+    if (!view) throw errors.notFound('Créateur introuvable.');
+    return c.json(view);
+  });
+
+  // Remplace tous les contenus du créateur (l'ordre de la liste = l'ordre d'affichage).
+  routes.put('/api/admin/creators/:slug/contents', async c => {
+    requireAdmin(c);
+    const parsed = parseBody(creatorContentsSchema, await body(c));
+    if (!(await replaceCreatorContents(deps.sql, slugOf(c.req.param('slug')), parsed.contents))) throw errors.notFound('Créateur introuvable.');
     return c.body(null, 204);
   });
 

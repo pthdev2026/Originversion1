@@ -37,6 +37,7 @@ import { mediaRoutes } from './modules/media/routes.ts';
 import { accountRoutes } from './modules/account/routes.ts';
 import { createAccountService, type AccountService } from './modules/account/service.ts';
 import type { Mailer } from './platform/mail.ts';
+import { contactRoutes } from './modules/contact/routes.ts';
 import { privacyRoutes } from './modules/privacy/routes.ts';
 import { recommendationRoutes } from './modules/recommendation/routes.ts';
 import { subtitleRoutes } from './modules/subtitles/routes.ts';
@@ -61,6 +62,10 @@ export interface AppDependencies {
   playbackRequiresLogin: boolean;
   /** Durée du cache serveur des lectures publiques du catalogue (ms). 0 = aucun (défaut, pour les tests). */
   catalogCacheTtlMs?: number;
+  /** Adresse qui reçoit un signalement par message de contact (absente : conservés seulement). */
+  supportEmail?: string | null;
+  /** Messages de contact autorisés par heure et par IP (défaut 5). */
+  contactPerHour?: number;
   /** Espace personnel (photo, changement d'e-mail). Par défaut : créé ici avec `mailer`. */
   account?: AccountService;
   /** Envoi d'e-mails de l'espace personnel (par défaut : aucun envoi). */
@@ -143,6 +148,7 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
   }));
   const account = deps.account ?? createAccountService({ sql: deps.sql, logger: deps.logger, mailer: deps.mailer ?? { async send() {} }, storage: deps.storage });
   app.route('/', accountRoutes({ sql: deps.sql, account, authPerMinute: deps.rateLimits.authPerMinute, clientKey: byIp }));
+  app.route('/', contactRoutes({ sql: deps.sql, logger: deps.logger, mailer: deps.mailer ?? { async send() {} }, supportEmail: deps.supportEmail ?? null, clientKey: byIp, ...(deps.contactPerHour ? { perHour: deps.contactPerHour } : {}) }));
   app.route('/', recommendationRoutes({ sql: deps.sql, catalogTtlMs: deps.catalogCacheTtlMs ?? 0 }));
   app.route('/', privacyRoutes({ sql: deps.sql }));
   app.route('/', progressRoutes({ sql: deps.sql }));

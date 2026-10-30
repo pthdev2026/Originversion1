@@ -1,4 +1,4 @@
-# ORIGIN — Contrat d'API (v1.5, 30/10/2026)
+# ORIGIN — Contrat d'API (v1.6, 30/10/2026)
 
 Propriétaire : l'agent back-end. Toute modification est annoncée ici avant d'être déployée.
 Limites : 120 requêtes par minute et par adresse IP sur `/api/*` ; en-têtes `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
@@ -232,6 +232,7 @@ Visuels (`GET /images/:slug/:file`, public, cache 24 h ; jpg, jpeg, png, webp, a
 | `GET /api/themes` | `{themes: [{slug, title, image, programCount}]}` |
 | `GET /api/themes/:slug` | `{programs: ProgramCard[]}` · `404` |
 | `GET /api/creators` | `{creators: [{slug, name, showTitle, intro, themes, ambience, image, imageAlt, imageFocus, isProvisional}]}` |
+| `GET /api/creators/:slug` | Univers d'un créateur : `{slug, name, alias, domain, tagline, accent, chapters, contents: {message[], conference[], serie[], live[]}, featured}` · `404` si inconnu. `accent` = « R G B ». Le **live est une annonce** (date `liveAt`), pas de diffusion en direct |
 | `GET /api/search?q=…&limit=20` | `{query, programs: ProgramCard[], creators: Creator[]}` — 2 à 80 caractères ; sans accents ni casse ; plusieurs mots = tous requis ; titres d'abord |
 
 `Collection` : `{slug, title, layout, badge, viewAllUrl, items: (ProgramCard & {rank})[]}`.
@@ -438,6 +439,19 @@ Application d'authentification standard (Google Authenticator, Microsoft Authent
   "catalogHealth": { "published": 36, "playable": 2, "publishedWithoutMedia": ["…"] } }
 ```
 Une « lecture » = session d'au moins 10 s. Agrégats uniquement : aucun identifiant de compte ni e-mail.
+
+## Univers de créateur et contact (disponible — v1.6)
+
+| Route | Description |
+|---|---|
+| `GET /api/admin/creators` | Administrateur : créateurs avec leurs champs d'univers (alias, domaine, accroche, accent, chapitres) |
+| `GET /api/admin/creators/:slug` | Administrateur : un créateur + ses contenus rattachés |
+| `PUT /api/admin/creators/:slug/contents` | Administrateur : remplace les contenus rattachés (rubrique message/conférence/série/direct, 1 seul « à la une », `liveAt` réservé au direct) |
+| `POST /api/contact` | Public, 5 par heure et par IP : `{name, email, topic?, message(10..4000), website?}` → `202`. `website` est un champ caché anti-robot : rempli, réponse identique mais rien n'est conservé |
+| `GET /api/admin/contact?status=new\|handled&limit=` | Administrateur : messages reçus |
+| `POST /api/admin/contact/:id/handled` | Administrateur : marque traité (`204`, `404` si déjà traité) |
+
+Les messages de contact sont purgés avec le journal d'audit (`RETENTION_AUDIT_DAYS`). Variable : `SUPPORT_EMAIL` (signalement par e-mail, facultative).
 
 ## Erreurs de disponibilité (v0.9)
 Une panne ou une saturation de la base répond **`503 {"error":"unavailable"}` avec `Retry-After: 5`** (jamais une 500) :

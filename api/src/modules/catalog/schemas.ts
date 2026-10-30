@@ -78,8 +78,17 @@ export const themeSchema = z.object({
   position: z.number().int().min(0).max(10_000).default(0),
 }).strict();
 
+const rgb = z.string().regex(/^\d{1,3} \d{1,3} \d{1,3}$/, 'Couleur « R G B » attendue (ex. 96 140 255).')
+  .refine(value => value.split(' ').every(part => Number(part) <= 255), { message: 'Chaque valeur de couleur doit être comprise entre 0 et 255.' });
+const chapter = z.object({ mark: text(8), title: text(80), text: text(500) }).strict();
+
 export const creatorSchema = z.object({
   name: text(120),
+  alias: optText(60),
+  domain: optText(60),
+  tagline: optText(400),
+  accent: rgb.nullable().default(null),
+  chapters: z.array(chapter).max(8, '8 chapitres au plus.').default([]),
   showTitle: optText(200),
   intro: optText(2000),
   themes: labels,
@@ -91,6 +100,30 @@ export const creatorSchema = z.object({
   published: z.boolean().default(false),
   position: z.number().int().min(0).max(10_000).default(0),
 }).strict();
+
+const creatorContent = z.object({
+  program: slug,
+  kind: z.enum(['message', 'conference', 'serie', 'live']),
+  /** « À la une » : au plus un contenu par créateur. */
+  featured: z.boolean().default(false),
+  episodeLabel: optText(20),
+  /** Créneau d'un direct (date et heure, ISO 8601). Seulement pour la rubrique `live`. */
+  liveAt: z.string().datetime({ offset: true }).nullable().default(null),
+}).strict().superRefine((value, ctx) => {
+  if (value.liveAt !== null && value.kind !== 'live') ctx.addIssue({ code: 'custom', message: 'Un créneau (liveAt) n’est possible que pour la rubrique « live ».' });
+});
+
+/** Remplace TOUS les contenus d'un créateur ; l'ordre de la liste est l'ordre d'affichage. */
+export const creatorContentsSchema = z.object({
+  contents: z.array(creatorContent).max(100, '100 contenus au plus.'),
+}).strict().superRefine((value, ctx) => {
+  const seen = new Set<string>();
+  for (const item of value.contents) {
+    if (seen.has(item.program)) ctx.addIssue({ code: 'custom', message: `Programme « ${item.program} » en double.` });
+    seen.add(item.program);
+  }
+  if (value.contents.filter(item => item.featured).length > 1) ctx.addIssue({ code: 'custom', message: 'Un seul contenu peut être « à la une ».' });
+});
 
 export const collectionSchema = z.object({
   title: text(160),

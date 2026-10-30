@@ -52,6 +52,8 @@ const schema = z.object({
   RATE_LIMIT_AUTH_PER_MIN: z.coerce.number().int().min(1).max(10_000).default(10),
   /** Rapports de mesure de lecture par minute et par adresse IP (un lecteur en envoie ~4 par minute). */
   RATE_LIMIT_METRICS_PER_MIN: z.coerce.number().int().min(1).max(100_000).default(120),
+  /** Adresse qui reçoit un signalement à chaque message du formulaire « Nous contacter ». Absente : messages seulement conservés. */
+  SUPPORT_EMAIL: z.string().email().optional(),
   /** Cache serveur du catalogue public, en secondes (0 = aucun). Une modification éditoriale faite sur une AUTRE instance est visible après ce délai. */
   CATALOG_CACHE_SECONDS: z.coerce.number().int().min(0).max(300).default(30),
   /** Conservation des données : mesures de lecture (jours) et journal d'audit (jours). */
@@ -133,6 +135,7 @@ export interface AppConfig {
   media: { loudnessLufs: number | null; ffmpegPath: string; ffprobePath: string; encodePreset: string; uploadMaxBytes: number };
   ident: { policy: 'title' | 'season' | 'always' | 'off'; playbackId: string; skippableAfterSeconds: number };
   catalogCacheSeconds: number;
+  supportEmail: string | null;
   videoProvider: 'self' | 'mux';
   mux: {
     tokenId: string; tokenSecret: string; videoQuality: 'basic' | 'plus' | 'premium'; playbackPolicy: 'public' | 'signed';
@@ -230,6 +233,7 @@ export function loadConfig(source: Record<string, string | undefined> = process.
       uploadMaxBytes: raw.UPLOAD_MAX_BYTES,
     },
     catalogCacheSeconds: raw.CATALOG_CACHE_SECONDS,
+    supportEmail: raw.SUPPORT_EMAIL ?? null,
     videoProvider: raw.VIDEO_PROVIDER,
     mux: raw.MUX_TOKEN_ID && raw.MUX_TOKEN_SECRET
       ? {

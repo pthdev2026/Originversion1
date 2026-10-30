@@ -178,3 +178,8 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Contrat v1.5 : profil (`PATCH /api/me`, date d'inscription, langue), préférences, appareils (nom approximatif, jamais d'IP), thématiques préférées → « Pour vous » dès l'inscription, photo de profil (jpg/png/webp, 5 Mo, supprimée avec le compte, sauvegardée), changement d'e-mail par code, historique désactivable et effaçable, épisode dans « Continuer à regarder », export enrichi
 - ✅ Migration 014 ; module `account` ; `afterAccountDeleted` (nettoyage hors base) branché sur la suppression de compte
 - 🟡 Inchangé : connexion Google/Apple, direct (live), audio multiple, contenus en anglais, envoi des notifications (seul le choix est enregistré)
+
+## Univers de créateur et contact livrés (30/10/2026)
+- ✅ Migration 015 : alias, domaine, accroche, couleur d'accent, chapitres, contenus par rubrique avec « à la une » ; routes publiques et d'administration (contrat v1.6)
+- ✅ Migration 016 : formulaire « Nous contacter » (limité à 5/h/IP, piège anti-robot, conservé + e-mail à `SUPPORT_EMAIL`, purgé avec l'audit)
+- 🟡 Le « direct » n'est qu'une annonce datée : pas de diffusion en direct (décision propriétaire requise)

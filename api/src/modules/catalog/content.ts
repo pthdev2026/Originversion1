@@ -243,6 +243,13 @@ export async function listProgramsByTheme(sql: Sql, themeSlug: string): Promise<
 export interface CreatorView {
   slug: string;
   name: string;
+  /** Titre honorifique (« Apôtre », « Pasteur »…). */
+  alias: string | null;
+  /** Domaine d'expression (« Prédication », « Enseignement », « Louange »). */
+  domain: string | null;
+  tagline: string | null;
+  /** Couleur d'ambiance de l'univers, « R G B ». */
+  accent: string | null;
   showTitle: string | null;
   intro: string | null;
   themes: string[];
@@ -255,13 +262,14 @@ export interface CreatorView {
 
 export async function listCreators(sql: Sql): Promise<CreatorView[]> {
   const rows = await sql<{
-    slug: string; name: string; show_title: string | null; intro: string | null; themes: string[]; ambience: string | null;
+    slug: string; name: string; alias: string | null; domain: string | null; tagline: string | null; accent: string | null;
+    show_title: string | null; intro: string | null; themes: string[]; ambience: string | null;
     image_url: string | null; image_alt: string | null; image_focus: string | null; is_provisional: boolean;
   }[]>`
-    SELECT slug, name, show_title, intro, themes, ambience, image_url, image_alt, image_focus, is_provisional
+    SELECT slug, name, alias, domain, tagline, accent, show_title, intro, themes, ambience, image_url, image_alt, image_focus, is_provisional
     FROM creators WHERE published ORDER BY position, name`;
   return rows.map(row => ({
-    slug: row.slug, name: row.name, showTitle: row.show_title, intro: row.intro, themes: row.themes, ambience: row.ambience,
+    slug: row.slug, name: row.name, alias: row.alias, domain: row.domain, tagline: row.tagline, accent: row.accent, showTitle: row.show_title, intro: row.intro, themes: row.themes, ambience: row.ambience,
     image: row.image_url, imageAlt: row.image_alt, imageFocus: row.image_focus, isProvisional: row.is_provisional,
   }));
 }
@@ -324,4 +332,51 @@ export async function getCards(sql: Sql, slugs: string[]): Promise<Map<string, P
     SELECT ${PROGRAM_COLUMNS(sql)} FROM programs p
     WHERE p.slug IN ${sql(slugs)} AND p.published AND p.kind <> 'brand'`;
   return new Map(rows.map(row => [row.slug, toCard(row)]));
+}
+
+// ---- Univers d'un créateur ---------------------------------------------------------------------------------------------------
+
+export type CreatorContentKind = 'message' | 'conference' | 'serie' | 'live';
+
+export interface CreatorUniverse {
+  creator: CreatorView;
+  chapters: { mark: string; title: string; text: string }[];
+  /** Rubriques présentes (dans l'ordre d'affichage) avec leur nombre de contenus. */
+  kinds: { kind: CreatorContentKind; count: number }[];
+  contents: {
+    kind: CreatorContentKind;
+    /** « À la une ». */
+    featured: boolean;
+    /** « Ép. 01 ». */
+    episodeLabel: string | null;
+    /** Créneau d'un direct (ISO 8601). La diffusion en direct elle-même n'existe pas encore : `program.playable` reste faux. */
+    liveAt: string | null;
+    program: ProgramCard;
+  }[];
+}
+
+const KIND_ORDER: CreatorContentKind[] = ['message', 'conference', 'serie', 'live'];
+
+export async function getCreatorUniverse(sql: Sql, slug: string): Promise<CreatorUniverse | null> {
+  const creators = await listCreators(sql);
+  const creator = creators.find(item => item.slug === slug);
+  if (!creator) return null;
+  const [chapterRow] = await sql<{ chapters: { mark: string; title: string; text: string }[] }[]>`SELECT chapters FROM creators WHERE slug = ${slug}`;
+  const rows = await sql<{ program_slug: string; kind: CreatorContentKind; featured: boolean; episode_label: string | null; live_at: Date | null }[]>`
+    SELECT program_slug, kind, featured, episode_label, live_at FROM creator_contents WHERE creator_slug = ${slug} ORDER BY position`;
+  const cards = await getCards(sql, rows.map(row => row.program_slug));
+  // Un programme non publié (brouillon) n'apparaît jamais dans l'univers public.
+  const contents = rows.flatMap(row => {
+    const program = cards.get(row.program_slug);
+    return program ? [{ kind: row.kind, featured: row.featured, episodeLabel: row.episode_label, liveAt: row.live_at?.toISOString() ?? null, program }] : [];
+  });
+  return {
+    creator,
+    chapters: chapterRow?.chapters ?? [],
+    kinds: KIND_ORDER.flatMap(kind => {
+      const count = contents.filter(item => item.kind === kind).length;
+      return count > 0 ? [{ kind, count }] : [];
+    }),
+    contents,
+  };
 }

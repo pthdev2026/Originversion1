@@ -112,6 +112,11 @@ export async function deleteTheme(sql: Sql, slug: string): Promise<boolean> {
 
 export interface CreatorInput {
   name: string;
+  alias: string | null;
+  domain: string | null;
+  tagline: string | null;
+  accent: string | null;
+  chapters: { mark: string; title: string; text: string }[];
   showTitle: string | null;
   intro: string | null;
   themes: string[];
@@ -126,11 +131,13 @@ export interface CreatorInput {
 
 export async function upsertCreator(sql: Sql, slug: string, input: CreatorInput): Promise<void> {
   await sql`
-    INSERT INTO creators (slug, name, show_title, intro, themes, ambience, image_url, image_alt, image_focus, is_provisional, published, position)
-    VALUES (${slug}, ${input.name}, ${input.showTitle}, ${input.intro}, ${textArray(sql, input.themes)}, ${input.ambience},
+    INSERT INTO creators (slug, name, alias, domain, tagline, accent, chapters, show_title, intro, themes, ambience, image_url, image_alt, image_focus, is_provisional, published, position)
+    VALUES (${slug}, ${input.name}, ${input.alias}, ${input.domain}, ${input.tagline}, ${input.accent}, ${sql.json(input.chapters as never)},
+            ${input.showTitle}, ${input.intro}, ${textArray(sql, input.themes)}, ${input.ambience},
             ${input.imageUrl}, ${input.imageAlt}, ${input.imageFocus}, ${input.isProvisional}, ${input.published}, ${input.position})
     ON CONFLICT (slug) DO UPDATE SET
-      name = EXCLUDED.name, show_title = EXCLUDED.show_title, intro = EXCLUDED.intro, themes = EXCLUDED.themes,
+      name = EXCLUDED.name, alias = EXCLUDED.alias, domain = EXCLUDED.domain, tagline = EXCLUDED.tagline, accent = EXCLUDED.accent,
+      chapters = EXCLUDED.chapters, show_title = EXCLUDED.show_title, intro = EXCLUDED.intro, themes = EXCLUDED.themes,
       ambience = EXCLUDED.ambience, image_url = EXCLUDED.image_url, image_alt = EXCLUDED.image_alt,
       image_focus = EXCLUDED.image_focus, is_provisional = EXCLUDED.is_provisional, published = EXCLUDED.published,
       position = EXCLUDED.position`;
@@ -259,5 +266,73 @@ export async function getProgramForAdmin(sql: Sql, slug: string): Promise<AdminP
       id: j.id, playbackId: j.playback_id, status: j.status, step: j.step, progress: Number(j.progress), attempts: j.attempts, maxAttempts: j.max_attempts,
       lastError: j.last_error, createdAt: j.created_at.toISOString(), startedAt: j.started_at?.toISOString() ?? null, finishedAt: j.finished_at?.toISOString() ?? null,
     })),
+  };
+}
+
+// ---- Univers de créateur : contenus et lecture « administration » ------------------------------------------------------------
+
+export interface CreatorContentInput {
+  program: string;
+  kind: 'message' | 'conference' | 'serie' | 'live';
+  featured: boolean;
+  episodeLabel: string | null;
+  liveAt: string | null;
+}
+
+/** Remplace tous les contenus d'un créateur (transaction, sous verrou). Retourne false si le créateur n'existe pas. */
+export async function replaceCreatorContents(sql: Sql, slug: string, contents: CreatorContentInput[]): Promise<boolean> {
+  return sql.begin(async tx => {
+    await tx`SELECT pg_advisory_xact_lock(hashtext(${'creator:' + slug}))`;
+    const [creator] = await tx`SELECT 1 FROM creators WHERE slug = ${slug}`;
+    if (!creator) return false;
+    if (contents.length > 0) {
+      const programs = contents.map(item => item.program);
+      const known = await tx<{ slug: string }[]>`SELECT slug FROM programs WHERE slug IN ${tx(programs)} AND kind <> 'brand'`;
+      const missing = programs.filter(program => !known.some(row => row.slug === program));
+      if (missing.length > 0) throw errors.badRequest(`Programmes inconnus : ${missing.join(', ')}.`);
+    }
+    await tx`DELETE FROM creator_contents WHERE creator_slug = ${slug}`;
+    for (const [position, item] of contents.entries()) {
+      await tx`
+        INSERT INTO creator_contents (creator_slug, program_slug, kind, featured, episode_label, live_at, position)
+        VALUES (${slug}, ${item.program}, ${item.kind}, ${item.featured}, ${item.episodeLabel}, ${item.liveAt}, ${position})`;
+    }
+    return true;
+  });
+}
+
+export interface AdminCreatorView {
+  slug: string;
+  /** Même forme que le corps de `PUT /api/admin/creators/:slug`. */
+  document: CreatorInput;
+  /** Même forme que le corps de `PUT /api/admin/creators/:slug/contents`. */
+  contents: CreatorContentInput[];
+}
+
+export async function listCreatorsForAdmin(sql: Sql): Promise<{ slug: string; name: string; published: boolean; contentCount: number }[]> {
+  const rows = await sql<{ slug: string; name: string; published: boolean; count: string }[]>`
+    SELECT c.slug, c.name, c.published, (SELECT count(*) FROM creator_contents x WHERE x.creator_slug = c.slug)::text AS count
+    FROM creators c ORDER BY c.position, c.name`;
+  return rows.map(row => ({ slug: row.slug, name: row.name, published: row.published, contentCount: Number(row.count) }));
+}
+
+export async function getCreatorForAdmin(sql: Sql, slug: string): Promise<AdminCreatorView | null> {
+  const [c] = await sql<{
+    slug: string; name: string; alias: string | null; domain: string | null; tagline: string | null; accent: string | null;
+    chapters: { mark: string; title: string; text: string }[]; show_title: string | null; intro: string | null; themes: string[];
+    ambience: CreatorInput['ambience']; image_url: string | null; image_alt: string | null; image_focus: string | null;
+    is_provisional: boolean; published: boolean; position: number;
+  }[]>`SELECT * FROM creators WHERE slug = ${slug}`;
+  if (!c) return null;
+  const contents = await sql<{ program_slug: string; kind: CreatorContentInput['kind']; featured: boolean; episode_label: string | null; live_at: Date | null }[]>`
+    SELECT program_slug, kind, featured, episode_label, live_at FROM creator_contents WHERE creator_slug = ${slug} ORDER BY position`;
+  return {
+    slug: c.slug,
+    document: {
+      name: c.name, alias: c.alias, domain: c.domain, tagline: c.tagline, accent: c.accent, chapters: c.chapters, showTitle: c.show_title,
+      intro: c.intro, themes: c.themes, ambience: c.ambience, imageUrl: c.image_url, imageAlt: c.image_alt, imageFocus: c.image_focus,
+      isProvisional: c.is_provisional, published: c.published, position: c.position,
+    },
+    contents: contents.map(row => ({ program: row.program_slug, kind: row.kind, featured: row.featured, episodeLabel: row.episode_label, liveAt: row.live_at?.toISOString() ?? null })),
   };
 }

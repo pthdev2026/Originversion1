@@ -27,10 +27,12 @@ export async function purgeExpired(sql: Sql, retention: Retention): Promise<Purg
   const recovery = await sql`DELETE FROM user_recovery_codes WHERE used_at < now() - interval '30 days'`;
   const telemetry = await sql`DELETE FROM playback_sessions WHERE started_at < now() - make_interval(days => ${retention.telemetryDays})`;
   const audit = await sql`DELETE FROM audit_log WHERE created_at < now() - make_interval(days => ${retention.auditDays})`;
+  // Les messages du formulaire de contact (nom, adresse, texte libre) suivent la même durée que le journal.
+  const contacts = await sql`DELETE FROM contact_messages WHERE created_at < now() - make_interval(days => ${retention.auditDays})`;
   return {
     sessions: sessions.count,
     tokens: resets.count + verifications.count + recovery.count,
     telemetry: telemetry.count,
-    audit: audit.count,
+    audit: audit.count + contacts.count,
   };
 }
