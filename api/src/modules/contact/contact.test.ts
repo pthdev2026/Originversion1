@@ -118,3 +118,19 @@ describe('formulaire « Nous contacter »', () => {
     assert.equal(report.audit, 1, 'le message de plus d’un an est supprimé');
   });
 });
+
+describe('journal des modifications du catalogue', () => {
+  it('enregistre qui a modifié quoi, réservé à l’administration', async t => {
+    if (!available) return t.skip('PostgreSQL indisponible');
+    const origin = { origin: 'http://localhost:3210' };
+    void origin;
+    assert.equal((await call('GET', '/api/admin/audit', undefined, viewerCookie)).status, 403);
+    assert.equal((await call('PUT', '/api/admin/themes/drame', { title: 'Drame' }, adminCookie)).status, 204);
+    assert.equal((await call('PUT', '/api/admin/themes/drame', { title: '' }, adminCookie)).status, 400);
+    assert.equal((await call('DELETE', '/api/admin/themes/drame', undefined, adminCookie)).status, 204);
+    const { entries } = await json(await call('GET', '/api/admin/audit', undefined, adminCookie));
+    assert.deepEqual(entries.map((e: any) => e.event), ['catalog.theme.delete', 'catalog.theme.save']);
+    assert.equal(entries[0].by, 'root@origin.test');
+    assert.deepEqual(entries[0].details, { slug: 'drame' });
+  });
+});

@@ -183,3 +183,4 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Migration 015 : alias, domaine, accroche, couleur d'accent, chapitres, contenus par rubrique avec « à la une » ; routes publiques et d'administration (contrat v1.6)
 - ✅ Migration 016 : formulaire « Nous contacter » (limité à 5/h/IP, piège anti-robot, conservé + e-mail à `SUPPORT_EMAIL`, purgé avec l'audit)
 - 🟡 Le « direct » n'est qu'une annonce datée : pas de diffusion en direct (décision propriétaire requise)
+- ✅ Journal d'audit du catalogue (B3) : chaque écriture réussie sur programmes/thèmes/créateurs/collections est tracée (qui, quoi, quand — jamais le contenu), lisible via `GET /api/admin/audit`, purgée selon `RETENTION_AUDIT_DAYS`

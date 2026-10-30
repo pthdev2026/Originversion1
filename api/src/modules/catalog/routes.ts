@@ -5,6 +5,7 @@ import { errors } from '../../platform/errors.ts';
 import type { AppEnv } from '../../platform/http/types.ts';
 import { isValidId } from '../../platform/storage/layout.ts';
 import { requireAdmin } from '../identity/middleware.ts';
+import { insertAudit } from '../identity/repository.ts';
 import {
   deleteCollection, deleteCreator, deleteProgram, deleteTheme, getCreatorForAdmin, getProgramForAdmin, listAllForAdmin, listCreatorsForAdmin, replaceCreatorContents,
   upsertCollection, upsertCreator, upsertProgram, upsertTheme,
@@ -120,7 +121,31 @@ export function catalogRoutes(deps: { sql: Sql; cacheTtlMs?: number }): Hono<App
   // Toute écriture éditoriale vide le cache : l'administrateur voit son changement tout de suite (les autres instances, après la durée du cache).
   routes.use('/api/admin/*', async (c, next) => {
     await next();
-    if (c.req.method !== 'GET') cache.clear();
+    if (c.req.method === 'GET') return;
+    cache.clear();
+    // Journal d'audit : qui a modifié quoi dans le catalogue (écritures réussies seulement, jamais le contenu des fiches).
+    const target = /^\/api\/admin\/(programs|themes|creators|collections)\/([^/]+)(\/contents)?$/.exec(c.req.path);
+    if (!target || c.res.status >= 300) return;
+    const kind = (target[1] ?? '').replace(/s$/, '');
+    const action = c.req.method === 'DELETE' ? 'delete' : target[3] ? 'contents' : 'save';
+    await insertAudit(deps.sql, { userId: c.get('user')?.id ?? null, event: `catalog.${kind}.${action}`, requestId: c.get('requestId') ?? null, details: { slug: target[2] } })
+      .catch(() => undefined); // un journal en panne ne doit jamais faire échouer une modification déjà faite
+  });
+
+  // Journal des modifications du catalogue (les plus récentes d'abord). `?before=<id>` pour la page suivante.
+  routes.get('/api/admin/audit', async c => {
+    requireAdmin(c);
+    const limit = Math.min(Math.max(Number(c.req.query('limit') ?? 50) || 50, 1), 200);
+    const before = Number(c.req.query('before') ?? 0) || null;
+    const rows = await deps.sql<{ id: string; event: string; user_id: string | null; email: string | null; details: unknown; created_at: Date }[]>`
+      SELECT a.id::text, a.event, a.user_id, u.email, a.details, a.created_at
+      FROM audit_log a LEFT JOIN users u ON u.id = a.user_id
+      WHERE a.event LIKE 'catalog.%' ${before ? deps.sql`AND a.id < ${before}` : deps.sql``}
+      ORDER BY a.id DESC LIMIT ${limit}`;
+    return c.json({
+      entries: rows.map(r => ({ id: r.id, event: r.event, by: r.email, details: r.details, at: r.created_at.toISOString() })),
+      next: rows.length === limit ? rows[rows.length - 1]?.id ?? null : null,
+    });
   });
 
   // Vue complète d'un programme pour le back-office : brouillon inclus, médias, dernières préparations.

@@ -447,6 +447,7 @@ Une « lecture » = session d'au moins 10 s. Agrégats uniquement : aucun identi
 | `GET /api/admin/creators` | Administrateur : créateurs avec leurs champs d'univers (alias, domaine, accroche, accent, chapitres) |
 | `GET /api/admin/creators/:slug` | Administrateur : un créateur + ses contenus rattachés |
 | `PUT /api/admin/creators/:slug/contents` | Administrateur : remplace les contenus rattachés (rubrique message/conférence/série/direct, 1 seul « à la une », `liveAt` réservé au direct) |
+| `GET /api/admin/audit?limit=&before=` | Administrateur : journal des modifications du catalogue (`catalog.<programme\|thème\|créateur\|collection>.<save\|delete\|contents>`, auteur, slug, date) ; `next` = page suivante |
 | `POST /api/contact` | Public, 5 par heure et par IP : `{name, email, topic?, message(10..4000), website?}` → `202`. `website` est un champ caché anti-robot : rempli, réponse identique mais rien n'est conservé |
 | `GET /api/admin/contact?status=new\|handled&limit=` | Administrateur : messages reçus |
 | `POST /api/admin/contact/:id/handled` | Administrateur : marque traité (`204`, `404` si déjà traité) |
