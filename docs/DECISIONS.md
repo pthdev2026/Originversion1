@@ -205,3 +205,8 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Migration 019 : sortie planifiée, retrait planifié, annonce « Prochainement ». `published` reste l'unique interrupteur lu par tout le catalogue (accueil, recherche, lecture, recommandations) ; une tâche de 30 s le bascule aux dates prévues → aucune requête du catalogue n'a changé, donc aucun risque d'oubli
 - ✅ `GET /api/coming-soon` (public), `GET /api/admin/schedule` (calendrier), traces `catalog.program.release|expire` dans le journal
 - 🟡 Le fuseau horaire vient de la date saisie (ISO avec décalage) ; le back-office devra proposer le fuseau de Paris par défaut
+
+## Cycle complet d'un film long en local (30/10/2026)
+- ✅ Vidéo de test de 15 min (1080p, 1,1 Go) : envoi tus → encodage (4 qualités) → disponible → lecture dans un navigateur réel (pause, reprise, saut au milieu, saut en fin, fin de lecture, aucune erreur) ; côté API : reprise à 7 min, bouton « Reprendre », « Continuer à regarder », film terminé → « rewatch »
+- 🟡 Le front n'envoie pas encore la progression : la reprise fonctionne côté API, pas encore dans l'interface
+- 🟡 Film réel de 85 min en cours d'encodage local ; même cycle à rejouer à la fin
