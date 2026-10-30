@@ -166,3 +166,9 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ B1 `PUT /files/images/:slug/:file` (type vérifié sur le contenu, ≤ 10 Mo, SVG refusé), B2 `GET /api/admin/programs/:slug` (fiche admin aller-retour avec `PUT`, médias, tâches), B4 filtres `?playbackId=`/`?program=` sur les tâches — contrat v1.3
 - ✅ Emplacement du back-office : dossier à part sur le Bureau (`~/Desktop/ORIGIN-back-office/`), dépôt Git séparé ; connexion à l'API **uniquement par son adresse** et par la session de l'administrateur (aucune clé d'API partagée)
 - 🟡 B3 (journal des modifications) et B5 (Mux) à venir
+
+## Voie Mux construite et validée (30/10/2026)
+- ✅ B5 phase 1 : client Mux (HTTP Basic, champs confirmés seulement, réessais 429/5xx), envoi direct navigateur→Mux (adresse à usage limité, non conservée), suivi par poller + consultation, inscription en base à `ready`, lecture `public` ou `signed` (JWT RS256 sans dépendance), signataire choisi **média par média** (Mux et Bunny/origine cohabitent), migration 013 (`provider*` sur `media_assets`, table `mux_uploads`)
+- ✅ **Validation réelle** avec le compte du propriétaire (environnement « MVP », Development) : accès, création/annulation d'envoi, envoi d'une vidéo de test (HTTP 200), prête en ~2 s, durée lue, manifeste HLS valide (360p + 270p, échelle « basic » réduite), suppression ; aucune limite constatée sur une vidéo de 4 s
+- ✅ Les jetons Mux sont **uniquement** dans `api/.env` (ignoré par Git, droits 600) ; ils ont transité par une conversation : **les régénérer avant la production**
+- 🟡 À faire : lecture `signed` (créer une clé de signature chez Mux), webhooks (remplaceraient le poller une fois le serveur public), conditions d'utilisation et résidence des données de Mux, essai avec un vrai film (durée, taille, qualités), écran du back-office

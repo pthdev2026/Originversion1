@@ -1,4 +1,4 @@
-# ORIGIN — Contrat d'API (v1.3, 30/10/2026)
+# ORIGIN — Contrat d'API (v1.4, 30/10/2026)
 
 Propriétaire : l'agent back-end. Toute modification est annoncée ici avant d'être déployée.
 Limites : 120 requêtes par minute et par adresse IP sur `/api/*` ; en-têtes `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
@@ -325,6 +325,24 @@ La réponse de `GET /api/programs/:id/playback` contient désormais **`subtitles
 
 Le front doit proposer ces deux actions dans « Mon compte » (« Télécharger mes données », « Supprimer mon compte »).
 Conservation : mesures de lecture anonymes 180 jours, journal de sécurité 365 jours, sessions et jetons expirés supprimés automatiquement.
+
+## Voie vidéo Mux (disponible — v1.4, administrateur uniquement)
+
+Mux prépare, stocke et diffuse la vidéo à notre place. **Le navigateur envoie le fichier directement à Mux** ; notre serveur ne garde que l'état et inscrit la vidéo quand elle est prête. La clé Mux reste sur le serveur : le back-office ne la connaît jamais.
+
+| Route | Description |
+|---|---|
+| `GET /api/admin/video-providers` | Voies disponibles : `{default, providers:[{id:"self", configured:true}, {id:"mux", configured, playbackPolicy?}]}`. `self` = notre pipeline (envoi tus + FFmpeg + Bunny/serveur), `mux` = voie Mux. `default` = voie à proposer d'abord. |
+| `POST /api/admin/mux/uploads` | Corps `{playbackId, programSlug?, kind: "film"\|"serie"\|"documentaire", title, demo?}` (champs inconnus refusés). `201 {id, playbackId, programSlug, kind, title, status:"waiting", error, createdAt, updatedAt, finishedAt, uploadUrl}`. **`uploadUrl` n'est renvoyée qu'ici** (jamais conservée). `409` : une préparation est déjà en cours pour ce contenu ; `503` : Mux non configuré ou indisponible. L'en-tête `Origin` de la requête est déclaré à Mux : l'envoi n'est autorisé que depuis cette origine. |
+| `GET /api/admin/mux/uploads?playbackId=&program=&limit=` | Liste `{uploads:[…]}` (mêmes champs, sans `uploadUrl`). |
+| `GET /api/admin/mux/uploads/:id` | État d'un envoi. **L'interroger fait avancer l'état** (le serveur demande à Mux au passage) : c'est la route à consulter toutes les 3 à 5 s pour la barre de suivi. `404` inconnu. |
+| `POST /api/admin/mux/uploads/:id/cancel` | Annule (`204`) ; `409` si déjà terminé. |
+
+**Parcours du back-office** : (1) `GET /api/admin/video-providers` ; (2) `POST /api/admin/mux/uploads` → `uploadUrl` ; (3) `PUT` du **fichier brut** sur `uploadUrl`, **sans cookie** (`credentials: 'omit'` : c'est l'adresse de Mux, pas la nôtre) — réponse `200` ou `201` à la fin ; Mux accepte aussi l'envoi par morceaux (multiples de 256 Ko, en-tête `Content-Range`, réponse `308` tant qu'il en reste) ; (4) consulter `GET /api/admin/mux/uploads/:id` jusqu'à `ready` ou `failed`.
+
+**Valeurs de `status`** : `waiting` (en attente du fichier) · `processing` (Mux prépare la vidéo) · `ready` (lisible) · `failed` (voir `error`, message en français) · `canceled`. Un statut inconnu de Mux n'est **jamais** pris pour un succès. Une panne passagère de Mux laisse l'état inchangé (pas de faux échec).
+
+**Effet sur la lecture** : quand l'envoi est `ready`, le contenu devient lisible (`playable: true`) ; `GET /api/programs/:id/playback` renvoie un `manifestUrl` `https://stream.mux.com/<id>.m3u8` (avec `?token=` si la politique est `signed`). Un même contenu peut être sur Mux et un autre sur notre pipeline. L'ident, les sous-titres, la reprise, les recommandations sont **inchangés**. Les sous-titres restent à déposer chez nous (`/files/subtitles/…`).
 
 ## Ajouts pour le back-office (disponible — v1.3, administrateur uniquement)
 

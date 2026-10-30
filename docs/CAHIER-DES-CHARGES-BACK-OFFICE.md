@@ -87,7 +87,7 @@ Sécurité complémentaire (côté serveur, hors de ce chantier) : option de n'a
 - Un nouveau programme est **toujours créé en brouillon**.
 - **Avertissement visible** : « Cette fiche n'est pas visible du public tant qu'elle n'est pas publiée. »
 
-**S4 — Envoyer une vidéo**
+**S4 — Envoyer une vidéo** (deux voies : demander `GET /api/admin/video-providers` ; si `mux` est la voie par défaut, utiliser le parcours « Voie vidéo Mux » du contrat — `POST /api/admin/mux/uploads`, puis `PUT` du fichier sur `uploadUrl` **sans cookie**, puis suivi par `GET /api/admin/mux/uploads/:id` ; sinon le parcours tus décrit ci-dessous)
 - Depuis la fiche (film) ou depuis un épisode (série) : « Envoyer la vidéo ».
 - Choix du fichier (extensions acceptées : `.mp4 .mov .m4v .mkv .webm .avi .mxf`), l'identifiant de lecture est **pré-rempli** (`<slug>` pour un film, `<slug>-<clé>` pour un épisode) et non modifiable.
 - Envoi **reprenable** par le protocole tus (voir §8) : barre de progression, vitesse, temps restant, **pause/reprise**, reprise automatique après une coupure de connexion, avertissement si l'onglet est fermé pendant l'envoi.
@@ -145,7 +145,7 @@ Contrat détaillé : `docs/API-CONTRACT.md`. En cas d'écart entre ce document e
 | **B2** ✅ livré | Vue « fiche admin » d'un programme | `GET /api/admin/programs/:slug` — tous les champs éditoriaux (brouillon inclus), saisons/épisodes, thématiques, **médias** (`playbackId`, statut, durée) et **dernières tâches** | S3, S4, S6 | Phase 1 |
 | **B3** | Journal des modifications éditoriales | Écriture dans `audit_log` à chaque modification admin (`catalog.program.upsert`, `…delete`, `collection.upsert`…) ; `GET /api/admin/audit?limit=&before=` | S13 | Phase 3 |
 | **B4** ✅ livré | Filtre des tâches | `GET /api/admin/jobs?playbackId=` ou `?program=` | S4, S5 | Phase 1 |
-| **B5** | Fournisseur Mux (seulement si retenu) | Envoi direct à Mux, webhook, signataire | S4 | Après l'essai comparatif |
+| **B5** ✅ livré (phase 1) | Voie Mux | `GET /api/admin/video-providers`, `POST /api/admin/mux/uploads` (renvoie `uploadUrl`), `GET /api/admin/mux/uploads[/:id]`, `POST …/cancel` — voir `docs/API-CONTRACT.md` « Voie vidéo Mux » | S4 | Phase 1 |
 Chaque ajout est annoncé dans `docs/API-CONTRACT.md` (nouvelle version) avant d'être utilisé.
 
 ---

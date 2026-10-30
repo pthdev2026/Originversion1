@@ -6,6 +6,7 @@
  *  - « bunny »  : les fichiers sont servis par le CDN, qui vérifie lui-même le jeton.
  * Le service de lecture ne sait pas laquelle est utilisée : changer de mode = changer la configuration.
  */
+import { AppError } from '../../platform/errors.ts';
 import { bunnySignedUrl } from '../media/bunny-token.ts';
 import { createMediaToken } from '../media/token.ts';
 
@@ -13,6 +14,13 @@ export interface DeliveryAsset {
   playbackId: string;
   /** Chemin relatif du média dans le stockage (`<playbackId>` ou `<playbackId>/<version>`). */
   storagePath: string;
+  /** Qui possède les fichiers : notre pipeline (`self`, défaut) ou Mux. */
+  provider?: 'self' | 'mux';
+  /** Média Mux : identifiant de lecture Mux et politique d'accès fixée à la création. */
+  providerPlaybackId?: string | null;
+  providerPolicy?: 'public' | 'signed' | null;
+  /** Durée du média (un jeton Mux signé doit durer plus longtemps que la vidéo). */
+  durationSeconds?: number;
 }
 
 export interface SignedDelivery {
@@ -51,6 +59,22 @@ export function createBunnySigner(options: { cdnUrl: string; tokenKey: string; t
         posterUrl: bunnySignedUrl(tokenOptions, directory, 'poster.jpg', expires),
         expiresAt: new Date(expires * 1000),
       };
+    },
+  };
+}
+
+/**
+ * Choisit le signataire selon qui possède le média : `self` → notre mode de diffusion (origine ou Bunny), `mux` → Mux.
+ * Le service de lecture ne sait pas lequel est utilisé : une vidéo Mux et une vidéo Bunny cohabitent.
+ */
+export function createRoutingSigner(signers: { self: DeliverySigner; mux?: DeliverySigner | null }): DeliverySigner {
+  return {
+    sign(asset, context) {
+      if (asset.provider === 'mux') {
+        if (!signers.mux) throw new AppError('unavailable', 503, 'La diffusion Mux n’est pas configurée sur ce serveur.');
+        return signers.mux.sign(asset, context);
+      }
+      return signers.self.sign(asset, context);
     },
   };
 }

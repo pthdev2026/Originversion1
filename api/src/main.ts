@@ -12,7 +12,10 @@ import { createLogMailer, createResendMailer } from './platform/mail.ts';
 import { StorageLayout } from './platform/storage/layout.ts';
 import { purgeExpired } from './modules/ops/maintenance.repository.ts';
 import { createIdentityService } from './modules/identity/service.ts';
-import { createBunnySigner, createOriginSigner } from './modules/playback/delivery.ts';
+import { createMuxClient } from './modules/mux/client.ts';
+import { createMuxService, startMuxPoller } from './modules/mux/service.ts';
+import { createMuxSigner } from './modules/mux/signer.ts';
+import { createBunnySigner, createOriginSigner, createRoutingSigner } from './modules/playback/delivery.ts';
 
 // 1. Configuration : refus net si elle est invalide.
 let config;
@@ -71,9 +74,33 @@ const deliverySigner =
     ? createBunnySigner({ cdnUrl: config.delivery.cdnUrl, tokenKey: config.delivery.tokenKey, ttlSeconds: config.mediaTtlSeconds })
     : createOriginSigner({ secret: config.mediaSecrets[0], ttlSeconds: config.mediaTtlSeconds });
 logger.info({ mode: config.delivery.mode }, 'mode de diffusion');
+
+// Mux (facultatif) : une vidéo Mux et une vidéo Bunny/origine cohabitent ; le signataire est choisi vidéo par vidéo.
+let muxService: ReturnType<typeof createMuxService> | null = null;
+let muxSigner = null;
+if (config.mux) {
+  try {
+    muxSigner = createMuxSigner({ ttlSeconds: config.mediaTtlSeconds, signing: config.mux.signing });
+  } catch (error) {
+    logger.fatal({ err: error }, 'clé de signature Mux illisible : vérifiez MUX_SIGNING_PRIVATE_KEY (base64 du fichier PEM fourni par Mux)');
+    process.exit(1);
+  }
+  muxService = createMuxService({
+    sql,
+    logger,
+    client: createMuxClient({ tokenId: config.mux.tokenId, tokenSecret: config.mux.tokenSecret }),
+    config: { playbackPolicy: config.mux.playbackPolicy, videoQuality: config.mux.videoQuality, normalizeAudio: config.mux.normalizeAudio },
+  });
+  startMuxPoller(muxService, logger);
+  logger.info({ playbackPolicy: config.mux.playbackPolicy, videoQuality: config.mux.videoQuality }, 'Mux activé');
+  if (config.isProduction && config.mux.playbackPolicy === 'public') {
+    logger.warn('MUX_PLAYBACK_POLICY=public en production : les liens de lecture Mux ne sont pas protégés (utilisez « signed »).');
+  }
+}
 const app = createApp({
   ident: config.ident,
-  deliverySigner,
+  deliverySigner: createRoutingSigner({ self: deliverySigner, mux: muxSigner }),
+  mux: { service: muxService, defaultProvider: config.videoProvider, playbackPolicy: config.mux?.playbackPolicy ?? 'public' },
   identity,
   cookieSecure: config.identity.cookieSecure,
   sessionTtlSeconds: config.identity.sessionTtlSeconds,

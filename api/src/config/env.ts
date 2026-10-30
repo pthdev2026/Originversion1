@@ -75,6 +75,20 @@ const schema = z.object({
   BUNNY_STORAGE_ZONE: z.string().min(1).optional(),
   BUNNY_STORAGE_KEY: z.string().min(8).optional(),
   BUNNY_STORAGE_HOST: z.string().min(1).default('storage.bunnycdn.com'),
+  /** Mux (préparation + diffusion vidéo par un service externe). Les deux jetons vont ensemble ; absents : Mux désactivé. */
+  MUX_TOKEN_ID: z.string().min(8).optional(),
+  MUX_TOKEN_SECRET: z.string().min(16).optional(),
+  /** Qualité d'encodage Mux : `basic` (encodage gratuit), `plus` ou `premium`. */
+  MUX_VIDEO_QUALITY: z.enum(['basic', 'plus', 'premium']).default('basic'),
+  /** `public` : lien de lecture sans jeton (test) ; `signed` : jeton fabriqué par notre serveur (production). */
+  MUX_PLAYBACK_POLICY: z.enum(['public', 'signed']).default('public'),
+  /** Clé de signature Mux (identifiant + clé privée en base64) : obligatoire pour `signed`. */
+  MUX_SIGNING_KEY_ID: z.string().min(8).optional(),
+  MUX_SIGNING_PRIVATE_KEY: z.string().min(100).optional(),
+  /** Normalisation du volume par Mux (cible -24 LUFS, différente de la nôtre à -16) : désactivée par défaut. */
+  MUX_NORMALIZE_AUDIO: z.enum(['true', 'false']).default('false'),
+  /** Voie vidéo proposée par défaut au back-office : `self` (notre pipeline) ou `mux`. */
+  VIDEO_PROVIDER: z.enum(['self', 'mux']).default('self'),
   /** E-mails : `log` (écrit dans les journaux) ou `resend` (envoi réel). */
   MAIL_PROVIDER: z.enum(['log', 'resend']).default('log'),
   MAIL_API_KEY: z.string().min(8).optional(),
@@ -119,6 +133,11 @@ export interface AppConfig {
   media: { loudnessLufs: number | null; ffmpegPath: string; ffprobePath: string; encodePreset: string; uploadMaxBytes: number };
   ident: { policy: 'title' | 'season' | 'always' | 'off'; playbackId: string; skippableAfterSeconds: number };
   catalogCacheSeconds: number;
+  videoProvider: 'self' | 'mux';
+  mux: {
+    tokenId: string; tokenSecret: string; videoQuality: 'basic' | 'plus' | 'premium'; playbackPolicy: 'public' | 'signed';
+    normalizeAudio: boolean; signing: { keyId: string; privateKey: string } | null;
+  } | null;
   retention: { telemetryDays: number; auditDays: number };
   mail: { provider: 'log' | 'resend'; apiKey: string | null; from: string | null };
   ops: {
@@ -173,6 +192,11 @@ export function loadConfig(source: Record<string, string | undefined> = process.
   if (raw.DELIVERY_MODE === 'bunny' && !raw.BUNNY_CDN_URL) missing.push('BUNNY_CDN_URL est obligatoire quand DELIVERY_MODE=bunny');
   if (raw.DELIVERY_MODE === 'bunny' && !raw.BUNNY_TOKEN_KEY) missing.push('BUNNY_TOKEN_KEY est obligatoire quand DELIVERY_MODE=bunny');
   if (raw.REQUIRE_ADMIN_2FA === 'true' && !raw.AUTH_ENCRYPTION_KEY && isProduction) missing.push('AUTH_ENCRYPTION_KEY est obligatoire quand REQUIRE_ADMIN_2FA=true');
+  if ((raw.MUX_TOKEN_ID && !raw.MUX_TOKEN_SECRET) || (!raw.MUX_TOKEN_ID && raw.MUX_TOKEN_SECRET)) missing.push('MUX_TOKEN_ID et MUX_TOKEN_SECRET vont ensemble');
+  if (raw.VIDEO_PROVIDER === 'mux' && !raw.MUX_TOKEN_ID) missing.push('MUX_TOKEN_ID et MUX_TOKEN_SECRET sont obligatoires quand VIDEO_PROVIDER=mux');
+  if (raw.MUX_PLAYBACK_POLICY === 'signed' && raw.MUX_TOKEN_ID && (!raw.MUX_SIGNING_KEY_ID || !raw.MUX_SIGNING_PRIVATE_KEY)) {
+    missing.push('MUX_SIGNING_KEY_ID et MUX_SIGNING_PRIVATE_KEY sont obligatoires quand MUX_PLAYBACK_POLICY=signed');
+  }
   if (raw.MAIL_PROVIDER === 'resend' && !raw.MAIL_API_KEY) missing.push('MAIL_API_KEY est obligatoire quand MAIL_PROVIDER=resend');
   if (raw.MAIL_PROVIDER === 'resend' && !raw.MAIL_FROM) missing.push('MAIL_FROM est obligatoire quand MAIL_PROVIDER=resend');
   if (missing.length > 0) throw new ConfigError(missing);
@@ -206,6 +230,14 @@ export function loadConfig(source: Record<string, string | undefined> = process.
       uploadMaxBytes: raw.UPLOAD_MAX_BYTES,
     },
     catalogCacheSeconds: raw.CATALOG_CACHE_SECONDS,
+    videoProvider: raw.VIDEO_PROVIDER,
+    mux: raw.MUX_TOKEN_ID && raw.MUX_TOKEN_SECRET
+      ? {
+          tokenId: raw.MUX_TOKEN_ID, tokenSecret: raw.MUX_TOKEN_SECRET, videoQuality: raw.MUX_VIDEO_QUALITY, playbackPolicy: raw.MUX_PLAYBACK_POLICY,
+          normalizeAudio: raw.MUX_NORMALIZE_AUDIO === 'true',
+          signing: raw.MUX_SIGNING_KEY_ID && raw.MUX_SIGNING_PRIVATE_KEY ? { keyId: raw.MUX_SIGNING_KEY_ID, privateKey: raw.MUX_SIGNING_PRIVATE_KEY } : null,
+        }
+      : null,
     retention: { telemetryDays: raw.RETENTION_TELEMETRY_DAYS, auditDays: raw.RETENTION_AUDIT_DAYS },
     mail: { provider: raw.MAIL_PROVIDER, apiKey: raw.MAIL_API_KEY ?? null, from: raw.MAIL_FROM ?? null },
     ident: { policy: raw.IDENT_POLICY, playbackId: raw.BRAND_IDENT_PLAYBACK_ID, skippableAfterSeconds: raw.IDENT_SKIPPABLE_AFTER_SECONDS },

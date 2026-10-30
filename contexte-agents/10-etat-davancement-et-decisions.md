@@ -19,6 +19,7 @@ Vérifié le : 30/10/2026 (code `e5ebaaa`, 16/10/2026) · Sources : `docs/DECISI
 | Recherche / recommandations | Sans accents ; similaires, tendances, « pour vous » explicables | ✅ |
 | Sous-titres | WebVTT, dépôt admin, exposition dans la lecture | ✅ |
 | E-mails | Resend (testé avec un faux serveur) | ✅ code / ⏳ compte |
+| **Voie Mux (B5, phase 1)** | Envoi direct navigateur→Mux, suivi par poller, inscription, lecture publique ou signée ; **validé en réel** avec une vidéo de test | ✅ code + essai réel ; ⏳ lecture signée et production |
 | Comptes renforcés | E-mail vérifié, 2FA TOTP, obligation admin | ✅ |
 | RGPD | Export, effacement, conservation, entretien horaire | ✅ |
 | Volume sonore | EBU R128 → −16 LUFS | ✅ |

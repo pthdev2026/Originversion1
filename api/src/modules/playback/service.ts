@@ -8,9 +8,9 @@ import type { Sql } from '../../platform/database/client.ts';
 import { errors } from '../../platform/errors.ts';
 import { isValidId } from '../../platform/storage/layout.ts';
 import { findProgress, hasProgressInProgram, hasProgressInSeason } from '../progress/repository.ts';
-import type { DeliverySigner } from './delivery.ts';
+import type { DeliveryAsset, DeliverySigner } from './delivery.ts';
 import { decideIdent, parsePlaybackId, type IdentPolicy, type IdentReason } from './ident-policy.ts';
-import { findPlayableAsset } from '../ingest/repository.ts';
+import { findPlayableAsset, type PlayableAsset } from '../ingest/repository.ts';
 import { listTracks } from '../subtitles/repository.ts';
 
 export interface IdentSession {
@@ -52,6 +52,15 @@ export interface PlaybackContext {
   autoplayNext: boolean;
 }
 
+const deliveryOf = (asset: PlayableAsset): DeliveryAsset => ({
+  playbackId: asset.playbackId,
+  storagePath: asset.storagePath,
+  provider: asset.provider,
+  providerPlaybackId: asset.providerPlaybackId,
+  providerPolicy: asset.providerPolicy,
+  durationSeconds: asset.durationSeconds,
+});
+
 export async function createPlaybackSession(
   sql: Sql,
   signer: DeliverySigner,
@@ -62,7 +71,7 @@ export async function createPlaybackSession(
   const asset = isValidId(playbackId) ? await findPlayableAsset(sql, playbackId) : null;
   if (!asset) throw errors.notAvailable();
 
-  const signed = signer.sign({ playbackId: asset.playbackId, storagePath: asset.storagePath }, { publicOrigin: context.publicOrigin });
+  const signed = signer.sign(deliveryOf(asset), { publicOrigin: context.publicOrigin });
 
   // --- Ident de marque -----------------------------------------------------------------------------------
   const identAsset = ident.policy === 'off' || asset.playbackId === ident.playbackId ? null : await findPlayableAsset(sql, ident.playbackId);
@@ -87,7 +96,7 @@ export async function createPlaybackSession(
     autoplayNext: context.autoplayNext,
   });
   const identSigned = decision.show && identAsset
-    ? signer.sign({ playbackId: identAsset.playbackId, storagePath: identAsset.storagePath }, { publicOrigin: context.publicOrigin })
+    ? signer.sign(deliveryOf(identAsset), { publicOrigin: context.publicOrigin })
     : null;
 
   return {

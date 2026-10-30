@@ -10,7 +10,7 @@ Vérifié le : 30/10/2026 · Sources : `api/migrations/*.sql` (font foi), `api/s
 - **Jamais de secret en clair** : mots de passe (argon2id), jetons de session / réinitialisation / vérification (empreinte SHA-256), secrets TOTP (AES-256-GCM, clé hors base), codes de secours (empreinte).
 - **Test** : chaque test d'intégration crée un schéma jetable (`test_<hex>`) et le supprime ; il se **saute** si PostgreSQL est injoignable.
 
-## 2. Les tables (24), par domaine
+## 2. Les tables (25), par domaine
 | Domaine | Table | Rôle et points clés | Migration |
 |---|---|---|---|
 | Catalogue | `programs` | Un programme (film/série/documentaire/`brand`). `slug` PK ; `published` (brouillon = false), `is_demo`, présentation (tagline, category, genres[], badges[], visuels `*_url`, `title_style`), `search_text` (maintenu par trigger) | 001, 007, 008, 009 |
@@ -19,6 +19,7 @@ Vérifié le : 30/10/2026 · Sources : `api/migrations/*.sql` (font foi), `api/s
 | Catalogue | `creators` | Créateurs affichés (nom, ambiance, photo, `published`) | 008 |
 | Catalogue | `collections`, `collection_items` | Listes ordonnées (`layout` ∈ hero, ranked, rail, portrait, panels, universes ; `home_position`) ; position unique par collection | 008 |
 | Vidéo | `media_assets` | Un média encodé. `playback_id` PK ; `status` processing/ready/failed ; une ligne `ready` **doit** avoir une durée (CHECK) ; `storage_path`, `renditions` (jsonb) | 001 |
+| Vidéo | `mux_uploads` | Suivi des envois vers **Mux** (statut waiting/processing/ready/failed/canceled) ; **un seul envoi actif par média** ; l'adresse d'envoi n'est jamais conservée. `media_assets` gagne `provider` (`self`\|`mux`), `provider_asset_id`, `provider_playback_id`, `provider_policy` | 013 |
 | Vidéo | `uploads` | Envois reprenables (protocole tus) : offset, statut, métadonnées | 006 |
 | Vidéo | `media_jobs` | File d'encodage avec **bail** (`locked_until`), `state` (points de reprise, mesure de volume), 3 tentatives ; **une seule tâche active par média** (index unique partiel) | 006, 007 |
 | Vidéo | `subtitle_tracks` | Piste WebVTT par (média, langue) ; une seule `is_default` | 010 |
@@ -45,6 +46,7 @@ Suppression d'un compte (RGPD) : `ON DELETE CASCADE` sur sessions, progression, 
 | `playback` | « Je veux regarder » → URL signée, ident, sous-titres | `service.ts`, `delivery.ts`, `ident-policy.ts`, `routes.ts` | 06 |
 | `media` | Jetons de lecture et distribution des fichiers HLS (mode origine) | `token.ts`, `bunny-token.ts`, `routes.ts` | 06 |
 | `ingest` | Envoi tus, file de tâches, encodage, contrôle qualité, publication ; **possède `media_assets`** | `uploads.routes.ts`, `jobs.*.ts`, `worker.ts`, `pipeline/*` | 06 |
+| `mux` | Voie vidéo **Mux** : demande d'une adresse d'envoi, suivi, inscription de la vidéo prête, signature des liens de lecture (JWT RS256) | `client.ts` (API Mux), `service.ts` (règles + poller), `signer.ts`, `jwt.ts`, `repository.ts`, `routes.ts` | 06 |
 | `subtitles` | Dépôt (admin) et distribution (public) des sous-titres WebVTT | `routes.ts`, `repository.ts` | 06 |
 | `progress` | Reprise de lecture (règle 95 % / 30 s) | `service.ts`, `repository.ts`, `routes.ts` | 05 |
 | `mylist` | « Ma liste » | `repository.ts`, `routes.ts` | 05 |

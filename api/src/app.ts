@@ -37,6 +37,8 @@ import { mediaRoutes } from './modules/media/routes.ts';
 import { privacyRoutes } from './modules/privacy/routes.ts';
 import { recommendationRoutes } from './modules/recommendation/routes.ts';
 import { subtitleRoutes } from './modules/subtitles/routes.ts';
+import { muxRoutes } from './modules/mux/routes.ts';
+import type { MuxService } from './modules/mux/service.ts';
 import { imageRoutes } from './modules/catalog/images.ts';
 import { playbackRoutes } from './modules/playback/routes.ts';
 
@@ -62,6 +64,8 @@ export interface AppDependencies {
   encodePreset: string;
   /** Façon de signer les URLs de lecture. Par défaut : l'API sert elle-même les fichiers (mode « origin »). */
   deliverySigner?: DeliverySigner;
+  /** Voie vidéo Mux (`null`/absent : non configurée) et voie proposée par défaut au back-office. */
+  mux?: { service: MuxService | null; defaultProvider: 'self' | 'mux'; playbackPolicy: 'public' | 'signed' };
   /** Ident de marque avant les programmes. Par défaut : une fois par titre, média `origin-ident`. */
   ident?: { policy: 'title' | 'season' | 'always' | 'off'; playbackId: string; skippableAfterSeconds: number };
   /** Exploitation (valeurs par défaut sûres si absentes). */
@@ -143,6 +147,7 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
     metricsToken: deps.ops?.metricsToken ?? null,
     ...(deps.ops?.freeBytes ? { freeBytes: deps.ops.freeBytes } : {}),
   }));
+  app.route('/', muxRoutes({ mux: deps.mux?.service ?? null, defaultProvider: deps.mux?.defaultProvider ?? 'self', playbackPolicy: deps.mux?.playbackPolicy ?? 'public' }));
   app.route('/', jobRoutes({ sql: deps.sql }));
   app.route('/', uploadRoutes({
     sql: deps.sql,

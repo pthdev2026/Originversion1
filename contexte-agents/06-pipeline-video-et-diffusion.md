@@ -33,6 +33,13 @@ Vérifié le : 30/10/2026 · Sources : `docs/ARCHITECTURE-BACKEND.md` §7 ter–
 Abstractions : `DeliverySigner` (signe l'URL), `MediaStore` (local ou Bunny). Changer de CDN = écrire une autre implémentation, sans toucher aux routes.
 Le jeton Bunny suit la documentation du fournisseur et **n'a pas été testé sur un compte réel** : à valider dès la création de la zone (`docs/GUIDE-BUNNY.md`).
 
+## 3 bis. Voie Mux (depuis le 30/10/2026)
+Un média peut être préparé, stocké et diffusé par **Mux** au lieu de notre chaîne (`media_assets.provider = 'mux'`) ; les deux voies **cohabitent**, média par média.
+Parcours : le back-office demande `POST /api/admin/mux/uploads` → notre serveur obtient de Mux une **adresse d'envoi à usage limité** (la clé Mux reste sur le serveur) → le **navigateur envoie le fichier directement à Mux** → un **poller** (toutes les 10 s) et la consultation de l'envoi interrogent Mux ; à `ready`, la vidéo est **inscrite en base** (durée lue chez Mux) et devient lisible. Pas de webhook ni d'adresse publique nécessaires pour démarrer.
+Lecture : `https://stream.mux.com/<id>.m3u8` ; politique `public` (test) ou `signed` (jeton JWT RS256 fabriqué par notre serveur, durée > durée du film). `media/routes.ts` refuse de « servir » un média Mux.
+Perdu avec Mux : notre QC, notre échelle de qualités (Mux « basic » : 360p + 270p observés pour une source 640×360), notre volume −16 LUFS (Mux : −24, désactivé par défaut). Conservé : ident, sous-titres (les nôtres), reprise, recommandations, catalogue.
+**Validé en réel le 30/10/2026** (`npm run mux:check -- --video`) : accès accepté, adresse d'envoi, envoi du fichier (HTTP 200), vidéo prête en ~2 s, durée lue, lien HLS valide, annulation et suppression acceptées. Reste à valider : lecture signée (clé de signature à créer), conditions d'utilisation et résidence des données de Mux.
+
 ## 4. Ident de marque
 Média `origin-ident` (`kind = brand`) publié par ce même pipeline ; politique `IDENT_POLICY` ; la réponse de lecture contient `ident {show, reason, manifestUrl, durationSeconds, skippableAfterSeconds}`. Règles détaillées : `02-charte-editoriale-et-marque.md` §5, `docs/API-CONTRACT.md` « Ident de marque ».
 `ident-policy.ts` est une fonction pure testée (`ident.test.ts`) : jamais de règle d'ident dans le front.

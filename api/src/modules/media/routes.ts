@@ -35,7 +35,7 @@ export function mediaRoutes(deps: { sql: Sql; storage: StorageLayout; mediaSecre
 
     // 2. Le média doit exister et être prêt.
     const asset = await findPlayableAsset(deps.sql, playbackId);
-    if (!asset) throw errors.notFound();
+    if (!asset || asset.provider !== 'self') throw errors.notFound(); // un média Mux n'a pas de fichier chez nous
 
     // 3. Résolution du fichier, sans jamais sortir du dossier du média.
     const prefix = `/media/${token}/${playbackId}/`;
