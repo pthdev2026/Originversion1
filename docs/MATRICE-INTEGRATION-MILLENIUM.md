@@ -38,7 +38,7 @@ Agent : **F** = front · **B** = back-end · **BO** = back-office. Preuve : « E
 ### 2.2 Hero Section
 | Composant | Action | Route · méthode | Données | Auth | Tables | Resp. | Statut | Preuve |
 |---|---|---|---|---|---|---|---|---|
-| `origin-hero` | Afficher les 10 programmes | (`GET /api/collections/hero`) | titre, synopsis, visuels | non | programs, collections | F | **Simulé** (fichier local ; les 10 identifiants sont identiques à ceux du serveur) | comparaison d'identifiants |
+| `origin-hero` | Afficher les 10 programmes | `GET /api/home` (collection `hero`) | titre, synopsis, visuels, vidéo d'ambiance | non | programs, collections | F + B | **VÉRIFIÉ MILLENIUM** (jalon 4 : texte modifié côté administration → visible après rechargement) | E3 |
 | `origin-hero` | Sélectionner un autre programme | — (état local) | `active.id` | — | — | F | **VÉRIFIÉ MILLENIUM** (le bouton Ma liste suit le programme actif) | E1 : Silence ↔ Passagers, état du bouton correct à chaque fois |
 | `origin-hero` (mobile) | **Ma liste** | `PUT/DELETE /api/me/list/:slug`, `GET /api/me/list` | slug | oui | my_list | F + B | **VÉRIFIÉ MILLENIUM** | E1 : ajout → ligne en base ; actualisation → bouton restauré ; retrait possible |
 | `origin-hero` (visiteur) | Ma liste sans compte | — | — | non | — | F | **VÉRIFIÉ MILLENIUM** (renvoi vers `/connexion`) | E1 |
@@ -50,7 +50,7 @@ Agent : **F** = front · **B** = back-end · **BO** = back-office. Preuve : « E
 ### 2.3 Accueil, catalogue, recherche, fiches
 | Page / composant | Action | Route · méthode | Auth | Tables | Resp. | Statut | Preuve |
 |---|---|---|---|---|---|---|---|
-| Accueil : Top 10, rails, suggestions, thématiques, créateurs, univers | Afficher les collections | `GET /api/home`, `/api/collections/:slug`, `/api/themes` | non | collections, programs, themes, creators | F | **Simulé** (modules `origin-*.ts`) · API seule. Vérifié : les titres du Top 10 (`gladiator`, `damnes`, `acteurs`, `au-dela`) **existent** dans le catalogue du serveur de développement (200) ; la base de **recette** ne contient que les 10 programmes de la Hero, donc leur ajout y serait refusé (404) — à compléter avant de recetter le Top 10 | vérification d'identifiants |
+| Accueil : Top 10, rails, suggestions, thématiques, créateurs, univers, PTH | Afficher les collections | `GET /api/home` (+ `GET /api/programs/:slug` pour les épisodes PTH) | non | collections, programs, themes, creators, seasons, episodes | F + B | **VÉRIFIÉ MILLENIUM** (jalon 4) : les 12 sections viennent du serveur (36 programmes, 106 images, aucune image embarquée) ; retrait d'un programme par l'administration → disparaît du Top 10 ; serveur coupé → « Le catalogue est momentanément indisponible. Réessayer » (aucune donnée inventée) | E3 |
 | Accueil | « Pour vous » | `GET /api/recommendations` | facultative | watch_progress, user_themes | F | **Simulé** · API seule | API testée |
 | `/continuer` | Continuer à regarder (liste, « Reprendre », « Marquer comme vu », « Retirer », annuler) | `GET /api/me/continue-watching`, `PUT/DELETE /api/me/progress/:id` | oui | watch_progress | F + B | **VÉRIFIÉ MILLENIUM** pour l'affichage et la mise à jour après lecture (« 23 % · Il reste 12 min », sortie de la liste à la fin) ; retirer / marquer comme vu / annuler : code branché et testé (faux serveur), non démontré dans l'écran | E2 + tests |
 | `search-overlay` | Rechercher, suggestions, correction de fautes | `GET /api/search`, `/api/search/suggestions` | non | programs | F | **Simulé** (`searchCatalog` local) · API seule | API testée |
@@ -146,3 +146,17 @@ Données de la Hero, du Top 10, des rails, des suggestions, des univers, des cr�
 - Non branchés : ident de marque, « Passer l'intro », épisode suivant, choix audio (absent côté serveur).
 - Séries (plusieurs épisodes) : non testées dans l'interface (aucun programme-série avec médias en recette).
 - Navigateur : Chromium seulement ; Safari/Firefox non testés (l'envoi `keepalive` à la fermeture y est le point à surveiller).
+
+## 7. Jalon 4 — Accueil et collections réelles (30/10/2026, soir)
+**Preuve E3** — branche `integration/accueil` (tip `bfdc575`, contient le dernier commit de l'agent front `3c82ba1` : F4 et F7), front `:3211`, API de recette `:4020` (catalogue **copié** de la base de développement, comptes jetables, base supprimée à la fin). Ordinateur 1366×800 et mobile 375×812.
+- **Toutes les sections de l'accueil viennent du serveur** : hero (10), Top 10 (14), suggestions (8), univers (5), PTH (4 épisodes de la dernière saison), 5 rails (Nouveautés, Suspense, Drama, Couple, Science-Fiction), 5 créateurs, 12 thématiques. **106 images, toutes servies par l'API ; 0 image embarquée**. Les 36 titres de l'API sont présents dans la page, mobile comme ordinateur.
+- **Preuve que ce n'est pas du décor** : (1) l'administration modifie l'accroche et le synopsis du Silence → la Hero affiche le nouveau texte après rechargement ; (2) l'administration retire « Gladiator » → il disparaît du Top 10 ; (3) API coupée → écran d'erreur avec « Réessayer », **aucune donnée de remplacement** ; API relancée + clic → l'accueil revient.
+- **Continuité entre blocs** : bouton « + » du Top 10 sur « Gladiator » → ligne en base (`my_list`) → page « Ma liste » : « Gladiator » avec son visuel serveur ; bouton Ma liste du trio mobile sur le Silence → 2 titres côté serveur ; l'explorateur de thématiques (clic « Couple ») lit les fiches serveur.
+- **Correctifs** : (1) back-end : `GET /api/me/continue-watching` renvoie maintenant la fiche `program` de chaque ligne (contrat v1.11) — « Continuer à regarder » n'a plus besoin du catalogue embarqué ; (2) front : champs réels des épisodes (`id`, `durationLabel`) — repéré grâce à un avertissement React ; (3) un test de conformité s'appuie désormais sur une **vraie réponse de l'API** (fixture) pour qu'une faute de nom de champ ne passe plus inaperçue ; (4) recette : le catalogue complet est copié automatiquement (`scripts/recette/seed-catalog.ts`).
+- **Tests** : front **56/56**, typage sans erreur ; back-end **280/280**.
+### Limites déclarées (jalon 4)
+- **Textes éditoriaux des thématiques** (sous-titre « Sens et vie intérieure », fiche « phare » de chaque thème) : restent une configuration du front (`themeShowcase`) ; ils n'existent pas côté serveur. Les 3 thèmes absents du rail (Relations, Leadership, Société) sont dans la grille « Toutes les thématiques ».
+- **Palettes de couleurs** des cartes du Top 10 : toujours calculées par le front à partir de l'identifiant (le serveur n'en fournit pas).
+- **Pages `/production/:slug`**, **`/classement`**, **recherche** : les 36 pages s'ouvrent (aucune en échec), mais leur contenu est celui du catalogue embarqué → jalon « fiches programmes ». La recherche réelle (F7) est faite par l'agent front : **non vérifiée par moi à ce stade**.
+- Chargement : le catalogue est demandé avant l'affichage (rendu côté serveur) ; mesure de fluidité non faite (build de développement).
+- Navigateur : Chromium uniquement.

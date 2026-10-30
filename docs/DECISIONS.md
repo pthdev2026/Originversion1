@@ -238,3 +238,9 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Film réel de 85 min encodé **en local uniquement** : 4 qualités, 1 276 fichiers par qualité, durée 5 103,3 s partout, 6,0 Go ; tâche 13:57 → 17:24 (3 h 27, deux tentatives après un plantage du worker corrigé, machine partagée avec d'autres calculs)
 - ✅ Consolidation : la branche d'intégration contient le dernier commit de l'agent front (avance rapide possible) — procédure : `docs/CONSOLIDATION-FRONT-INTEGRATION.md`
 - 🟡 Pas encore dans la branche principale du front : en attente de la fusion par l'agent front
+
+## Jalon 4 — Accueil et collections réelles (30/10/2026)
+- ✅ L'accueil de MILLENIUM lit `GET /api/home` (12 sections, 106 images servies par l'API, 0 donnée embarquée) ; modification et retrait côté administration visibles ; panne API = écran d'erreur « Réessayer », jamais de données inventées
+- ✅ Contrat v1.11 : `GET /api/me/continue-watching` renvoie la fiche `program` de chaque ligne
+- ✅ Recette : catalogue complet copié automatiquement (`api/scripts/recette/seed-catalog.ts`, refuse toute cible autre que `origin_recette`)
+- 🟡 Reste embarqué côté front : textes éditoriaux des thématiques, palettes du Top 10, contenu des pages `/production/:slug`, `/classement`

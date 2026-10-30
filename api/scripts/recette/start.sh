@@ -36,19 +36,9 @@ curl -s -m 2 localhost:$API_PORT/health | grep -q '"ok"' || { echo "API de recet
 ADMIN_PASSWORD="$ADMIN_PW" node scripts/create-admin.ts "$ADMIN_EMAIL" >/dev/null
 JAR="$RECETTE_DIR/admin.jar"
 curl -s -c "$JAR" -H 'content-type: application/json' -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PW\"}" localhost:$API_PORT/api/auth/login >/dev/null
-A="curl -s -b $JAR -H content-type:application/json -X PUT"
-# Catalogue minimal : les 10 programmes de la Hero (mêmes identifiants que le front) + collection « hero ».
-for s in le-silence les-passagers derniere-sortie teaser-origin un-nouveau-matin le-trone les-choisis la-reine-guerriere lintervention ligne-rouge; do
-  $A -d "{\"kind\":\"film\",\"title\":\"$s\",\"tagline\":\"Accroche de recette\",\"synopsis\":\"Synopsis de recette.\",\"category\":\"Film original\",\"published\":true,\"isDemo\":true}" localhost:$API_PORT/api/admin/programs/$s >/dev/null
-done
-$A -d '{"title":"À l’affiche","layout":"hero","homePosition":0,"published":true,"items":["le-silence","les-passagers","derniere-sortie","teaser-origin","un-nouveau-matin","le-trone","les-choisis","la-reine-guerriere","lintervention","ligne-rouge"]}' localhost:$API_PORT/api/admin/collections/hero >/dev/null
-# Médias prêts : les films déjà encodés en développement (fichiers HLS partagés en LECTURE SEULE) dont le programme existe en recette.
-for meta in "$ROOT"/storage/videos/hls/*/meta.json; do
-  id=$(basename "$(dirname "$meta")")
-  case "$id" in le-silence|les-passagers|derniere-sortie|teaser-origin|un-nouveau-matin|le-trone|les-choisis|la-reine-guerriere|lintervention|ligne-rouge) ;; *) continue;; esac
-  DUR=$(python3 -c "import json;print(json.load(open('$meta'))['source']['durationSeconds'])" 2>/dev/null || echo 900)
-  sqlrun "$RECETTE_URL" "INSERT INTO media_assets (playback_id, program_slug, status, storage_path, duration_seconds, source_width, source_height, renditions) VALUES ('$id','$id','ready','$id',$DUR,1920,1080,'[]'::jsonb)" >/dev/null && echo "média de recette : $id (${DUR}s)"
-done
+# Catalogue de recette : COPIE du catalogue de développement (programmes, saisons, épisodes, thèmes, collections, créateurs) et de ses médias prêts.
+# Aucun compte, aucune session, aucune progression ni liste n'est copié.
+node scripts/recette/seed-catalog.ts "$BASE" "$RECETTE_URL"
 
 # Page de test (origine DIFFÉRENTE de l'API, même site : comme le vrai front) + hls.js (copie du front, lecture seule).
 mkdir -p "$RECETTE_DIR/bench"; cp "$API_DIR/scripts/recette/bench.html" "$RECETTE_DIR/bench/index.html"

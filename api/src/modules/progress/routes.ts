@@ -7,6 +7,7 @@ import type { AppEnv } from '../../platform/http/types.ts';
 import { isValidId } from '../../platform/storage/layout.ts';
 import { requireUser } from '../identity/middleware.ts';
 import { isHistoryEnabled } from '../account/repository.ts';
+import { getCards } from '../catalog/content.ts';
 import { clearHistory, deleteProgress, findProgress, listContinueWatching, listProgramProgress, type Progress } from './repository.ts';
 import { saveProgress } from './service.ts';
 
@@ -86,9 +87,12 @@ export function progressRoutes(deps: { sql: Sql }): Hono<AppEnv> {
     const user = requireUser(c);
     const limit = Math.min(Math.max(Number(c.req.query('limit') ?? 20) || 20, 1), 50);
     const items = (await isHistoryEnabled(deps.sql, user.id)) ? await listContinueWatching(deps.sql, user.id, limit) : [];
+    // Fiche résumée du programme (visuel, titre, catégorie…) : l'écran n'a plus besoin d'un catalogue embarqué pour afficher la ligne.
+    const cards = await getCards(deps.sql, [...new Set(items.flatMap(item => (item.programSlug ? [item.programSlug] : [])))]);
     return c.json({
       items: items.map(item => ({
         ...present(item),
+        program: item.programSlug ? cards.get(item.programSlug) ?? null : null,
         programSlug: item.programSlug,
         episode: item.episode,
         title: item.title,

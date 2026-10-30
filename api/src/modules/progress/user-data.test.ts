@@ -119,9 +119,11 @@ describe('reprise de lecture', () => {
   it('liste « Reprendre » avec titre et ratio, puis retire un contenu terminé', async t => {
     if (!available) return t.skip('PostgreSQL injoignable');
     const list = (await (await send('GET', '/api/me/continue-watching', undefined, alice)).json()) as {
-      items: { playbackId: string; title: string; progressRatio: number }[];
+      items: { playbackId: string; title: string; progressRatio: number; program: { slug: string; title: string; images: unknown } | null }[];
     };
     assert.equal(list.items.length, 1);
+    assert.equal(list.items[0]?.program?.slug, 'long-film', 'la fiche du programme accompagne la ligne (visuel, titre…)');
+    assert.ok(list.items[0]?.program?.images !== undefined);
     assert.equal(list.items[0]?.title, 'Long film');
     assert.equal(list.items[0]?.progressRatio, 0.517);
     await send('PUT', '/api/me/progress/long-film', { positionSeconds: 7190 }, alice);

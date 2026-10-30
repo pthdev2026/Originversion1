@@ -1,4 +1,4 @@
-# ORIGIN — Contrat d'API (v1.10, 30/10/2026)
+# ORIGIN — Contrat d'API (v1.11, 30/10/2026)
 
 Propriétaire : l'agent back-end. Toute modification est annoncée ici avant d'être déployée.
 Limites : 120 requêtes par minute et par adresse IP sur `/api/*` ; en-têtes `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
@@ -151,7 +151,7 @@ Toutes ces routes exigent un compte connecté (`401` sinon) et `credentials: 'in
 | `GET /api/me/progress/:playbackId` | — | `200` (même forme) · `404` = jamais commencé |
 | `DELETE /api/me/progress/:playbackId` | — | `204` (retire de « Reprendre ») |
 | `GET /api/me/progress?program=<slug>` | `program` **obligatoire** | `200 {items:[{playbackId, positionSeconds, durationSeconds, completed, updatedAt}]}` (v1.2) : progression de **chaque** contenu du programme (tous les épisodes d'une série), terminés **inclus** — c'est ce qui permet l'état « Vu » ; récents d'abord. Programme sans progression : `items: []`. `400` si `program` absent ou invalide. |
-| `GET /api/me/continue-watching?limit=20` | — | `200 {items:[{playbackId, programSlug, title, kind, positionSeconds, durationSeconds, progressRatio, completed, updatedAt}]}` |
+| `GET /api/me/continue-watching?limit=20` | — | `200 {items:[{playbackId, programSlug, title, kind, episode, positionSeconds, durationSeconds, progressRatio, completed, updatedAt, program}]}` — **`program`** (v1.11) = fiche résumée `ProgramCard` du programme (visuels, catégorie…) ou `null` s'il n'est plus publié : l'écran n'a pas besoin d'un autre appel pour afficher la ligne |
 | `GET /api/me/list` | — | `200 {items:[{slug, addedAt, program}]}` (récents d'abord). **`program`** (v1.2) = fiche résumée `ProgramCard` du catalogue, ou **`null`** si le contenu n'est pas publié ou n'existe pas (l'élément reste dans la liste : à l'utilisateur de le retirer). Les champs `slug` et `addedAt` sont inchangés. |
 | `PUT /api/me/list/:slug` | — | `204` (idempotent : l'ajouter deux fois ne crée pas de doublon, même simultanément ; 500 contenus au plus, `400` au-delà) · **`404` si le contenu est inconnu ou non publié (v1.10)** — un contenu retiré APRÈS son ajout reste dans la liste avec `program: null` |
 | `DELETE /api/me/list/:slug` | — | `204` |
