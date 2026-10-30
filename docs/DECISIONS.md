@@ -190,3 +190,8 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Recherche tolérante aux fautes (distance d'édition 1–2 selon la longueur, uniquement si rien n'est trouvé ; `correctedQuery`), suggestions à la frappe, recherches récentes liées au réglage « historique »
 - ✅ E-mail d'alerte à la connexion depuis un nouvel appareil
 - 🟡 Non fait, décision propriétaire : profils multiples façon Netflix, connexion Google/Apple, code par e-mail sans mot de passe, passkeys
+
+## Décisions de mise en ligne (30/10/2026)
+- ✅ **Voie vidéo : Mux** pour la bêta (notre chaîne FFmpeg + Bunny reste prête en secours)
+- ✅ **Hébergement : un VPS européen** (machine unique, Docker Compose)
+- 🟡 À fixer : nom de domaine, hébergeur précis, hébergement du front, pages légales — voir `docs/PLAN-MISE-EN-LIGNE.md` §1
