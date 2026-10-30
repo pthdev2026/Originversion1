@@ -40,3 +40,9 @@ cd ORIGIN-plateforme/api && npm ci
 
 ## 5. Filet de secours sans GitHub
 `git bundle create ../ORIGIN-plateforme-AAAAMMJJ.bundle --all` puis `git bundle verify` : archive complète du dépôt (créée le 30/10 dans `~/Desktop/ORIGIN-sauvegardes/`, **à copier hors du Mac**, par exemple sur un disque externe).
+
+## Contrôle des secrets refait le 31/10/2026
+- **Backend** (`ORIGIN-plateforme`, 10 Mo d'objets git) et **back-office** (`ORIGIN-back-office`, 50 fichiers suivis) : aucun fichier `.env`, clé (`.pem`, `.key`), identifiant `.cred` ni jeton (Mux, Resend, GitHub, AWS, Stripe, clé privée PEM, JWT) dans les fichiers suivis ni dans l'historique ajouté ; seuls les modèles `*.example` sont suivis.
+- `.env`, `deploy/.env.production`, `storage/` et `app/` (dépôt front séparé) sont exclus par `.gitignore`.
+- Aucun gros média suivi (les plus lourds : images d'intro de ~1,3 Mo).
+- Aucun dépôt n'a de remote : **rien n'est publié**. Dès que le propriétaire crée les deux dépôts privés vides et fournit les URL SSH, la procédure de ce document s'applique (`git remote add origin …` puis `git push -u origin --all`), après son accord explicite.
