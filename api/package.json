@@ -23,7 +23,8 @@
     "load:run": "node --env-file-if-exists=.env scripts/load/run.ts",
     "catalog:import": "node --env-file-if-exists=.env scripts/catalog-import.ts",
     "catalog:export-front": "node scripts/catalog-export-front.ts",
-    "mux:check": "node --env-file-if-exists=.env scripts/mux-check.ts"
+    "mux:check": "node --env-file-if-exists=.env scripts/mux-check.ts",
+    "mux:usage": "node --env-file-if-exists=.env scripts/mux-usage.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.0",
