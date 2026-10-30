@@ -132,14 +132,16 @@ export function identityRoutes(deps: IdentityRoutesDeps): Hono<AppEnv> {
   routes.post('/api/me/2fa/setup', async c => c.json(await deps.identity.twoFactorSetup(requireUser(c).id, ctx(c))));
 
   routes.post('/api/me/2fa/enable', async c => {
+    const user = requireUser(c);
     const body = await readJson(c, twoFactorEnableSchema);
-    const recoveryCodes = await deps.identity.twoFactorEnable(requireUser(c).id, body.code, ctx(c));
+    const recoveryCodes = await deps.identity.twoFactorEnable(user.id, body.code, ctx(c));
     return c.json({ recoveryCodes });
   });
 
   routes.post('/api/me/2fa/disable', async c => {
+    const user = requireUser(c);
     const body = await readJson(c, twoFactorDisableSchema);
-    await deps.identity.twoFactorDisable({ userId: requireUser(c).id, password: body.password, code: body.code }, ctx(c));
+    await deps.identity.twoFactorDisable({ userId: user.id, password: body.password, code: body.code }, ctx(c));
     return c.body(null, 204);
   });
 

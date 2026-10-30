@@ -253,3 +253,7 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 ## Porte de publication (30/10/2026) — règle validée par le propriétaire
 - ✅ Une sortie planifiée n'est publiée automatiquement que si **tous les médias obligatoires sont prêts** ; sinon : blocage, trace (journal d'audit), alerte e-mail aux administrateurs, visible dans le calendrier, **aucune publication tardive non contrôlée** ; reprise par validation éditoriale (`POST /api/admin/programs/:slug/release`) ou nouvelle date. Migration 020. 6 tests.
 - 🟡 Le back-office n'a pas encore d'écran pour valider une sortie bloquée (demande à lui adresser) ; l'e-mail d'alerte n'a jamais été envoyé en réel (Resend non branché).
+
+## Revue de sécurité ciblée (30/10/2026)
+- Matrice d'autorisations et CSRF testées sur les routes réellement enregistrées (`api/src/security.test.ts`) ; toute nouvelle route doit être classée publique/protégée sinon le test échoue.
+- Corrigé : session vérifiée avant la validation du corps sur 3 routes `/api/me`. Risque accepté : `POST /api/playback-sessions` anonyme (limitation de débit globale seulement).

@@ -198,8 +198,9 @@ export function accountRoutes(deps: AccountRoutesDeps): Hono<AppEnv> {
   });
 
   routes.delete('/api/me/searches/item', async c => {
+    const user = requireUser(c);
     const { q } = await readJson(c, searchSchema);
-    await repo.forgetSearch(deps.sql, requireUser(c).id, foldQuery(q).join(' '));
+    await repo.forgetSearch(deps.sql, user.id, foldQuery(q).join(' '));
     return c.body(null, 204);
   });
 
