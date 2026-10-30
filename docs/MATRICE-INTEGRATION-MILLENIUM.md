@@ -54,8 +54,8 @@ Agent : **F** = front · **B** = back-end · **BO** = back-office. Preuve : « E
 | Accueil | « Pour vous » | `GET /api/recommendations` | facultative | watch_progress, user_themes | F | **Simulé** · API seule | API testée |
 | `/continuer` | Continuer à regarder (liste, « Reprendre », « Marquer comme vu », « Retirer », annuler) | `GET /api/me/continue-watching`, `PUT/DELETE /api/me/progress/:id` | oui | watch_progress | F + B | **VÉRIFIÉ MILLENIUM** pour l'affichage et la mise à jour après lecture (« 23 % · Il reste 12 min », sortie de la liste à la fin) ; retirer / marquer comme vu / annuler : code branché et testé (faux serveur), non démontré dans l'écran | E2 + tests |
 | `search-overlay` | Rechercher, suggestions, correction de fautes | `GET /api/search`, `/api/search/suggestions` | non | programs | F | **Simulé** (`searchCatalog` local) · API seule | API testée |
-| `/production/$slug` | Fiche, saisons, épisodes | `GET /api/programs/:slug` | non | programs, seasons, episodes | F | **Simulé** (`productions.ts`, `watch-catalog.ts`) · API seule | — |
-| `/production/$slug` | Ma liste (bouton de la fiche) | idem 2.2 | oui | my_list | F | Partiel (même magasin que la Hero, non démontré sur cette page) | tests faux serveur |
+| `/production/$slug` | Fiche, saisons, épisodes, similaires, rang | `GET /api/programs/:slug`, `/similar`, `/api/collections/top-10` | non | programs, seasons, episodes | F + B | **VÉRIFIÉ MILLENIUM** (jalon 5, ordinateur et mobile) | E4 |
+| `/production/$slug` | Ma liste (bouton de la fiche) | `PUT/DELETE /api/me/list/:slug` | oui | my_list | F | **VÉRIFIÉ MILLENIUM** (mobile) | E4 : ajout → ligne en base |
 | `/classement` | Classement complet | `GET /api/collections/ranking` | non | collections | F | **Simulé** · API seule | — |
 | `/createur/$slug` | Univers d'un créateur | `GET /api/creators/:slug` | non | creators, creator_contents | F | **Simulé** (`creator-universes.ts`) · API seule | API testée |
 
@@ -160,3 +160,18 @@ Données de la Hero, du Top 10, des rails, des suggestions, des univers, des cr�
 - **Pages `/production/:slug`**, **`/classement`**, **recherche** : les 36 pages s'ouvrent (aucune en échec), mais leur contenu est celui du catalogue embarqué → jalon « fiches programmes ». La recherche réelle (F7) est faite par l'agent front : **non vérifiée par moi à ce stade**.
 - Chargement : le catalogue est demandé avant l'affichage (rendu côté serveur) ; mesure de fluidité non faite (build de développement).
 - Navigateur : Chromium uniquement.
+
+## 8. Jalon 5 — Fiches programmes réelles (30/10/2026, soir)
+**Preuve E4** — branche `integration/accueil` (tip `96437db`, contient le dernier commit de l'agent front `0fe9acb`), front `:3211`, API de recette `:4020` (catalogue copié ; série PTH avec 2 épisodes jouables ; base supprimée à la fin). Ordinateur 1366×800 et mobile 375×812.
+- **La fiche vient du serveur** (route `/production/:slug`) : titre, synopsis, saisons et épisodes (8 épisodes de la série PTH, 2 saisons), badges, durées, visuels (0 image embarquée), rangée « Vous pourriez aussi aimer » (fiches du serveur, 7 titres pour la série, 8 pour Gladiator) et **rang au classement** (« N° 1 » sur Gladiator, lu dans `/api/collections/top-10`).
+- **Cas limites** : programme inconnu → « Ce programme est introuvable. » (404) ; **API coupée → écran « Cette page n'a pas pu se charger… Réessayer », aucune fiche inventée**.
+- **Série (Eve)** : le bouton principal démarre au premier épisode **jouable** (« Regarder l'épisode 7 », décidé par le serveur) → lecture → pause à 10,3 s sur 15,1 s → rechargement : **« Reprendre l'épisode 7 »**, la ligne de l'épisode affiche « 1 min restantes » avec une barre à 68 % (progression réelle de l'épisode) → « Marquer comme vu » sur l'épisode 7 : **`completed` en base**, la ligne devient « Déjà vu » et **le reste après rechargement** → le bouton principal passe à **« Regarder l'épisode 8 »** (état `next` du serveur) et « Continuer à regarder » est vide.
+- **Film sur mobile** : bouton « Ma liste » de la fiche → ligne en base ; lecture → pause à 303,2 s enregistrée.
+- **Correctifs** : (1) **back-end** : `GET /api/programs/:slug/play-target` renvoie maintenant l'épisode avec `key` et `seasonNumber` (contrat v1.12) — sans cela, le bouton « Reprendre l'épisode N » de l'agent front ne trouvait jamais l'épisode d'une série ; (2) front : forme réelle de `/similar` (`{items:[{program, reason}]}`) — repérée par un test sur une **vraie réponse** (fixtures) ; (3) recette : dossier vidéo propre à la recette (liens vers le stockage de développement, jamais d'écriture) et deux épisodes de test.
+- **Tests** : front **63/63** (7 nouveaux), typage sans erreur ; back-end **280/280**.
+### Limites déclarées (jalon 5)
+- **Libellé du bouton principal non rafraîchi** quand on revient du lecteur sans recharger la page (il affiche encore « Regarder l'épisode 7 » ; après rechargement, « Reprendre l'épisode 7 ») : `usePlayTarget` (fichier de l'agent front) ne relit le serveur qu'au chargement → **demande transmise à l'agent front**.
+- Le panneau « Audio et sous-titres » de la fiche liste encore des choix fixes (Français/English/Audiodescription) qui n'existent pas côté serveur (une seule piste audio) → à retirer (agent front).
+- Épisodes sans média : la lecture répond « pas encore disponible » ; la fiche ne les marque pas encore comme tels (le serveur fournit `playable` par épisode).
+- Titre de l'onglet « Programme introuvable » pendant une panne (le serveur coupé est vu comme une fiche absente par le titre ; la page, elle, affiche bien l'erreur).
+- `/classement` et la recherche (F7, agent front) : non traités ici. Chromium seulement. Le Silence n'a pas de saison ni d'épisode « série » : un film est une saison d'un épisode (`feature`).

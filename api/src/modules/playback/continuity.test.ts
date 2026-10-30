@@ -142,7 +142,7 @@ describe('lecture : contexte, repères et cible', () => {
     assert.equal((await target('ma-serie')).state, 'start', 'anonyme');
 
     const cookie = cookieOf(await call('POST', '/api/auth/register', { email: 'wes@mail.fr', password: PASSWORD }));
-    assert.deepEqual(await target('ma-serie', cookie), { state: 'start', playbackId: 'ma-serie-s1-e1', episode: { season: 1, number: 1, title: 'Un' }, resumeSeconds: 0 });
+    assert.deepEqual(await target('ma-serie', cookie), { state: 'start', playbackId: 'ma-serie-s1-e1', episode: { key: 's1-e1', season: 1, seasonNumber: 1, number: 1, title: 'Un' }, resumeSeconds: 0 });
     await save('ma-serie-s1-e1', 200, cookie);
     const resumed = await target('ma-serie', cookie);
     assert.deepEqual([resumed.state, resumed.playbackId, resumed.resumeSeconds], ['resume', 'ma-serie-s1-e1', 200]);

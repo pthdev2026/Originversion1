@@ -244,3 +244,8 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Contrat v1.11 : `GET /api/me/continue-watching` renvoie la fiche `program` de chaque ligne
 - ✅ Recette : catalogue complet copié automatiquement (`api/scripts/recette/seed-catalog.ts`, refuse toute cible autre que `origin_recette`)
 - 🟡 Reste embarqué côté front : textes éditoriaux des thématiques, palettes du Top 10, contenu des pages `/production/:slug`, `/classement`
+
+## Jalon 5 — Fiches programmes réelles (30/10/2026)
+- ✅ `/production/:slug` lit le serveur (fiche, saisons, épisodes, similaires, rang), états « En cours / Déjà vu » des épisodes issus de la progression du compte, « Marquer comme vu » enregistré, 404 et panne gérées sans fiche inventée ; vérifié ordinateur et mobile
+- ✅ Contrat v1.12 : `play-target.episode` = `{key, season, seasonNumber, number, title}` (`key` = identifiant d'épisode de la fiche)
+- 🟡 À la charge de l'agent front : rafraîchir le libellé du bouton au retour du lecteur ; retirer les choix audio/sous-titres fictifs ; `/classement`

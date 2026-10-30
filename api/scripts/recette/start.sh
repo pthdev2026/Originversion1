@@ -20,7 +20,11 @@ sqlrun "$BASE" "DROP DATABASE IF EXISTS origin_recette" >/dev/null
 sqlrun "$BASE" "CREATE DATABASE origin_recette" >/dev/null
 
 # Médias de test : liens en LECTURE vers le stockage de développement (rien n'y est écrit : pas de worker en recette).
-ln -sfn "$ROOT/storage/videos" "$RECETTE_DIR/storage/videos"
+# Vidéos : un dossier PROPRE à la recette dont chaque entrée est un lien vers le stockage de développement (jamais d'écriture dans celui-ci).
+mkdir -p "$RECETTE_DIR/storage/videos/hls" "$RECETTE_DIR/storage/videos/sources" "$RECETTE_DIR/storage/videos/work"
+for d in "$ROOT"/storage/videos/hls/*; do ln -sfn "$d" "$RECETTE_DIR/storage/videos/hls/$(basename "$d")"; done
+# Deux épisodes de recette pour la série PTH (série de test des états « En cours / Vu »), alimentés par le clip de 15 s.
+for ep in s2-e8 s2-e7; do ln -sfn "$ROOT/storage/videos/hls/tout-recommencer" "$RECETTE_DIR/storage/videos/hls/les-secrets-du-ministere-$ep"; done
 ln -sfn "$ROOT/storage/images" "$RECETTE_DIR/storage/images"
 
 ADMIN_EMAIL="recette-admin@origin.test"
@@ -39,6 +43,9 @@ curl -s -c "$JAR" -H 'content-type: application/json' -d "{\"email\":\"$ADMIN_EM
 # Catalogue de recette : COPIE du catalogue de développement (programmes, saisons, épisodes, thèmes, collections, créateurs) et de ses médias prêts.
 # Aucun compte, aucune session, aucune progression ni liste n'est copié.
 node scripts/recette/seed-catalog.ts "$BASE" "$RECETTE_URL"
+for ep in s2-e8 s2-e7; do
+  sqlrun "$RECETTE_URL" "INSERT INTO media_assets (playback_id, program_slug, status, storage_path, duration_seconds, source_width, source_height, renditions) VALUES ('les-secrets-du-ministere-$ep','les-secrets-du-ministere','ready','les-secrets-du-ministere-$ep',15.083,1920,1080,'[]'::jsonb)" >/dev/null
+done
 
 # Page de test (origine DIFFÉRENTE de l'API, même site : comme le vrai front) + hls.js (copie du front, lecture seule).
 mkdir -p "$RECETTE_DIR/bench"; cp "$API_DIR/scripts/recette/bench.html" "$RECETTE_DIR/bench/index.html"

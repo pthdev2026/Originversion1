@@ -1,4 +1,4 @@
-# ORIGIN — Contrat d'API (v1.11, 30/10/2026)
+# ORIGIN — Contrat d'API (v1.12, 30/10/2026)
 
 Propriétaire : l'agent back-end. Toute modification est annoncée ici avant d'être déployée.
 Limites : 120 requêtes par minute et par adresse IP sur `/api/*` ; en-têtes `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
@@ -91,7 +91,7 @@ ni à l'enchaînement automatique). Quand `show` est `false`, `manifestUrl`, `du
 - `next` : épisode suivant **lisible** (a un média prêt) ; `null` pour un film ou le dernier épisode. Pour l'enchaîner, appeler `/playback` avec `autoplay=1`.
 
 #### `GET /api/programs/:slug/play-target` (v1.8, public)
-Le bouton principal d'une fiche programme, en un appel : `200 {state, playbackId, episode, resumeSeconds}`.
+Le bouton principal d'une fiche programme, en un appel : `200 {state, playbackId, episode, resumeSeconds}` ; `episode` = `null` (film) ou `{key, season, seasonNumber, number, title}` (**v1.12** : `key` = identifiant d'épisode de la fiche, ex. `s2-e8` ; `seasonNumber` = `season`, deux noms pour la même valeur).
 `state` ∈ `start` (début) · `resume` (reprise en cours, `resumeSeconds` > 0) · `next` (suite du dernier épisode terminé) · `rewatch` (tout vu : recommence au début). Visiteur anonyme ou historique désactivé : toujours `start`. `404` : programme inconnu ou **rien de lisible**.
 
 #### `PUT /api/admin/media/:playbackId/markers` (v1.8, administrateur)

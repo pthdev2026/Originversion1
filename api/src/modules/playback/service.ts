@@ -145,7 +145,8 @@ export interface PlayTarget {
   /** `start` : première lecture · `resume` : reprise en cours · `next` : épisode suivant du dernier terminé · `rewatch` : tout vu, on recommence. */
   state: 'start' | 'resume' | 'next' | 'rewatch';
   playbackId: string;
-  episode: { season: number; number: number; title: string } | null;
+  /** Épisode visé (séries). `key` = identifiant d'épisode de la fiche (ex. « s2-e8 ») ; `seasonNumber` = `season` (deux noms, même valeur). */
+  episode: { key: string; season: number; seasonNumber: number; number: number; title: string } | null;
   resumeSeconds: number;
 }
 
@@ -162,7 +163,8 @@ export async function resolvePlayTarget(sql: Sql, userId: string | null, program
   if (playable.length === 0) throw errors.notAvailable();
   const describe = (playbackId: string) => {
     const found = episodes.find(item => item.playbackId === playbackId);
-    return found ? { season: found.season, number: found.number, title: found.title } : null;
+    // `key` = identifiant d'épisode de la fiche (le playbackId sans le préfixe « <programme>- »).
+    return found ? { key: found.playbackId.slice(programSlug.length + 1), season: found.season, seasonNumber: found.season, number: found.number, title: found.title } : null;
   };
   const target = (state: PlayTarget['state'], playbackId: string, resumeSeconds = 0): PlayTarget => ({ state, playbackId, episode: describe(playbackId), resumeSeconds });
 
