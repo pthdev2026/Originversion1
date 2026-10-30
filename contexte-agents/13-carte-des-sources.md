@@ -23,6 +23,7 @@ Vérifié le : 30/10/2026
 | Déploiement, exploitation | `docs/DEPLOIEMENT.md`, `docs/EXPLOITATION.md`, `deploy/` | 09 |
 | Charge et performance | `docs/TEST-DE-CHARGE.md` | 10 §3 |
 | Décisions | `docs/DECISIONS.md` | 10 §5 |
+| Back-office (outil d'administration) : écrans, routes, critères d'acceptation | `docs/CAHIER-DES-CHARGES-BACK-OFFICE.md`, `docs/PROMPT-AGENT-BACK-OFFICE.md` | agents/AGENT-back-office |
 | Choix d'hébergement (PostgreSQL géré ? Supabase ?), Mux vs FFmpeg+Bunny, composants à déployer | `docs/AUDIT-ARCHITECTURE-CIBLE-2026-10-30.md` | 09, 10 |
 | Benchmark Netflix/Prime, coûts | `docs/BENCHMARK-TECHNIQUE.md`, `docs/PLAN-1000-UTILISATEURS.md` | 01 §5 |
 | Audit initial, diagnostics historiques | `docs/AUDIT-EXISTANT.md`, `docs/BACKEND-DIAGNOSTIC-ET-PLAN.md`, `docs/FRONT-DIAGNOSTIC-2026-10-13.md` | (historique, ne pas traiter comme actuel) |

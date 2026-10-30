@@ -154,3 +154,10 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Déploiement de référence du pilote : **tout sur un VPS** (Caddy, API, PostgreSQL, travailleur, sauvegarde, chien de garde) + Bunny + Resend
 - ✅ Mux : **coexistence par média** envisageable (colonne `provider`), **rien construit** ; décision après un essai « 1 vidéo, 2 voies » ; vérifier d'abord les CGU et la résidence des données de Mux
 - 🟡 Domaine personnalisé du front à trancher avant d'acheter le domaine (cookie de session : même site que l'API)
+
+## Back-office (30/10/2026)
+- ✅ Le back-office est **nécessaire** (ajouter/publier des vidéos sans terminal, observer la performance) mais **n'est pas un préalable à la vérification du CDN** (commande `cdn:check`, à faire en parallèle)
+- ✅ Application **à part** (`admin/`, `admin.origin.xxx`), non reliée à Lovable ; la sécurité est côté API (rôle admin + 2FA) ; construction **par phases** (1 minimum utile, 2 éditorial, 3 observation)
+- ✅ Agent **dédié** recommandé ; cahier des charges et prompt rédigés (`docs/CAHIER-DES-CHARGES-BACK-OFFICE.md`, `docs/PROMPT-AGENT-BACK-OFFICE.md`)
+- 🟡 Ajouts back-end prévus : B1 envoi d'images, B2 fiche admin, B3 journal des modifications, B4 filtre des tâches, B5 fournisseur Mux (si retenu)
+- 🟡 À trancher : domaine `admin.origin.xxx`, restriction par IP, voie vidéo (Bunny/Mux), qui est l'agent

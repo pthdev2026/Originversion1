@@ -47,7 +47,7 @@ Dernière vérification globale : **30/10/2026** (code au commit `e5ebaaa`, 188 
 | [11-regles-de-travail-agents.md](11-regles-de-travail-agents.md) | Conventions, commandes, définition de « terminé », collaboration | Chaque session |
 | [12-glossaire.md](12-glossaire.md) | Tous les termes expliqués simplement | En cas de doute sur un mot |
 | [13-carte-des-sources.md](13-carte-des-sources.md) | Sujet → document/fichier de référence ; protocole de fraîcheur | Pour retrouver l'information |
-| [agents/](agents/) | Une fiche par compartiment : périmètre, fichiers, invariants, « terminé » | Au démarrage de la mission |
+| [agents/](agents/) | Une fiche par compartiment (dont le back-office) : périmètre, fichiers, invariants, « terminé » | Au démarrage de la mission |
 
 ## 4. Principes d'usage de ce dossier (context engineering)
 
