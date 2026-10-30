@@ -1,9 +1,9 @@
 name: API ORIGIN
 on:
   push:
-    paths: ['api/**', '.github/workflows/api.yml']
+    paths: ['api/**', 'deploy/**', '.github/workflows/api.yml']
   pull_request:
-    paths: ['api/**']
+    paths: ['api/**', 'deploy/**']
 
 jobs:
   verify:
@@ -41,3 +41,61 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build -t origin-api api
+
+  deploy-smoke:
+    # Essai de DÉPLOIEMENT dans un environnement propre et jetable (aucune installation sur le Mac, aucun secret réel) :
+    # construit la pile de production (PostgreSQL + API ; le worker et Caddy utilisent la même image / un domaine réel),
+    # applique les migrations, vérifie /health, FFmpeg, puis une sauvegarde chiffrée ET sa restauration d'essai.
+    runs-on: ubuntu-latest
+    needs: docker
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configuration jetable (secrets aléatoires générés sur le runner)
+        working-directory: deploy
+        run: |
+          {
+            echo "API_DOMAIN=api.ci.invalid"
+            echo "PUBLIC_APP_URL=https://ci.invalid"
+            echo "CORS_ORIGINS=https://ci.invalid"
+            echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)"
+            echo "MEDIA_SECRET=$(openssl rand -hex 32)"
+            echo "BACKUP_PASSPHRASE=$(openssl rand -hex 16)"
+            echo "METRICS_TOKEN=$(openssl rand -hex 16)"
+            echo "AUTH_ENCRYPTION_KEY=$(openssl rand -hex 32)"
+            echo "REQUIRE_ADMIN_2FA=true"
+            echo "NODE_ENV=production"
+            echo "MAIL_PROVIDER=log"
+            echo "VIDEO_PROVIDER=self"
+            echo "DELIVERY_MODE=origin"
+            echo "MIN_FREE_GB=1"
+          } > .env.production
+      - run: docker compose --env-file .env.production config -q
+        working-directory: deploy
+      - name: Construire et démarrer PostgreSQL + API
+        working-directory: deploy
+        run: docker compose --env-file .env.production up -d --build postgres api
+      - name: Attendre que l'API réponde (migrations appliquées au démarrage)
+        working-directory: deploy
+        run: |
+          for i in $(seq 1 40); do
+            if docker compose --env-file .env.production exec -T api node -e "fetch('http://127.0.0.1:4000/ready').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"; then echo "API prête"; exit 0; fi
+            sleep 3
+          done
+          docker compose --env-file .env.production logs api | tail -50
+          exit 1
+      - name: FFmpeg présent dans l'image
+        working-directory: deploy
+        run: docker compose --env-file .env.production exec -T api ffmpeg -version | head -1
+      - name: Sauvegarde chiffrée puis restauration d'essai
+        working-directory: deploy
+        run: |
+          docker compose --env-file .env.production exec -T api node scripts/backup.ts
+          docker compose --env-file .env.production exec -T api node scripts/backup-verify.ts
+      - name: Journaux en cas d'échec
+        if: failure()
+        working-directory: deploy
+        run: docker compose --env-file .env.production logs --tail=80
+      - name: Nettoyage
+        if: always()
+        working-directory: deploy
+        run: docker compose --env-file .env.production down -v
