@@ -257,3 +257,8 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 ## Revue de sécurité ciblée (30/10/2026)
 - Matrice d'autorisations et CSRF testées sur les routes réellement enregistrées (`api/src/security.test.ts`) ; toute nouvelle route doit être classée publique/protégée sinon le test échoue.
 - Corrigé : session vérifiée avant la validation du corps sur 3 routes `/api/me`. Risque accepté : `POST /api/playback-sessions` anonyme (limitation de débit globale seulement).
+
+## Protection des statistiques de lecture (31/10/2026)
+- Risque démontré : `POST /api/playback-sessions` était ouvert à tous et `loadTrending` (Top 10 dynamique) compte les sessions de plus de 10 s ; 500 rapports fabriqués suffisaient à fausser le classement (test d'attaque dans `session-authorization.test.ts`).
+- Correction : jeton HMAC (lié à session + média + heure d'émission) délivré avec la lecture, renvoyé dans le corps du rapport ; temps regardé plafonné au temps écoulé ; un jeton = une session (renvois idempotents) ; rotation de secret supportée ; contrat v1.15.
+- Risque résiduel : une personne qui lance réellement une lecture et attend peut encore produire une vue par lecture, limitée par le temps réel et la limitation de débit (`metricsPerMinute`) ; une vue par compte (pondération des sessions connectées) pourra être ajoutée si le Top 10 devient un enjeu.

@@ -1,4 +1,4 @@
-# ORIGIN — Contrat d'API (v1.14, 30/10/2026)
+# ORIGIN — Contrat d'API (v1.15, 31/10/2026)
 
 Propriétaire : l'agent back-end. Toute modification est annoncée ici avant d'être déployée.
 Limites : 120 requêtes par minute et par adresse IP sur `/api/*` ; en-têtes `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
@@ -168,7 +168,7 @@ Règles de la reprise :
 
 | Route | Accès | Réponses |
 |---|---|---|
-| `POST /api/playback-sessions` | Public (anonyme) | `204` · `400` |
+| `POST /api/playback-sessions` | Public (anonyme) **+ jeton de session** (`analytics.token` de la lecture, dans le corps) | `204` · `400` · `403` (jeton absent, falsifié, expiré, autre session/média) |
 | `GET /api/admin/metrics/playback?days=7&playbackId=` | Administrateur | `200` synthèse (démarrage p50/p75/p95, ratio de coupures, taux d'erreurs, qualités regardées, objectifs) |
 
 Corps (JSON, peut être envoyé en `text/plain` avec `keepalive: true`) — rapport **cumulatif** de la session, toutes les ~15 s et à la fermeture :
@@ -511,3 +511,11 @@ le front doit afficher « Service momentanément indisponible » et proposer de 
 |---|---|---|
 | Langues audio multiples | pistes audio dans le manifeste | Après les premiers contenus réels |
 | Paiement / abonnement | — | Si le modèle devient payant |
+
+
+**Autorisation des rapports de lecture (v1.15, 31/10/2026) — changement pour le front.** `GET /api/programs/:id/playback` renvoie désormais `analytics: { sessionId, token }` (anonyme ou connecté, média signé ou non). Le lecteur doit :
+1. utiliser `analytics.sessionId` comme `id` de ses rapports `POST /api/playback-sessions` (ne plus générer son propre UUID) ;
+2. ajouter `token: analytics.token` **dans le corps JSON** de chaque rapport (donc compatible `sendBeacon` / `fetch keepalive` en `text/plain`, sans en-tête ni cookie) ;
+3. redemander une lecture (nouveau `sessionId`) pour chaque nouvelle lecture ; le jeton vaut 24 h et une seule session.
+
+Le serveur répond `403` si le jeton est absent, falsifié, expiré ou lié à une autre session/un autre média, et plafonne `watchSeconds` au temps réellement écoulé depuis l'émission (+ 2 s). Sans cela, un rapport ne peut plus alimenter le Top 10 ni les statistiques. Les renvois du même rapport restent idempotents (maximum de chaque compteur).

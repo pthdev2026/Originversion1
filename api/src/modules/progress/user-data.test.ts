@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { after, before, describe, it } from 'node:test';
+import { signSessionGrant } from '../analytics/session-token.ts';
 import pino from 'pino';
 import type { Hono } from 'hono';
 import { createApp } from '../../app.ts';
@@ -251,10 +252,16 @@ describe('demandes du front du 16/10 (liste enrichie, progression par programme)
 });
 
 describe('mesure de lecture', () => {
-  const report = (overrides: Record<string, unknown> = {}) => ({
-    id: randomUUID(), playbackId: 'long-film', startupMs: 800, rebufferCount: 0, rebufferMs: 0, watchSeconds: 60,
-    levelSeconds: { '720': 60 }, maxHeight: 720, device: 'desktop', browser: 'Chrome', engine: 'hlsjs', connection: '4g', ...overrides,
-  });
+  // Le jeton est émis avec la lecture ; ici il est fabriqué avec le même secret, émis il y a une heure.
+  const report = (overrides: Record<string, unknown> = {}) => {
+    const id = (overrides['id'] as string | undefined) ?? randomUUID();
+    const playbackId = (overrides['playbackId'] as string | undefined) ?? 'long-film';
+    return {
+      id, playbackId, startupMs: 800, rebufferCount: 0, rebufferMs: 0, watchSeconds: 60,
+      levelSeconds: { '720': 60 }, maxHeight: 720, device: 'desktop', browser: 'Chrome', engine: 'hlsjs', connection: '4g',
+      token: signSessionGrant('secret-test-secret-test-secret-test!!', id, playbackId, Date.now() - 3_600_000).token, ...overrides,
+    };
+  };
 
   it('accepte un rapport sans compte, en text/plain (envoi à la fermeture de page)', async t => {
     if (!available) return t.skip('PostgreSQL injoignable');

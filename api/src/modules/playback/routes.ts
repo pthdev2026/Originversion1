@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { requireAdmin } from '../identity/middleware.ts';
 import { setMarkers } from '../ingest/repository.ts';
 import { isValidId } from '../../platform/storage/layout.ts';
+import { issueSessionGrant } from '../analytics/session-token.ts';
 import { createPlaybackSession, resolvePlayTarget, type IdentConfig } from './service.ts';
 
 const seconds = z.number().finite().min(0).max(86_400).nullable();
@@ -18,7 +19,7 @@ const markersSchema = z.object({ introStart: seconds, introEnd: seconds, credits
   if (value.introEnd !== null && value.creditsStart !== null && value.introEnd > value.creditsStart) fail('Le générique ne peut pas commencer avant la fin de l’intro.');
 });
 
-export function playbackRoutes(deps: { sql: Sql; signer: DeliverySigner; requireLogin: boolean; ident: IdentConfig }): Hono<AppEnv> {
+export function playbackRoutes(deps: { sql: Sql; signer: DeliverySigner; requireLogin: boolean; ident: IdentConfig; analyticsSecret: string }): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
 
   // Informations de lecture d'un contenu. Pas de média prêt = 404 explicite (« not_available »),
@@ -34,7 +35,7 @@ export function playbackRoutes(deps: { sql: Sql; signer: DeliverySigner; require
       identSeen: flag('identSeen'),
       autoplayNext: flag('autoplay'),
     });
-    return c.json(session);
+    return c.json({ ...session, analytics: issueSessionGrant(deps.analyticsSecret, session.programId) });
   });
 
   // Quoi lancer depuis la fiche d'un programme (bouton « Lecture » / « Reprendre » / « Épisode suivant »).

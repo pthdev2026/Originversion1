@@ -137,6 +137,7 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
     sql: deps.sql,
     signer: deps.deliverySigner ?? createOriginSigner({ secret: deps.mediaSecrets[0], ttlSeconds: deps.mediaTtlSeconds }),
     requireLogin: deps.playbackRequiresLogin,
+    analyticsSecret: deps.mediaSecrets[0],
     ident: deps.ident ?? { policy: 'title', playbackId: 'origin-ident', skippableAfterSeconds: 2 },
   }));
   app.route('/', identityRoutes({
@@ -153,7 +154,7 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
   app.route('/', privacyRoutes({ sql: deps.sql }));
   app.route('/', progressRoutes({ sql: deps.sql }));
   app.route('/', myListRoutes({ sql: deps.sql }));
-  app.route('/', analyticsRoutes({ sql: deps.sql }));
+  app.route('/', analyticsRoutes({ sql: deps.sql, mediaSecrets: deps.mediaSecrets }));
   app.route('/', opsRoutes({
     sql: deps.sql,
     metrics,

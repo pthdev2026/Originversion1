@@ -34,7 +34,7 @@ Vérifié le : 30/10/2026 · **Source de vérité : `docs/API-CONTRACT.md` (v1.5
 | Contact | `POST /api/contact`, `GET /api/admin/contact`, `POST /api/admin/contact/:id/handled` | public / admin |
 | Espace compte | `PATCH /api/me`, `GET/PUT /api/me/preferences`, `GET /api/me/sessions`, `DELETE /api/me/sessions/:id`, `POST /api/me/sessions/revoke-others`, `GET/PUT /api/me/themes`, `PUT /api/me/avatar`, `PUT /files/me/avatar`, `GET /avatars/:file`, `POST /api/me/email/change[/confirm]`, `DELETE /api/me/history` | compte |
 | Spectateur | `PUT/GET/DELETE /api/me/progress/:playbackId`, `GET /api/me/continue-watching`, `GET/PUT/DELETE /api/me/list[/:slug]`, `GET /api/me/export`, `GET /api/me/progress?program=<slug>` (progression de tous les épisodes d'un programme) | compte |
-| Mesure | `POST /api/playback-sessions` (anonyme) | public |
+| Mesure | `POST /api/playback-sessions` (anonyme + jeton `analytics.token` de la lecture, 403 sinon) | public + jeton |
 | Administration éditoriale | `GET /api/admin/catalog`, `PUT/DELETE /api/admin/{programs,themes,creators,collections}/:slug` | admin (+2FA) |
 | Administration vidéo | `POST /uploads` + `PATCH/HEAD/GET/DELETE /uploads/:id` (tus), `GET /api/admin/jobs[/:id]`, `POST /api/admin/jobs/:id/{cancel,retry}`, `PUT/DELETE /files/subtitles/:playbackId/:lang` | admin (+2FA) |
 | Administration système | `GET /api/admin/{system,metrics/playback,metrics/programs}`, `POST /api/admin/invitations` | admin |
