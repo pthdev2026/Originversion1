@@ -336,3 +336,12 @@ export async function getCreatorForAdmin(sql: Sql, slug: string): Promise<AdminC
     contents: contents.map(row => ({ program: row.program_slug, kind: row.kind, featured: row.featured, episodeLabel: row.episode_label, liveAt: row.live_at?.toISOString() ?? null })),
   };
 }
+
+/** Journal des modifications du catalogue (événements `catalog.*` du journal d'audit), les plus récentes d'abord. */
+export async function listCatalogAudit(sql: Sql, limit: number, before: number | null) {
+  return sql<{ id: string; event: string; user_id: string | null; email: string | null; details: unknown; created_at: Date }[]>`
+    SELECT a.id::text, a.event, a.user_id, u.email, a.details, a.created_at
+    FROM audit_log a LEFT JOIN users u ON u.id = a.user_id
+    WHERE a.event LIKE 'catalog.%' ${before ? sql`AND a.id < ${before}` : sql``}
+    ORDER BY a.id DESC LIMIT ${limit}`;
+}

@@ -7,7 +7,7 @@ import { isValidId } from '../../platform/storage/layout.ts';
 import { requireAdmin } from '../identity/middleware.ts';
 import { insertAudit } from '../identity/repository.ts';
 import {
-  deleteCollection, deleteCreator, deleteProgram, deleteTheme, getCreatorForAdmin, getProgramForAdmin, listAllForAdmin, listCreatorsForAdmin, replaceCreatorContents,
+  deleteCollection, deleteCreator, listCatalogAudit, deleteProgram, deleteTheme, getCreatorForAdmin, getProgramForAdmin, listAllForAdmin, listCreatorsForAdmin, replaceCreatorContents,
   upsertCollection, upsertCreator, upsertProgram, upsertTheme,
 } from './admin.ts';
 import {
@@ -137,11 +137,7 @@ export function catalogRoutes(deps: { sql: Sql; cacheTtlMs?: number }): Hono<App
     requireAdmin(c);
     const limit = Math.min(Math.max(Number(c.req.query('limit') ?? 50) || 50, 1), 200);
     const before = Number(c.req.query('before') ?? 0) || null;
-    const rows = await deps.sql<{ id: string; event: string; user_id: string | null; email: string | null; details: unknown; created_at: Date }[]>`
-      SELECT a.id::text, a.event, a.user_id, u.email, a.details, a.created_at
-      FROM audit_log a LEFT JOIN users u ON u.id = a.user_id
-      WHERE a.event LIKE 'catalog.%' ${before ? deps.sql`AND a.id < ${before}` : deps.sql``}
-      ORDER BY a.id DESC LIMIT ${limit}`;
+    const rows = await listCatalogAudit(deps.sql, limit, before);
     return c.json({
       entries: rows.map(r => ({ id: r.id, event: r.event, by: r.email, details: r.details, at: r.created_at.toISOString() })),
       next: rows.length === limit ? rows[rows.length - 1]?.id ?? null : null,
