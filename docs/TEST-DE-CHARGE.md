@@ -54,3 +54,21 @@ Corrections (mesurées) :
 Latences séquentielles à 5 000 programmes (hors charge) : accueil 13 ms, recherche 11 ms, fiche 1 ms, similaires 4 ms, « pour vous » 26 ms.
 **Limite restante** : le calcul « pour vous » reste proportionnel au nombre de programmes (≈ 20 ms à 5 000). Au-delà de ~20 000 titres
 ou d'un usage soutenu supérieur à 50 req/s sur cette route, il faudra pré-calculer par thématique ou déplacer le calcul hors du processus.
+
+## Complément du 30/10/2026 — taille et vitesse de la base à 10 000 comptes
+
+Base dédiée `origin_load` : **10 000 comptes avec session, 5 000 programmes, ≈ 80 000 lignes de progression (8 par compte), 30 000 lignes de « Ma liste »**. PostgreSQL 17 local, même machine que le test (⚠️ ordre de grandeur, pas une garantie de production).
+
+| Mesure | Résultat |
+|---|---|
+| Taille de **toute** la base | **40,8 Mo** (la plus grosse table : la progression, 14,5 Mo dont 6,4 Mo d'index) |
+| Retrouver une session (à chaque requête connectée) | p50 0,10 ms / p95 0,28 ms |
+| Enregistrer une progression (toutes les 12 s par spectateur) | p50 0,13 ms / p95 0,28 ms |
+| Lire « Reprendre » / « Ma liste » | 0,10 ms / 0,04 ms (p50) |
+| Recherche dans 5 000 programmes | p50 0,07 ms |
+| Charger le catalogue de recommandation (5 000 prog.) | p50 3,7 ms / p95 12,8 ms (mis en cache 60 s) |
+| Insérer un rapport de mesure de lecture | p50 0,13 ms |
+
+Lecture : à cette échelle, **la base n'est pas le facteur limitant** ; le temps de réponse d'une requête est de l'ordre du dixième de milliseconde.
+Croissance à surveiller (rien d'urgent) : `playback_sessions` (borné par la conservation de 180 jours), `watch_progress` (≈ 1,5 Ko par compte et par série suivie), `audit_log` (borné à 365 jours).
+Limite non encore mesurée : recherche en `LIKE '%mot%'` (parcours complet) — à 5 000 programmes 0,07 ms ; au-delà de ~100 000 programmes, prévoir un index de recherche plein texte.
