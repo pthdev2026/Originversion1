@@ -1,0 +1,16 @@
+{
+  "_note": "Cadrage éditorial PROVISOIRE des thématiques, repris tel quel du front (themeShowcase) pour qu'il puisse cesser de le coder en dur. À valider/éditer par le propriétaire.",
+  "tendances":      { "subtitle": "Société et grands enjeux", "featured": "les-secrets-du-ministere" },
+  "foi":            { "subtitle": "Sens et vie intérieure", "featured": "apres-la-tempete" },
+  "couple":         { "subtitle": "Relations et vie à deux", "featured": "un-nouveau-matin" },
+  "mariage":        { "subtitle": "Engagement et vie à deux", "featured": "un-nouveau-matin" },
+  "famille":        { "subtitle": "Liens et générations", "featured": "briser-le-cycle" },
+  "identite":       { "subtitle": "Se découvrir et s’affirmer", "featured": "retrouver-sa-voix" },
+  "relations":      { "subtitle": "Ce qui nous relie", "featured": "les-choisis" },
+  "pardon":         { "subtitle": "Guérison et nouveaux départs", "featured": "briser-le-cycle" },
+  "reconstruction": { "subtitle": "Après l’épreuve", "featured": "tout-recommencer" },
+  "leadership":     { "subtitle": "Influence et impact positif", "featured": "le-trone" },
+  "ministere":      { "subtitle": "Servir et transmettre", "featured": "les-secrets-du-ministere" },
+  "temoignages":    { "subtitle": "Des parcours qui inspirent", "featured": "se-relever-en-silence" },
+  "societe":        { "subtitle": "Les questions de notre temps", "featured": "ligne-rouge" }
+}

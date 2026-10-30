@@ -1154,3 +1154,52 @@ Tirées du contrat v1.9 ; chacune a ses tests automatiques.
 
 ## D. Ce que le front ne doit PAS simuler (absent côté API)
 Connexion Google/Apple · choix de langue audio · direct · profils multiples · envoi de notifications · bandes-annonces gérées (seulement `trailerUrl` dans la fiche).
+
+
+## Classement complet, sous-titres et phares des thématiques (v1.16, 31/10/2026)
+**À brancher par l'agent front** (rien n'est modifié côté front par le back-end).
+
+1. `/classement` : remplacer `fullRanking` (démo) par `GET /api/ranking?limit=50&offset=0` → `{total, items:[{rank, program: ProgramCard}]}`. Les 14 premiers rangs sont ceux du Top 10 de l'accueil (collection `top-10`), la suite suit l'audience réelle puis le titre. Pagination : `offset += limit` tant que `offset < total`. Exemple réel :
+```json
+{
+  "total": 38,
+  "items": [
+    {
+      "rank": 1,
+      "program": {
+        "slug": "gladiator",
+        "kind": "film",
+        "title": "Gladiator",
+        "category": "Film original",
+        "images": {
+          "poster": "/images/gladiator/top-gladiator.jpg",
+          "hero": null,
+          "logo": null,
+          "alt": "Un gladiateur dans une arène antique.",
+          "focus": null
+        },
+        "playable": false
+      }
+    },
+    {
+      "rank": 2,
+      "program": {
+        "slug": "damnes",
+        "kind": "serie",
+        "title": "Damnés du Namibao",
+        "category": "Série documentaire",
+        "images": {
+          "poster": "/images/damnes/top-damnes.jpg",
+          "hero": null,
+          "logo": null,
+          "alt": "Un personnage fantastique devant une lune et un ciel rouge.",
+          "focus": null
+        },
+        "playable": false
+      }
+    }
+  ]
+}
+```
+2. Thématiques : `themeShowcase` (sous-titre + phare codés en dur) peut être supprimé. `GET /api/home` (`themes[]`) et `GET /api/themes` renvoient maintenant `subtitle` (string|null) et `featuredSlug` (string|null) ; `themes[].programs` et `GET /api/themes/:slug` placent déjà le phare en premier. Les valeurs actuelles sont celles du front (`seed/theme-editorial.json`, provisoires). Deux phares n'existent pas dans le catalogue serveur (`apres-la-tempete`, `retrouver-sa-voix`) : `featuredSlug` vaut alors `null` et l'écran doit se rabattre sur le premier programme. La thématique virtuelle « Tendances » n'existe pas côté serveur : la garder côté front (ou la composer avec `GET /api/trending`).
+3. Recherche : une faute dans un mot incomplet est maintenant corrigée (`passagr` → `correctedQuery: "passagers"`).

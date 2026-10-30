@@ -38,9 +38,12 @@ export function correctTokens(tokens: string[], vocabulary: ReadonlyMap<string, 
     if (max === 0) return token;
     let best: { word: string; distance: number; weight: number } | null = null;
     for (const word of words) {
-      // Le début du mot saisi peut être incomplet (« mystèr ») : on compare aussi au préfixe de même longueur.
-      const distance = Math.min(editDistance(token, word, max), word.length > token.length ? editDistance(token, word.slice(0, token.length), max) + 1 : max + 1);
-      if (distance > max) continue;
+      // Le début du mot saisi peut être incomplet (« mystèr », « passagr ») : on compare aussi au préfixe de même longueur.
+      // La faute reste soumise au même plafond ; un préfixe classe simplement un demi-point derrière un mot entier équivalent.
+      const whole = editDistance(token, word, max);
+      const prefix = word.length > token.length ? editDistance(token, word.slice(0, token.length), max) : max + 1;
+      const distance = Math.min(whole, prefix + 0.5);
+      if (Math.min(whole, prefix) > max) continue;
       const weight = vocabulary.get(word) ?? 0;
       if (!best || distance < best.distance || (distance === best.distance && weight > best.weight)) best = { word, distance, weight };
     }

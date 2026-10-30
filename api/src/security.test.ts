@@ -95,7 +95,7 @@ const routes = () => {
   return (app.routes as { method: string; path: string }[]).filter(r => r.method !== 'ALL' && !r.path.includes('*') && !seen.has(`${r.method} ${r.path}`) && seen.add(`${r.method} ${r.path}`));
 };
 // Routes publiques VOULUES (tout le reste sous /api/admin, /files, /uploads, /api/me exige une session).
-const PUBLIC = [/^\/health$/, /^\/ready$/, /^\/avatars\//, /^\/subtitles\//, /^\/images\//, /^\/media\//, /^\/api\/(home|programs|collections|themes|creators|search|recommendations|coming-soon|contact|trending|playback-sessions)/, /^\/api\/auth\//, /^\/metrics$/];
+const PUBLIC = [/^\/health$/, /^\/ready$/, /^\/avatars\//, /^\/subtitles\//, /^\/images\//, /^\/media\//, /^\/api\/(home|programs|collections|themes|creators|search|recommendations|coming-soon|contact|trending|ranking|playback-sessions)/, /^\/api\/auth\//, /^\/metrics$/];
 
 describe('revue de sécurité ciblée', () => {
   it('prépare un compte spectateur', async t => {

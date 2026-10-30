@@ -1,4 +1,4 @@
-# ORIGIN — Contrat d'API (v1.15, 31/10/2026)
+# ORIGIN — Contrat d'API (v1.16, 31/10/2026)
 
 Propriétaire : l'agent back-end. Toute modification est annoncée ici avant d'être déployée.
 Limites : 120 requêtes par minute et par adresse IP sur `/api/*` ; en-têtes `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
@@ -249,8 +249,8 @@ Visuels (`GET /images/:slug/:file`, public, cache 24 h ; jpg, jpeg, png, webp, a
 | `GET /api/home` | `{collections: Collection[], themes: Theme[], creators: Creator[]}` — **v1.13 : chaque `Theme` porte aussi `programs: ProgramCard[]` (ses 10 premiers programmes par ordre alphabétique, y compris ceux qui ne sont dans aucune collection de l'accueil)** — **toute la page d'accueil en un appel**, collections dans l'ordre d'affichage |
 | `GET /api/programs/:slug` | Fiche complète (voir ci-dessous) · `404` si inconnu ou brouillon |
 | `GET /api/collections/:slug` | `Collection` · `404` |
-| `GET /api/themes` | `{themes: [{slug, title, image, programCount}]}` |
-| `GET /api/themes/:slug` | `{programs: ProgramCard[]}` · `404` |
+| `GET /api/themes` | `{themes: [{slug, title, image, programCount, subtitle, featuredSlug}]}` — `subtitle` : promesse en une ligne (ou `null`), `featuredSlug` : programme « phare » publié (ou `null`) — v1.16 |
+| `GET /api/themes/:slug` | `{programs: ProgramCard[]}` (le phare d'abord, puis ordre alphabétique) · `404` |
 | `GET /api/creators` | `{creators: [{slug, name, showTitle, intro, themes, ambience, image, imageAlt, imageFocus, isProvisional}]}` |
 | `GET /api/creators/:slug` | Univers d'un créateur : `{slug, name, alias, domain, tagline, accent, chapters, contents: {message[], conference[], serie[], live[]}, featured}` · `404` si inconnu. `accent` = « R G B ». Le **live est une annonce** (date `liveAt`), pas de diffusion en direct |
 | `GET /api/search/suggestions?q=&limit=8` | Complétion à la frappe (dès 1 caractère) : `{query, suggestions: [{type: program\|creator\|theme, slug, label}]}` |
@@ -295,6 +295,7 @@ Chaque élément porte **sa raison**, à afficher telle quelle (« Parce que vou
 | Route | Accès | Description |
 |---|---|---|
 | `GET /api/programs/:slug/similar` | public | « Dans le même esprit » : thématiques, genres, type, catégorie communs |
+| `GET /api/ranking?limit=50&offset=0` | public | **Classement complet (v1.16)** : `{total, items: [{rank, program: ProgramCard}]}`. Ordre : Top 10 éditorial (collection `top-10`) d'abord, puis le reste du catalogue publié par audience réelle des 14 derniers jours (sessions > 10 s), puis par titre. `limit` ≤ 200 |
 | `GET /api/trending` | public | Ce qui est réellement regardé (14 jours) ; complété par la sélection éditoriale tant que les données manquent |
 | `GET /api/recommendations` | public / compte | Anonyme : tendances (`personalized: false`). Connecté avec historique : personnalisé (`personalized: true`), contenus déjà vus ou en liste exclus |
 
@@ -310,7 +311,7 @@ Par défaut un élément est un **brouillon** (`published: false`) : rien n'est 
 | `GET /api/admin/catalog` | — | `{programs, collections}` brouillons inclus |
 | `PUT /api/admin/programs/:slug` | programme + `themes[]` + `seasons[{number,title,episodes[{key,number,title,…}]}]` | `201 {slug,result:"created"}` · `200 {…"updated"}` · `400` |
 | `DELETE /api/admin/programs/:slug` | — | `204` · `404` |
-| `PUT /api/admin/themes/:slug` | `{title, imageUrl?, position?}` | `204` |
+| `PUT /api/admin/themes/:slug` | `{title, imageUrl?, position?, subtitle?, featuredSlug?}` — `subtitle`/`featuredSlug` absents = conservés, `null` = effacés (v1.16) | `204` · `400` (phare inconnu) |
 | `PUT /api/admin/creators/:slug` | `{name, showTitle?, intro?, themes?, ambience?, imageUrl?, imageAlt?, imageFocus?, isProvisional?, published?, position?}` | `204` |
 | `PUT /api/admin/collections/:slug` | `{title, layout, badge?, viewAllUrl?, homePosition?, published?, items: [slug,…]}` (l'ordre = l'affichage) | `204` · `400` (programme inconnu) |
 | `DELETE /api/admin/themes/:slug` | — | `204` · `404` |
@@ -519,3 +520,5 @@ le front doit afficher « Service momentanément indisponible » et proposer de 
 3. redemander une lecture (nouveau `sessionId`) pour chaque nouvelle lecture ; le jeton vaut 24 h et une seule session.
 
 Le serveur répond `403` si le jeton est absent, falsifié, expiré ou lié à une autre session/un autre média, et plafonne `watchSeconds` au temps réellement écoulé depuis l'émission (+ 2 s). Sans cela, un rapport ne peut plus alimenter le Top 10 ni les statistiques. Les renvois du même rapport restent idempotents (maximum de chaque compteur).
+
+**Thématiques éditoriales et classement (v1.16, 31/10/2026).** Les thématiques portent désormais côté serveur ce que le front codait en dur (`themeShowcase`) : `subtitle` et `featuredSlug` (migration 021), et `/api/home` (`themes[]`) ainsi que `/api/themes` les exposent ; le contenu d'une thématique place le phare en premier. `GET /api/ranking` fournit le classement complet de `/classement`. La recherche tolère maintenant une faute dans un mot incomplet (« passagr » → « passagers »).

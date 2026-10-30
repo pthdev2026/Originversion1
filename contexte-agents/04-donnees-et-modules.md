@@ -32,6 +32,7 @@ Vérifié le : 30/10/2026 · Sources : `api/migrations/*.sql` (font foi), `api/s
 | Recherche et appareils | `search_history`, `login_devices` | Dernières recherches d'un compte (20 max) ; appareils déjà vus (alerte de nouvelle connexion). `programs` gagne `keywords` | 017 |
 | Programmation | _(colonnes de `programs`)_ | `publish_at`, `unpublish_at`, `announced` : sortie/retrait planifiés (tâche toutes les 30 s dans `main.ts`) et annonce « Prochainement » | 019 |
 | Porte de publication | _(colonnes de `programs`)_ | `release_blocked_at`, `release_blocked_missing` : sortie planifiée bloquée tant que les médias obligatoires ne sont pas prêts | 020 |
+| Cadrage éditorial des thématiques | _(colonnes de `themes`)_ | `subtitle` (promesse en une ligne), `featured_slug` (programme « phare » affiché en premier) | 021 |
 | Repères de lecture | _(colonnes de `media_assets`)_ | `intro_start_seconds`, `intro_end_seconds`, `credits_start_seconds` : « Passer l'intro » et « Épisode suivant » | 018 |
 | Contact | `contact_messages` | Messages du formulaire « Nous contacter », purgés avec l'audit | 016 |
 | Comptes | `user_totp`, `user_recovery_codes` | Double authentification : secret chiffré, `last_step` anti-rejeu, codes de secours à usage unique | 012 |

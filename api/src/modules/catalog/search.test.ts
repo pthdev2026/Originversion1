@@ -5,6 +5,7 @@ import { rm } from 'node:fs/promises';
 import { after, before, describe, it } from 'node:test';
 import pino from 'pino';
 import type { Hono } from 'hono';
+import { correctTokens } from './search.ts';
 import { createApp } from '../../app.ts';
 import { DEV_DATABASE_URL } from '../../config/env.ts';
 import { connect, type Sql } from '../../platform/database/client.ts';
@@ -83,6 +84,20 @@ after(async () => {
 const program = (title: string, extra: Record<string, unknown> = {}) => ({ kind: 'serie', title, published: true, ...extra });
 const put = (slug: string, doc: unknown) => call('PUT', `/api/admin/programs/${slug}`, doc, adminCookie);
 const search = async (q: string) => json(await call('GET', `/api/search?q=${encodeURIComponent(q)}`));
+
+describe('correction des mots (pure)', () => {
+  const vocabulary = new Map([['passagers', 5], ['silence', 4], ['mystere', 2], ['foi', 3]]);
+  const fix = (word: string) => correctTokens([word], vocabulary).tokens[0];
+  it('corrige une faute dans un mot incomplet, sans inventer', () => {
+    assert.equal(fix('passagr'), 'passagers', 'faute + mot coupé');
+    assert.equal(fix('mystr'), 'mystere', 'faute dans un début de mot');
+    assert.equal(fix('myster'), 'myster', 'préfixe exact : déjà trouvable, laissé tel quel');
+    assert.equal(fix('pasagers'), 'passagers');
+    assert.equal(fix('silance'), 'silence');
+    assert.equal(fix('zzzzzz'), 'zzzzzz', 'rien de proche : inchangé');
+    assert.equal(fix('fox'), 'fox', 'sous 4 lettres : aucune correction');
+  });
+});
 
 describe('recherche intelligente', () => {
   it('prépare le catalogue', async t => {

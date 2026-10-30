@@ -11,7 +11,8 @@ if (!new URL(targetUrl).pathname.endsWith('origin_recette')) { console.error('Re
 const source = connect(sourceUrl, { max: 1 });
 const target = connect(targetUrl, { max: 1 });
 // Ordre imposé par les clés étrangères.
-const tables = ['themes', 'programs', 'seasons', 'episodes', 'program_themes', 'creators', 'collections', 'collection_items', 'creator_contents'];
+// (`themes.featured_slug` référence `programs` : les thématiques viennent après les programmes.)
+const tables = ['programs', 'seasons', 'episodes', 'themes', 'program_themes', 'creators', 'collections', 'collection_items', 'creator_contents'];
 try {
   for (const table of tables) {
     const rows = await source.unsafe(`SELECT to_jsonb(t) AS row FROM ${table} t`);

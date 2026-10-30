@@ -11,7 +11,7 @@ import {
   upsertCollection, upsertCreator, upsertProgram, upsertTheme,
 } from './admin.ts';
 import {
-  foldQuery, listComingSoon, loadSearchVocabulary, suggest, getCollection, getCreatorUniverse, getHome, getProgramDetail, listCreators, listProgramsByTheme, listThemes, searchCreators, searchPrograms,
+  foldQuery, getRanking, listComingSoon, loadSearchVocabulary, suggest, getCollection, getCreatorUniverse, getHome, getProgramDetail, listCreators, listProgramsByTheme, listThemes, searchCreators, searchPrograms,
 } from './content.ts';
 import { correctTokens } from './search.ts';
 import { listPlayablePrograms } from './repository.ts';
@@ -84,6 +84,15 @@ export function catalogRoutes(deps: { sql: Sql; cacheTtlMs?: number }): Hono<App
     if (!collection) throw errors.notFound('Collection introuvable.');
     cacheable(c);
     return c.json(collection);
+  });
+
+  // Classement complet : l'ordre du Top 10 éditorial d'abord, puis le reste du catalogue par audience (14 jours) puis par titre.
+  routes.get('/api/ranking', async c => {
+    const limit = Math.min(Math.max(Number(c.req.query('limit') ?? 50) || 50, 1), 200);
+    const offset = Math.min(Math.max(Number(c.req.query('offset') ?? 0) || 0, 0), 10_000);
+    const ranking = await cached(`ranking:${limit}:${offset}`, () => getRanking(deps.sql, limit, offset));
+    cacheable(c);
+    return c.json(ranking);
   });
 
   routes.get('/api/themes', async c => {
@@ -232,7 +241,12 @@ export function catalogRoutes(deps: { sql: Sql; cacheTtlMs?: number }): Hono<App
 
   routes.put('/api/admin/themes/:slug', async c => {
     requireAdmin(c);
-    await upsertTheme(deps.sql, slugOf(c.req.param('slug')), parseBody(themeSchema, await body(c)));
+    try {
+      await upsertTheme(deps.sql, slugOf(c.req.param('slug')), parseBody(themeSchema, await body(c)));
+    } catch (error) {
+      if ((error as { code?: string }).code === '23503') throw errors.badRequest('Le programme « phare » n’existe pas.');
+      throw error;
+    }
     return c.body(null, 204);
   });
 

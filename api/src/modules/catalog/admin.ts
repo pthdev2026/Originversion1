@@ -106,12 +106,18 @@ export async function deleteProgram(sql: Sql, slug: string): Promise<boolean> {
   return rows.length > 0;
 }
 
-export interface ThemeInput { title: string; imageUrl: string | null; position: number }
+/** `subtitle` et `featuredSlug` absents = conservés (les anciens clients de la route ne les effacent pas) ; `null` = effacé. */
+export interface ThemeInput { title: string; imageUrl: string | null; position: number; subtitle?: string | null; featuredSlug?: string | null }
 
 export async function upsertTheme(sql: Sql, slug: string, input: ThemeInput): Promise<void> {
+  const subtitleGiven = input.subtitle !== undefined;
+  const featuredGiven = input.featuredSlug !== undefined;
   await sql`
-    INSERT INTO themes (slug, title, image_url, position) VALUES (${slug}, ${input.title}, ${input.imageUrl}, ${input.position})
-    ON CONFLICT (slug) DO UPDATE SET title = EXCLUDED.title, image_url = EXCLUDED.image_url, position = EXCLUDED.position`;
+    INSERT INTO themes (slug, title, image_url, position, subtitle, featured_slug)
+    VALUES (${slug}, ${input.title}, ${input.imageUrl}, ${input.position}, ${input.subtitle ?? null}, ${input.featuredSlug ?? null})
+    ON CONFLICT (slug) DO UPDATE SET title = EXCLUDED.title, image_url = EXCLUDED.image_url, position = EXCLUDED.position,
+      subtitle = CASE WHEN ${subtitleGiven} THEN EXCLUDED.subtitle ELSE themes.subtitle END,
+      featured_slug = CASE WHEN ${featuredGiven} THEN EXCLUDED.featured_slug ELSE themes.featured_slug END`;
 }
 
 export async function deleteTheme(sql: Sql, slug: string): Promise<boolean> {

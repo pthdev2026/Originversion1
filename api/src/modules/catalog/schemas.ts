@@ -87,6 +87,8 @@ export const themeSchema = z.object({
   title: text(120),
   imageUrl: optUrl,
   position: z.number().int().min(0).max(10_000).default(0),
+  subtitle: text(160).nullable().optional(),
+  featuredSlug: slug.nullable().optional(),
 }).strict();
 
 const rgb = z.string().regex(/^\d{1,3} \d{1,3} \d{1,3}$/, 'Couleur « R G B » attendue (ex. 96 140 255).')

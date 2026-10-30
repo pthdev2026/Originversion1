@@ -219,15 +219,16 @@ export async function getCollection(sql: Sql, slug: string): Promise<CollectionV
   return (await loadCollections(sql, rows))[0] ?? null;
 }
 
-export interface ThemeView { slug: string; title: string; image: string | null; programCount: number }
+export interface ThemeView { slug: string; title: string; image: string | null; programCount: number; subtitle: string | null; featuredSlug: string | null }
 
 export async function listThemes(sql: Sql): Promise<ThemeView[]> {
-  const rows = await sql<{ slug: string; title: string; image_url: string | null; count: string }[]>`
-    SELECT t.slug, t.title, t.image_url,
+  const rows = await sql<{ slug: string; title: string; image_url: string | null; count: string; subtitle: string | null; featured: string | null }[]>`
+    SELECT t.slug, t.title, t.image_url, t.subtitle,
+           (SELECT f.slug FROM programs f WHERE f.slug = t.featured_slug AND f.published AND f.kind <> 'brand') AS featured,
            (SELECT count(*) FROM program_themes pt JOIN programs p ON p.slug = pt.program_slug AND p.published AND p.kind <> 'brand'
             WHERE pt.theme_slug = t.slug)::text AS count
     FROM themes t ORDER BY t.position, t.title`;
-  return rows.map(row => ({ slug: row.slug, title: row.title, image: row.image_url, programCount: Number(row.count) }));
+  return rows.map(row => ({ slug: row.slug, title: row.title, image: row.image_url, programCount: Number(row.count), subtitle: row.subtitle, featuredSlug: row.featured }));
 }
 
 export async function listProgramsByTheme(sql: Sql, themeSlug: string, limit?: number): Promise<ProgramCard[] | null> {
@@ -236,8 +237,37 @@ export async function listProgramsByTheme(sql: Sql, themeSlug: string, limit?: n
   const rows = await sql<ProgramRow[]>`
     SELECT ${PROGRAM_COLUMNS(sql)} FROM programs p
     JOIN program_themes pt ON pt.program_slug = p.slug AND pt.theme_slug = ${themeSlug}
-    WHERE p.published AND p.kind <> 'brand' ORDER BY p.title ${limit ? sql`LIMIT ${limit}` : sql``}`;
+    WHERE p.published AND p.kind <> 'brand'
+    ORDER BY (p.slug = (SELECT featured_slug FROM themes WHERE slug = ${themeSlug})) DESC NULLS LAST, p.title ${limit ? sql`LIMIT ${limit}` : sql``}`;
   return rows.map(toCard);
+}
+
+export interface RankedCard { rank: number; program: ProgramCard }
+
+/**
+ * Classement complet : les programmes du Top 10 éditorial dans leur ordre, puis tout le reste du catalogue publié
+ * par audience réelle des 14 derniers jours (sessions de plus de 10 s, voir `loadTrending`), puis par titre.
+ */
+export async function getRanking(sql: Sql, limit: number, offset: number): Promise<{ total: number; items: RankedCard[] }> {
+  const rows = await sql<(ProgramRow & { total: string; rank: string })[]>`
+    WITH audience AS (
+      SELECT m.program_slug AS slug, count(*) AS views
+      FROM playback_sessions s JOIN media_assets m ON m.playback_id = s.playback_id
+      WHERE s.started_at > now() - interval '14 days' AND s.watch_seconds >= 10
+      GROUP BY m.program_slug
+    ), ranked AS (
+      SELECT p.slug,
+             row_number() OVER (ORDER BY (ci.position IS NULL), ci.position, coalesce(a.views, 0) DESC, p.title, p.slug) AS rank,
+             count(*) OVER () AS total
+      FROM programs p
+      LEFT JOIN collection_items ci ON ci.program_slug = p.slug AND ci.collection_slug = 'top-10'
+      LEFT JOIN audience a ON a.slug = p.slug
+      WHERE p.published AND p.kind <> 'brand'
+    )
+    SELECT ${PROGRAM_COLUMNS(sql)}, r.total::text AS total, r.rank::text AS rank
+    FROM ranked r JOIN programs p ON p.slug = r.slug
+    ORDER BY r.rank LIMIT ${limit} OFFSET ${offset}`;
+  return { total: Number(rows[0]?.total ?? 0), items: rows.map(row => ({ rank: Number(row.rank), program: toCard(row) })) };
 }
 
 export interface CreatorView {
