@@ -34,6 +34,9 @@ import type { StorageLayout } from './platform/storage/layout.ts';
 import { catalogRoutes } from './modules/catalog/routes.ts';
 import { healthRoutes } from './modules/health/routes.ts';
 import { mediaRoutes } from './modules/media/routes.ts';
+import { accountRoutes } from './modules/account/routes.ts';
+import { createAccountService, type AccountService } from './modules/account/service.ts';
+import type { Mailer } from './platform/mail.ts';
 import { privacyRoutes } from './modules/privacy/routes.ts';
 import { recommendationRoutes } from './modules/recommendation/routes.ts';
 import { subtitleRoutes } from './modules/subtitles/routes.ts';
@@ -58,6 +61,10 @@ export interface AppDependencies {
   playbackRequiresLogin: boolean;
   /** Durée du cache serveur des lectures publiques du catalogue (ms). 0 = aucun (défaut, pour les tests). */
   catalogCacheTtlMs?: number;
+  /** Espace personnel (photo, changement d'e-mail). Par défaut : créé ici avec `mailer`. */
+  account?: AccountService;
+  /** Envoi d'e-mails de l'espace personnel (par défaut : aucun envoi). */
+  mailer?: Mailer;
   /** Les routes d'administration exigent un administrateur ayant activé la double authentification. */
   requireAdminTwoFactor?: boolean;
   uploadMaxBytes: number;
@@ -109,6 +116,7 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
   app.use('/uploads/*', adminTwoFactor);
   app.use('/uploads/*', rateLimit({ windowMs: minute, max: 600, keyOf: c => `uploads:${byIp(c)}` }));
   app.use('/subtitles/*', rateLimit({ windowMs: minute, max: deps.rateLimits.mediaPerMinute, keyOf: c => `subtitles:${byIp(c)}` }));
+  app.use('/avatars/*', rateLimit({ windowMs: minute, max: deps.rateLimits.mediaPerMinute, keyOf: c => `avatars:${byIp(c)}` }));
   app.use('/images/*', rateLimit({ windowMs: minute, max: deps.rateLimits.mediaPerMinute, keyOf: c => `images:${byIp(c)}` }));
   // Dépôts de petits fichiers administrés (sous-titres) : même protection que les envois, limite de taille propre à la route.
   app.use('/files/*', requireTrustedOrigin(deps.corsOrigins));
@@ -133,6 +141,8 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
     authPerMinute: deps.rateLimits.authPerMinute,
     clientKey: byIp,
   }));
+  const account = deps.account ?? createAccountService({ sql: deps.sql, logger: deps.logger, mailer: deps.mailer ?? { async send() {} }, storage: deps.storage });
+  app.route('/', accountRoutes({ sql: deps.sql, account, authPerMinute: deps.rateLimits.authPerMinute, clientKey: byIp }));
   app.route('/', recommendationRoutes({ sql: deps.sql, catalogTtlMs: deps.catalogCacheTtlMs ?? 0 }));
   app.route('/', privacyRoutes({ sql: deps.sql }));
   app.route('/', progressRoutes({ sql: deps.sql }));

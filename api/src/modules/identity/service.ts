@@ -34,6 +34,8 @@ const DEV_ENCRYPTION_KEY = 'origin-dev-only-encryption-key-not-secret';
 
 export interface RequestContext {
   requestId: string | null;
+  /** Libellé approximatif de l'appareil (« Chrome · macOS »), jamais l'agent utilisateur brut ni l'adresse IP. */
+  device?: string | null;
 }
 
 const MAX_LOGIN_FAILURES = 5;
@@ -55,7 +57,11 @@ export interface AuthResult {
   sessionToken: string;
 }
 
-export function createIdentityService(deps: { sql: Sql; config: IdentityConfig; mailer: Mailer; logger: Logger }) {
+export function createIdentityService(deps: {
+  sql: Sql; config: IdentityConfig; mailer: Mailer; logger: Logger;
+  /** Appelé APRÈS la suppression d'un compte : nettoyage de ce qui vit hors de la base (photo de profil). Un échec est journalisé, jamais bloquant. */
+  afterAccountDeleted?: (info: { userId: string; avatarKey: string | null }) => Promise<void>;
+}) {
   const { sql, config, mailer, logger } = deps;
 
   async function audit(userId: string | null, event: string, ctx: RequestContext, details?: Record<string, unknown>): Promise<void> {
@@ -67,11 +73,12 @@ export function createIdentityService(deps: { sql: Sql; config: IdentityConfig; 
     }
   }
 
-  async function startSession(userId: string): Promise<string> {
+  async function startSession(userId: string, device: string | null = null): Promise<string> {
     const token = newToken();
     await repo.insertSession(sql, {
       tokenHash: sha256(token),
       userId,
+      device,
       expiresAt: new Date(Date.now() + config.sessionTtlSeconds * 1000),
     });
     return token;
@@ -132,7 +139,7 @@ export function createIdentityService(deps: { sql: Sql; config: IdentityConfig; 
 
       await audit(user.id, 'register', ctx);
       await sendVerification(user).catch(error => logger.error({ err: error, userId: user.id }, 'jeton de vérification non créé'));
-      return { user, sessionToken: await startSession(user.id) };
+      return { user, sessionToken: await startSession(user.id, ctx.device ?? null) };
     },
 
     async login(input: { email: string; password: string; code?: string | undefined }, ctx: RequestContext): Promise<AuthResult> {
@@ -170,7 +177,7 @@ export function createIdentityService(deps: { sql: Sql; config: IdentityConfig; 
       await repo.recordLoginSuccess(sql, found.id);
       await audit(found.id, 'login_success', ctx);
       const { passwordHash: _hash, failedLoginCount: _count, lockedUntil: _locked, ...user } = found;
-      return { user, sessionToken: await startSession(found.id) };
+      return { user, sessionToken: await startSession(found.id, ctx.device ?? null) };
     },
 
     /** Retrouve la session d'un jeton de cookie, et la prolonge au plus une fois par jour. */
@@ -311,6 +318,8 @@ export function createIdentityService(deps: { sql: Sql; config: IdentityConfig; 
       }
       await audit(null, 'account_deleted', ctx);
       await repo.deleteUser(sql, user.id);
+      await deps.afterAccountDeleted?.({ userId: user.id, avatarKey: user.avatar?.kind === 'photo' ? user.avatar.key : null })
+        .catch(error => logger.error({ err: error }, 'nettoyage après suppression de compte incomplet'));
     },
 
     /** Crée un code d'invitation. Le code en clair n'est retourné qu'une fois ; la base n'en garde que l'empreinte. */

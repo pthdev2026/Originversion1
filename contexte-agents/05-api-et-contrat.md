@@ -1,6 +1,6 @@
 # 05 — API et contrat
 
-Vérifié le : 30/10/2026 · **Source de vérité : `docs/API-CONTRACT.md` (v1.3)** — ce fichier n'en est qu'une carte. Le test `api/src/contract.test.ts` garantit que le contrat et les routes du code sont identiques.
+Vérifié le : 30/10/2026 · **Source de vérité : `docs/API-CONTRACT.md` (v1.5)** — ce fichier n'en est qu'une carte. Le test `api/src/contract.test.ts` garantit que le contrat et les routes du code sont identiques.
 
 ## 1. Conventions générales
 | Sujet | Règle |
@@ -25,6 +25,7 @@ Vérifié le : 30/10/2026 · **Source de vérité : `docs/API-CONTRACT.md` (v1.3
 | Visuels, sous-titres | `GET /images/:slug/:file`, `GET /subtitles/:playbackId/:lang.vtt` | public |
 | Recommandations | `GET /api/programs/:slug/similar`, `/api/trending`, `/api/recommendations` | public / compte |
 | Comptes | `POST /api/auth/{register,login,logout,email/verify,password/forgot,password/reset}`, `GET /api/me`, `POST /api/me/{password,delete,email/verification,2fa/setup,2fa/enable,2fa/disable}` | public / compte |
+| Espace compte | `PATCH /api/me`, `GET/PUT /api/me/preferences`, `GET /api/me/sessions`, `DELETE /api/me/sessions/:id`, `POST /api/me/sessions/revoke-others`, `GET/PUT /api/me/themes`, `PUT /api/me/avatar`, `PUT /files/me/avatar`, `GET /avatars/:file`, `POST /api/me/email/change[/confirm]`, `DELETE /api/me/history` | compte |
 | Spectateur | `PUT/GET/DELETE /api/me/progress/:playbackId`, `GET /api/me/continue-watching`, `GET/PUT/DELETE /api/me/list[/:slug]`, `GET /api/me/export`, `GET /api/me/progress?program=<slug>` (progression de tous les épisodes d'un programme) | compte |
 | Mesure | `POST /api/playback-sessions` (anonyme) | public |
 | Administration éditoriale | `GET /api/admin/catalog`, `PUT/DELETE /api/admin/{programs,themes,creators,collections}/:slug` | admin (+2FA) |

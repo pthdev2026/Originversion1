@@ -25,7 +25,7 @@ try {
   const rows = manifest.tables.reduce((total, table) => total + table.rows, 0);
   console.log(`✅ Base : ${manifest.tables.length} tables, ${rows} lignes → ${name}${manifest.encrypted ? ' (chiffrée)' : ''}`);
 
-  for (const [label, source] of [['sources', layout.sourcesRoot], ['images', layout.imagesRoot], ['sous-titres', layout.subtitlesRoot]] as const) {
+  for (const [label, source] of [['sources', layout.sourcesRoot], ['images', layout.imagesRoot], ['sous-titres', layout.subtitlesRoot], ['photos de profil', layout.avatarsRoot]] as const) {
     const report = await incrementalCopy(source, path.join(backupDir, 'files', path.basename(source) === 'sources' ? 'videos-sources' : path.basename(source)));
     console.log(`✅ Fichiers (${label}) : ${report.copied} copiés (${(report.bytes / 1024 ** 3).toFixed(2)} Go), ${report.skipped} déjà à jour`);
   }

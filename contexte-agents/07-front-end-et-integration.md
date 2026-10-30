@@ -23,7 +23,10 @@ Vérifié le : 30/10/2026 (d'après l'historique git du dépôt `app/`, branche 
 | `docs/API-REQUESTS.md` | Front écrit, back-end répond | **Seul canal** pour demander un changement d'API |
 | Fusion dans `main` | Propriétaire | Aucune fusion sans sa validation |
 
-## 3. État du branchement du front sur l'API (au 21/10/2026)
+## 2 bis. ⚠️ Deux lignes de front (constat du 30/10/2026)
+Le nouveau front **« Millenium »** (Lovable + refonte du 30/10, branches `front/millenium-base`, `front/page-film-reco`) **n'est branché sur aucune route** : comptes, liste, progression, appareils, préférences y sont des données de démonstration du navigateur, et il n'y a **aucun lecteur vidéo**. Le branchement existe sur la ligne `front/comptes-securite` (21/10), non fusionnée. Détail et inventaire complet : `docs/ANALYSE-FRONT-VS-BACKEND-2026-10-30.md`. Ne pas se fier au tableau ci-dessous pour la ligne Millenium.
+
+## 3. État du branchement du front sur l'API (ligne connectée, au 21/10/2026)
 | Fonction | État côté front | Route(s) |
 |---|---|---|
 | Lecture HLS (états chargement/indisponible/erreur/expiré) | ✅ en place | `GET /api/programs/:id/playback` |

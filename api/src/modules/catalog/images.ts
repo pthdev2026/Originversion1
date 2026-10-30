@@ -12,24 +12,14 @@ import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { errors } from '../../platform/errors.ts';
 import type { AppEnv } from '../../platform/http/types.ts';
+import { detectImageFormat } from '../../platform/storage/image-format.ts';
 import { isValidId, resolveInside, type StorageLayout } from '../../platform/storage/layout.ts';
 import { requireAdmin } from '../identity/middleware.ts';
 
 /** Taille maximale d'une image envoyée par l'administration. */
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
-/**
- * Reconnaît le VRAI format d'une image d'après ses premiers octets (l'extension du nom ne prouve rien).
- * Retourne l'extension canonique, ou null si ce n'est pas une image acceptée (jpg, png, webp, avif).
- */
-export function detectImageFormat(bytes: Uint8Array): 'jpg' | 'png' | 'webp' | 'avif' | null {
-  const at = (offset: number, text: string) => text.split('').every((char, i) => bytes[offset + i] === char.charCodeAt(0));
-  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'jpg';
-  if (bytes.length >= 8 && bytes[0] === 0x89 && at(1, 'PNG') && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a) return 'png';
-  if (bytes.length >= 12 && at(0, 'RIFF') && at(8, 'WEBP')) return 'webp';
-  if (bytes.length >= 12 && at(4, 'ftyp') && (at(8, 'avif') || at(8, 'avis'))) return 'avif';
-  return null;
-}
+export { detectImageFormat };
 
 const IMAGE_TYPES: Record<string, string> = {
   '.jpg': 'image/jpeg',

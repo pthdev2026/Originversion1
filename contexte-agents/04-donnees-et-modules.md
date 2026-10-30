@@ -10,7 +10,7 @@ Vérifié le : 30/10/2026 · Sources : `api/migrations/*.sql` (font foi), `api/s
 - **Jamais de secret en clair** : mots de passe (argon2id), jetons de session / réinitialisation / vérification (empreinte SHA-256), secrets TOTP (AES-256-GCM, clé hors base), codes de secours (empreinte).
 - **Test** : chaque test d'intégration crée un schéma jetable (`test_<hex>`) et le supprime ; il se **saute** si PostgreSQL est injoignable.
 
-## 2. Les tables (25), par domaine
+## 2. Les tables (28), par domaine
 | Domaine | Table | Rôle et points clés | Migration |
 |---|---|---|---|
 | Catalogue | `programs` | Un programme (film/série/documentaire/`brand`). `slug` PK ; `published` (brouillon = false), `is_demo`, présentation (tagline, category, genres[], badges[], visuels `*_url`, `title_style`), `search_text` (maintenu par trigger) | 001, 007, 008, 009 |
@@ -27,6 +27,7 @@ Vérifié le : 30/10/2026 · Sources : `api/migrations/*.sql` (font foi), `api/s
 | Comptes | `sessions` | Sessions (empreinte du jeton seulement), expiration, révocation | 003 |
 | Comptes | `password_resets`, `email_verifications` | Jetons à usage unique, durée limitée (1 h / 24 h) | 003, 011 |
 | Comptes | `invitations` | Codes d'invitation (empreinte, usages max) | 003 |
+| Comptes | `user_preferences`, `user_themes`, `email_changes` | Préférences (document validé, valeurs par défaut dans le code), thématiques préférées, changement d'adresse par code (empreinte, 5 essais, 15 min). `users` gagne `locale` et la photo ; `sessions` gagne `public_id` et `device` (libellé approximatif, jamais d'IP) | 014 |
 | Comptes | `user_totp`, `user_recovery_codes` | Double authentification : secret chiffré, `last_step` anti-rejeu, codes de secours à usage unique | 012 |
 | Comptes | `audit_log` | Qui a fait quoi, quand (sans IP) ; `user_id` → NULL à la suppression du compte | 003 |
 | Spectateur | `watch_progress` | Reprise : (compte, playbackId) → position ; `client_ts` ignore les envois en retard | 004 |
@@ -41,6 +42,7 @@ Suppression d'un compte (RGPD) : `ON DELETE CASCADE` sur sessions, progression, 
 |---|---|---|---|
 | `health` | Le service est-il vivant ? | `routes.ts` | `/health` |
 | `ops` | Prêt (`/ready`), supervision (`/metrics`), tableau de bord admin, **entretien horaire** | `routes.ts`, `maintenance.repository.ts` | 09 |
+| `account` | Espace personnel : profil, préférences, appareils connectés, thématiques préférées, photo de profil, changement d'e-mail par code | `service.ts`, `repository.ts`, `routes.ts`, `preferences.ts` | 05, 08 |
 | `identity` | Comptes, sessions, rôles, invitations, e-mail vérifié, 2FA TOTP, audit | `service.ts`, `repository.ts`, `routes.ts`, `middleware.ts`, `password.ts`, `totp.ts`, `session-cookie.ts` | 08 |
 | `catalog` | Catalogue éditorial : lecture publique, administration, recherche, visuels | `content.ts` (lectures), `admin.ts` (écritures), `schemas.ts` (zod), `routes.ts`, `images.ts` | 05 |
 | `playback` | « Je veux regarder » → URL signée, ident, sous-titres | `service.ts`, `delivery.ts`, `ident-policy.ts`, `routes.ts` | 06 |
@@ -66,6 +68,7 @@ storage/
 ├── videos/uploads/, work/         envois en cours, dossiers de travail d'encodage
 ├── images/<slug>/                 visuels éditoriaux (servis par /images)
 ├── subtitles/<playbackId>/        <lang>.vtt (servis par /subtitles)
+├── avatars/<clé>.<ext>            photos de profil (clé aléatoire, servies par /avatars ; DONNÉES PERSONNELLES : sauvegardées, supprimées avec le compte)
 └── pgdata/                        PostgreSQL de développement
 ```
 Les **thématiques vivent dans la base**, jamais dans l'arborescence : un programme appartient à plusieurs thèmes sans être copié.

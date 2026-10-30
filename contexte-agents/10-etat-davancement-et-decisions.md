@@ -20,6 +20,7 @@ Vérifié le : 30/10/2026 (code `e5ebaaa`, 16/10/2026) · Sources : `docs/DECISI
 | Sous-titres | WebVTT, dépôt admin, exposition dans la lecture | ✅ |
 | E-mails | Resend (testé avec un faux serveur) | ✅ code / ⏳ compte |
 | **Voie Mux (B5, phase 1)** | Envoi direct navigateur→Mux, suivi par poller, inscription, lecture publique ou signée ; **validé en réel** avec une vidéo de test | ✅ code + essai réel ; ⏳ lecture signée et production |
+| **Espace compte (nouveau design)** | Profil, préférences, appareils, thématiques préférées, photo, changement d'e-mail par code, historique désactivable/effaçable, épisode dans « Continuer à regarder » ; contrat v1.5 | ✅ back-end ; ⏳ front à brancher |
 | Comptes renforcés | E-mail vérifié, 2FA TOTP, obligation admin | ✅ |
 | RGPD | Export, effacement, conservation, entretien horaire | ✅ |
 | Volume sonore | EBU R128 → −16 LUFS | ✅ |

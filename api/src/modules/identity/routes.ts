@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { errors } from '../../platform/errors.ts';
 import type { AppEnv } from '../../platform/http/types.ts';
 import { rateLimit } from '../../platform/http/rate-limit.ts';
+import { deviceLabel } from './device.ts';
 import { requireAdmin, requireUser } from './middleware.ts';
 import { clearSessionCookie, writeSessionCookie } from './session-cookie.ts';
 import type { IdentityService } from './service.ts';
@@ -52,8 +53,14 @@ async function readJson<T>(c: Context, schema: z.ZodType<T, z.ZodTypeDef, unknow
 }
 
 /** Ce qu'on expose d'un utilisateur : jamais d'empreinte de mot de passe ni d'état interne. */
-const publicUser = (user: User) => ({
+export const avatarView = (avatar: User['avatar']) =>
+  avatar === null ? null
+    : avatar.kind === 'preset' ? { kind: 'preset' as const, preset: avatar.preset }
+    : { kind: 'photo' as const, url: `/avatars/${avatar.key}`, zoom: avatar.zoom };
+
+export const publicUser = (user: User) => ({
   id: user.id, email: user.email, displayName: user.displayName, role: user.role, emailVerified: user.emailVerified, twoFactorEnabled: user.twoFactorEnabled,
+  createdAt: user.createdAt.toISOString(), locale: user.locale, avatar: avatarView(user.avatar),
 });
 
 export interface IdentityRoutesDeps {
@@ -66,7 +73,7 @@ export interface IdentityRoutesDeps {
 
 export function identityRoutes(deps: IdentityRoutesDeps): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
-  const ctx = (c: Context<AppEnv>) => ({ requestId: c.get('requestId') ?? null });
+  const ctx = (c: Context<AppEnv>) => ({ requestId: c.get('requestId') ?? null, device: deviceLabel(c.req.header('user-agent')) });
 
   // Limite stricte sur tout ce qui touche aux mots de passe : ralentit les essais en série.
   routes.use('/api/auth/*', rateLimit({ windowMs: 60_000, max: deps.authPerMinute, keyOf: c => `auth:${deps.clientKey(c)}` }));

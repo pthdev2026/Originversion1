@@ -172,3 +172,9 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ **Validation réelle** avec le compte du propriétaire (environnement « MVP », Development) : accès, création/annulation d'envoi, envoi d'une vidéo de test (HTTP 200), prête en ~2 s, durée lue, manifeste HLS valide (360p + 270p, échelle « basic » réduite), suppression ; aucune limite constatée sur une vidéo de 4 s
 - ✅ Les jetons Mux sont **uniquement** dans `api/.env` (ignoré par Git, droits 600) ; ils ont transité par une conversation : **les régénérer avant la production**
 - 🟡 À faire : lecture `signed` (créer une clé de signature chez Mux), webhooks (remplaceraient le poller une fois le serveur public), conditions d'utilisation et résidence des données de Mux, essai avec un vrai film (durée, taille, qualités), écran du back-office
+
+## Espace compte livré (30/10/2026)
+- ✅ Analyse front ↔ back-end : `docs/ANALYSE-FRONT-VS-BACKEND-2026-10-30.md` (le front « Millenium » n'est branché sur rien ; le branchement existe sur d'autres branches non fusionnées)
+- ✅ Contrat v1.5 : profil (`PATCH /api/me`, date d'inscription, langue), préférences, appareils (nom approximatif, jamais d'IP), thématiques préférées → « Pour vous » dès l'inscription, photo de profil (jpg/png/webp, 5 Mo, supprimée avec le compte, sauvegardée), changement d'e-mail par code, historique désactivable et effaçable, épisode dans « Continuer à regarder », export enrichi
+- ✅ Migration 014 ; module `account` ; `afterAccountDeleted` (nettoyage hors base) branché sur la suppression de compte
+- 🟡 Inchangé : connexion Google/Apple, direct (live), audio multiple, contenus en anglais, envoi des notifications (seul le choix est enregistré)

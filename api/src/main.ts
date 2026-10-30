@@ -11,6 +11,7 @@ import { createLogger } from './platform/logger.ts';
 import { createLogMailer, createResendMailer } from './platform/mail.ts';
 import { StorageLayout } from './platform/storage/layout.ts';
 import { purgeExpired } from './modules/ops/maintenance.repository.ts';
+import { createAccountService } from './modules/account/service.ts';
 import { createIdentityService } from './modules/identity/service.ts';
 import { createMuxClient } from './modules/mux/client.ts';
 import { createMuxService, startMuxPoller } from './modules/mux/service.ts';
@@ -58,7 +59,9 @@ const mailer = config.mail.provider === 'resend' && config.mail.apiKey && config
 if (config.isProduction && config.mail.provider === 'log') {
   logger.warn('MAIL_PROVIDER=log : aucun e-mail n’est envoyé (réinitialisation de mot de passe inutilisable).');
 }
+const account = createAccountService({ sql, logger, mailer, storage });
 const identity = createIdentityService({
+  afterAccountDeleted: info => account.afterAccountDeleted(info),
   sql,
   logger,
   mailer: mailer,
@@ -98,6 +101,8 @@ if (config.mux) {
   }
 }
 const app = createApp({
+  account,
+  mailer,
   ident: config.ident,
   deliverySigner: createRoutingSigner({ self: deliverySigner, mux: muxSigner }),
   mux: { service: muxService, defaultProvider: config.videoProvider, playbackPolicy: config.mux?.playbackPolicy ?? 'public' },

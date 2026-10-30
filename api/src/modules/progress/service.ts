@@ -24,6 +24,8 @@ export function isCompleted(position: number, duration: number | null): boolean 
 export async function saveProgress(
   sql: Sql,
   input: { userId: string; playbackId: string; positionSeconds: number; reportedDurationSeconds: number | null; clientTs: number },
+  /** Faux : historique désactivé par la personne. La réponse est calculée comme d'habitude, mais RIEN n'est enregistré. */
+  persist = true,
 ): Promise<Progress> {
   const asset = await findPlayableAsset(sql, input.playbackId);
   // Source d'autorité : la durée du média en base ; à défaut, celle annoncée par le lecteur.
@@ -32,6 +34,9 @@ export async function saveProgress(
   const position = Math.round(bounded * 10) / 10;
   const completed = isCompleted(position, duration);
 
+  if (!persist) {
+    return { playbackId: input.playbackId, programSlug: asset?.programSlug ?? null, positionSeconds: position, durationSeconds: duration === null ? null : Math.round(duration * 10) / 10, completed, updatedAt: new Date() };
+  }
   await upsertProgress(sql, {
     userId: input.userId,
     playbackId: input.playbackId,

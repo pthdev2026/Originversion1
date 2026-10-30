@@ -17,6 +17,10 @@ export interface AuthenticatedUser {
   /** Double authentification activée sur ce compte. */
   twoFactorEnabled: boolean;
   createdAt: Date;
+  /** Langue de l'interface choisie par la personne. */
+  locale: 'fr' | 'en';
+  /** Photo de profil : avatar prédéfini, photo (clé de fichier + recadrage) ou aucune. */
+  avatar: { kind: 'preset'; preset: number } | { kind: 'photo'; key: string; zoom: number } | null;
 }
 
 export interface AppEnv {

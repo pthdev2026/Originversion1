@@ -6,6 +6,7 @@ import type { AppEnv } from '../../platform/http/types.ts';
 import { isValidId } from '../../platform/storage/layout.ts';
 import { getCards } from '../catalog/content.ts';
 import { createTtlCache } from '../../platform/http/ttl-cache.ts';
+import { listUserThemes } from '../account/repository.ts';
 import { loadCatalog, loadEditorialOrder, loadHistory, loadTrending } from './repository.ts';
 import type { ProgramFeatures } from './scoring.ts';
 import { personalized, similarTo, type Recommendation } from './scoring.ts';
@@ -56,8 +57,8 @@ export function recommendationRoutes(deps: { sql: Sql; catalogTtlMs?: number }):
     const user = c.get('user');
     if (!user) return c.json({ personalized: false, items: await withCards(await trendingCached(limit)) });
 
-    const [catalog, history] = await Promise.all([catalogFeatures(), loadHistory(deps.sql, user.id)]);
-    const mine = personalized(history, catalog, limit);
+    const [catalog, history, favorites] = await Promise.all([catalogFeatures(), loadHistory(deps.sql, user.id), listUserThemes(deps.sql, user.id)]);
+    const mine = personalized(history, catalog, limit, new Set(favorites));
     if (mine.length === 0) return c.json({ personalized: false, items: await withCards(await trendingCached(limit)) });
 
     // Complète avec les tendances (sans doublon ni contenu déjà connu) pour toujours remplir le rail.

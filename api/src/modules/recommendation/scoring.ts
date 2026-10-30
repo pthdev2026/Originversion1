@@ -103,9 +103,9 @@ export interface HistoryEntry {
 
 /**
  * Recommandations personnalisées : somme, pour chaque contenu candidat, de sa proximité avec chaque contenu de
- * l'historique, pondérée par l'intérêt. Les contenus déjà vus, commencés ou en liste ne sont pas re-proposés.
+ * l'historique, pondérée par l'intérêt, plus un bonus pour chaque thématique préférée de la personne (« Pour vous » dès l'inscription). Les contenus déjà vus, commencés ou en liste ne sont pas re-proposés.
  */
-export function personalized(history: HistoryEntry[], catalog: ProgramFeatures[], limit: number): Recommendation[] {
+export function personalized(history: HistoryEntry[], catalog: ProgramFeatures[], limit: number, favoriteThemes: ReadonlySet<string> = new Set()): Recommendation[] {
   const bySlug = new Map(catalog.map(program => [program.slug, program]));
   const seen = new Set(history.map(entry => entry.slug));
   const known = history.flatMap(entry => {
@@ -123,7 +123,16 @@ export function personalized(history: HistoryEntry[], catalog: ProgramFeatures[]
       total += weighted;
       if (!best || weighted > best.weighted) best = { weighted, title: features.title, via: entry.via };
     }
-    if (!best || total <= 0) return [];
+    // Thématiques préférées (choisies par la personne) : même poids qu'une thématique commune dans la proximité de contenus.
+    let themeLabel: string | null = null;
+    for (const [slug, label] of candidate.themes) {
+      if (favoriteThemes.has(slug)) {
+        total += WEIGHTS.theme;
+        themeLabel ??= label;
+      }
+    }
+    if (total <= 0) return [];
+    if (!best) return [{ slug: candidate.slug, total, title: candidate.title, reason: `Parce que vous aimez « ${themeLabel} »` }];
     const reason = best.via === 'list' ? `Parce que « ${best.title} » est dans votre liste`
       : best.via === 'completed' ? `Parce que vous avez regardé « ${best.title} »`
       : `Parce que vous regardez « ${best.title} »`;

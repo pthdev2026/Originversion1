@@ -6,7 +6,8 @@ import { errors } from '../../platform/errors.ts';
 import type { AppEnv } from '../../platform/http/types.ts';
 import { isValidId } from '../../platform/storage/layout.ts';
 import { requireUser } from '../identity/middleware.ts';
-import { deleteProgress, findProgress, listContinueWatching, listProgramProgress, type Progress } from './repository.ts';
+import { isHistoryEnabled } from '../account/repository.ts';
+import { clearHistory, deleteProgress, findProgress, listContinueWatching, listProgramProgress, type Progress } from './repository.ts';
 import { saveProgress } from './service.ts';
 
 const bodySchema = z.object({
@@ -46,16 +47,22 @@ export function progressRoutes(deps: { sql: Sql }): Hono<AppEnv> {
       positionSeconds: parsed.data.positionSeconds,
       reportedDurationSeconds: parsed.data.durationSeconds ?? null,
       clientTs: parsed.data.sentAt ?? Date.now(),
-    });
+    }, await isHistoryEnabled(deps.sql, user.id)); // historique désactivé : calculé mais non enregistré
     return c.json(present(saved));
   });
 
   // Où reprendre ce contenu ? 404 = jamais commencé.
   routes.get('/api/me/progress/:playbackId', async c => {
     const user = requireUser(c);
-    const progress = await findProgress(deps.sql, user.id, playbackIdOf(c.req.param('playbackId')));
+    const progress = (await isHistoryEnabled(deps.sql, user.id)) ? await findProgress(deps.sql, user.id, playbackIdOf(c.req.param('playbackId'))) : null;
     if (!progress) throw errors.notFound('Aucune progression pour ce contenu.');
     return c.json(present(progress));
+  });
+
+  // Efface tout l'historique de visionnage du compte (bouton « Effacer l'historique »).
+  routes.delete('/api/me/history', async c => {
+    const cleared = await clearHistory(deps.sql, requireUser(c).id);
+    return c.json({ cleared });
   });
 
   routes.delete('/api/me/progress/:playbackId', async c => {
@@ -71,17 +78,19 @@ export function progressRoutes(deps: { sql: Sql }): Hono<AppEnv> {
     const program = c.req.query('program');
     if (!program) throw errors.badRequest('Le paramètre « program » (identifiant du programme) est obligatoire.');
     if (!isValidId(program)) throw errors.badRequest('Identifiant de programme invalide.');
-    return c.json({ items: (await listProgramProgress(deps.sql, user.id, program)).map(present) });
+    const items = (await isHistoryEnabled(deps.sql, user.id)) ? await listProgramProgress(deps.sql, user.id, program) : [];
+    return c.json({ items: items.map(present) });
   });
 
   routes.get('/api/me/continue-watching', async c => {
     const user = requireUser(c);
     const limit = Math.min(Math.max(Number(c.req.query('limit') ?? 20) || 20, 1), 50);
-    const items = await listContinueWatching(deps.sql, user.id, limit);
+    const items = (await isHistoryEnabled(deps.sql, user.id)) ? await listContinueWatching(deps.sql, user.id, limit) : [];
     return c.json({
       items: items.map(item => ({
         ...present(item),
         programSlug: item.programSlug,
+        episode: item.episode,
         title: item.title,
         kind: item.kind,
         progressRatio: item.durationSeconds ? Math.min(1, Math.round((item.positionSeconds / item.durationSeconds) * 1000) / 1000) : null,

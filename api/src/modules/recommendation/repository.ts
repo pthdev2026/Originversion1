@@ -1,5 +1,6 @@
 /** Module « recommendation » — lectures SQL (caractéristiques du catalogue, historique, popularité). */
 import type { Sql } from '../../platform/database/client.ts';
+import { isHistoryEnabled } from '../account/repository.ts';
 import type { HistoryEntry, ProgramFeatures } from './scoring.ts';
 
 /** Tout le catalogue public avec ses thématiques : quelques centaines de lignes au plus, calculé à la demande. */
@@ -22,7 +23,9 @@ export async function loadCatalog(sql: Sql): Promise<ProgramFeatures[]> {
  * Une lecture commencée puis abandonnée tout de suite n'est pas un signal d'intérêt.
  */
 export async function loadHistory(sql: Sql, userId: string): Promise<HistoryEntry[]> {
-  const watched = await sql<{ slug: string; completed: boolean; ratio: string | null }[]>`
+  // Historique désactivé par la personne : ce qu'elle a regardé n'influence rien (sa liste, choix explicite, reste prise en compte).
+  const historyOn = await isHistoryEnabled(sql, userId);
+  const watched = !historyOn ? [] : await sql<{ slug: string; completed: boolean; ratio: string | null }[]>`
     SELECT DISTINCT ON (slug) slug, completed, ratio FROM (
       SELECT COALESCE(wp.program_slug, m.program_slug) AS slug, wp.completed,
              CASE WHEN wp.duration_seconds > 0 THEN (wp.position_seconds / wp.duration_seconds)::text END AS ratio

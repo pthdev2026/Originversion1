@@ -22,6 +22,11 @@ interface UserRow {
   status: 'active' | 'disabled';
   email_verified_at: Date | null;
   two_factor_enabled: boolean;
+  locale: 'fr' | 'en';
+  avatar_kind: 'preset' | 'photo' | null;
+  avatar_preset: number | null;
+  avatar_key: string | null;
+  avatar_zoom: number;
   created_at: Date;
   password_hash: string;
   failed_login_count: number;
@@ -37,6 +42,10 @@ const toUser = (row: UserRow): User => ({
   emailVerified: row.email_verified_at !== null,
   twoFactorEnabled: row.two_factor_enabled,
   createdAt: row.created_at,
+  locale: row.locale,
+  avatar: row.avatar_kind === 'preset' && row.avatar_preset !== null
+    ? { kind: 'preset', preset: row.avatar_preset }
+    : row.avatar_kind === 'photo' && row.avatar_key !== null ? { kind: 'photo', key: row.avatar_key, zoom: row.avatar_zoom } : null,
 });
 
 const toUserWithSecrets = (row: UserRow): UserWithSecrets => ({
@@ -94,8 +103,8 @@ export async function deleteUser(sql: Sql, userId: string): Promise<void> {
 
 // ── Sessions ───────────────────────────────────────────────────────────────
 
-export async function insertSession(sql: Sql, input: { tokenHash: string; userId: string; expiresAt: Date }): Promise<void> {
-  await sql`INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (${input.tokenHash}, ${input.userId}, ${input.expiresAt})`;
+export async function insertSession(sql: Sql, input: { tokenHash: string; userId: string; expiresAt: Date; device?: string | null }): Promise<void> {
+  await sql`INSERT INTO sessions (token_hash, user_id, expires_at, device) VALUES (${input.tokenHash}, ${input.userId}, ${input.expiresAt}, ${input.device ?? null})`;
 }
 
 export interface ActiveSession {

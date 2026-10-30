@@ -39,7 +39,10 @@ Comptes des spectateurs (e-mail, historique) · droits d'administration (publier
 ## 4. RGPD (droits des personnes)
 | Droit | Implémentation |
 |---|---|
-| Accès / portabilité | `GET /api/me/export` : JSON (compte, progression, liste, sessions, événements de sécurité), **sans aucun secret** |
+| Accès / portabilité | `GET /api/me/export` : JSON (compte, progression, liste, préférences, thématiques, sessions, événements de sécurité), **sans aucun secret** |
+| Appareils | Liste et déconnexion des appareils du compte ; libellé approximatif (« Chrome · macOS »), **jamais d'adresse IP ni d'agent utilisateur brut** |
+| Changement d'e-mail | Mot de passe + code à 6 chiffres sur la NOUVELLE adresse (empreinte, 5 essais, 15 min), ancienne adresse prévenue, réponse identique si l'adresse est déjà prise, autres appareils déconnectés |
+| Historique / photo | Historique désactivable (rien n'est enregistré) et effaçable ; photo de profil supprimée avec le compte, incluse dans les sauvegardes |
 | Effacement | `POST /api/me/delete` (mot de passe requis) : suppression en cascade, audit anonymisé |
 | Minimisation | Pas d'IP ni d'agent utilisateur stockés ; mesure de lecture anonyme ; entretien horaire (sessions/jetons périmés ; mesures 180 j ; audit 365 j) |
 | Rectification | Mot de passe modifiable ; nom d'affichage à l'inscription (édition à compléter côté API si besoin) |

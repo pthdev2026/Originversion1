@@ -57,18 +57,25 @@ export async function findProgress(sql: Sql, userId: string, playbackId: string)
 export interface ContinueWatchingItem extends Progress {
   title: string | null;
   kind: string | null;
+  /** Épisode concerné (séries) : de quoi afficher « Épisode 6 · Saison 2 ». `null` pour un film. */
+  episode: { key: string; number: number; seasonNumber: number; title: string } | null;
 }
 
 /** Contenus commencés et non terminés, les plus récents d'abord. */
 export async function listContinueWatching(sql: Sql, userId: string, limit: number): Promise<ContinueWatchingItem[]> {
-  const rows = await sql<(ProgressRow & { title: string | null; kind: string | null })[]>`
-    SELECT w.*, p.title, p.kind
+  const rows = await sql<(ProgressRow & { title: string | null; kind: string | null; ep_key: string | null; ep_number: number | null; ep_season: number | null; ep_title: string | null })[]>`
+    SELECT w.*, p.title, p.kind, e.key AS ep_key, e.number AS ep_number, e.season_number AS ep_season, e.title AS ep_title
     FROM watch_progress w
     LEFT JOIN programs p ON p.slug = w.program_slug
+    LEFT JOIN episodes e ON e.program_slug = w.program_slug AND w.playback_id = w.program_slug || '-' || e.key
     WHERE w.user_id = ${userId} AND w.completed = false AND w.position_seconds >= 10
     ORDER BY w.updated_at DESC
     LIMIT ${limit}`;
-  return rows.map(row => ({ ...toProgress(row), title: row.title, kind: row.kind }));
+  return rows.map(row => ({
+    ...toProgress(row), title: row.title, kind: row.kind,
+    episode: row.ep_key !== null && row.ep_number !== null && row.ep_season !== null && row.ep_title !== null
+      ? { key: row.ep_key, number: row.ep_number, seasonNumber: row.ep_season, title: row.ep_title } : null,
+  }));
 }
 
 /**
@@ -85,6 +92,11 @@ export async function listProgramProgress(sql: Sql, userId: string, programSlug:
     ORDER BY w.updated_at DESC
     LIMIT ${limit}`;
   return rows.map(toProgress);
+}
+
+/** Efface TOUT l'historique de visionnage d'un compte (retourne le nombre de lignes supprimées). */
+export async function clearHistory(sql: Sql, userId: string): Promise<number> {
+  return (await sql`DELETE FROM watch_progress WHERE user_id = ${userId}`).count;
 }
 
 export async function deleteProgress(sql: Sql, userId: string, playbackId: string): Promise<void> {

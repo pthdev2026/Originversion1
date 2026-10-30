@@ -1,4 +1,4 @@
-# ORIGIN — Contrat d'API (v1.4, 30/10/2026)
+# ORIGIN — Contrat d'API (v1.5, 30/10/2026)
 
 Propriétaire : l'agent back-end. Toute modification est annoncée ici avant d'être déployée.
 Limites : 120 requêtes par minute et par adresse IP sur `/api/*` ; en-têtes `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
@@ -325,6 +325,52 @@ La réponse de `GET /api/programs/:id/playback` contient désormais **`subtitles
 
 Le front doit proposer ces deux actions dans « Mon compte » (« Télécharger mes données », « Supprimer mon compte »).
 Conservation : mesures de lecture anonymes 180 jours, journal de sécurité 365 jours, sessions et jetons expirés supprimés automatiquement.
+
+## Espace compte (disponible — v1.5, compte connecté)
+
+Pour l'écran « Votre espace » du front. `credentials: 'include'` partout ; les codes de valeur (`quality: 'eco'`…) sont stables, **l'écran les traduit** (« Éco »).
+
+**Profil.** `GET /api/me` renvoie désormais aussi `createdAt` (« membre depuis »), `locale` (`fr`|`en`) et `avatar` (`null`, `{kind:"preset", preset: 0..7}` ou `{kind:"photo", url:"/avatars/<clé>.<ext>", zoom: 1..4}` — **préfixer `url` par l'adresse de l'API**).
+| Route | Description |
+|---|---|
+| `PATCH /api/me` | `{displayName?: string(1..60) \| null, locale?: "fr"\|"en"}` (au moins un champ, rien d'autre) → `200 {user}` |
+| `GET /api/me/preferences` | `200 {preferences}` — `previews`, `nextEpisode`, `quality` (`auto`\|`eco`\|`high`), `subtitles` (`none`\|`fr`\|`en`), `subtitleSize` (`small`\|`medium`\|`large`), `newEpisodes`, `news`, `emails`, `reduceMotion`, `history` (booléens) |
+| `PUT /api/me/preferences` | Modification **partielle** (seuls les champs fournis changent) → `200 {preferences}` complet. Champ inconnu ou valeur invalide → `400`. *Les notifications (`newEpisodes`, `news`, `emails`) enregistrent le CHOIX ; l'envoi des messages n'existe pas encore.* |
+
+**Appareils connectés.** Nom approximatif (« Chrome · macOS »), jamais d'adresse IP. `lastSeenAt` est rafraîchi au plus une fois par jour.
+| Route | Description |
+|---|---|
+| `GET /api/me/sessions` | `200 {sessions:[{id, device, current, createdAt, lastSeenAt}]}` (le plus récent d'abord) |
+| `DELETE /api/me/sessions/:id` | `204` déconnecte cet appareil · `404` inconnu ou d'un autre compte · `409` c'est l'appareil en cours (utiliser `POST /api/auth/logout`) |
+| `POST /api/me/sessions/revoke-others` | `200 {revoked: n}` — « Déconnecter tous les autres » ; la session en cours reste ouverte |
+
+**Thématiques préférées** (choix à « Bienvenue » ; alimentent « Pour vous » **dès l'inscription**, avec la raison « Parce que vous aimez « Foi » »).
+| Route | Description |
+|---|---|
+| `GET /api/me/themes` | `200 {themes: [slug]}` |
+| `PUT /api/me/themes` | `{themes: [slug]}` (12 au plus, doublons retirés, remplace la liste) → `200 {themes}` · `400` si un identifiant est inconnu (la liste n'est alors pas modifiée). Les identifiants viennent de `GET /api/themes`. |
+
+**Photo de profil.**
+| Route | Description |
+|---|---|
+| `PUT /files/me/avatar` | Corps = **image brute** (JPG, PNG ou WebP ; 5 Mo au plus ; AVIF et SVG refusés ; le contenu réel est vérifié) → `201 {avatar}` ; remplace et supprime l'ancienne photo. `413` trop lourde, `400` format invalide. *Les dimensions minimales (400×400) se vérifient côté écran.* |
+| `PUT /api/me/avatar` | `{kind:"preset", preset: 0..7}` (avatar prédéfini — supprime la photo) · `{kind:"photo", zoom: 1..4}` (recadrage de la photo existante ; `400` s'il n'y en a pas) · `{kind: null}` (retire) → `200 {avatar}` |
+| `GET /avatars/:fichier` | Public (balise `<img>`) ; clé aléatoire, cache d'un an. |
+La photo est supprimée avec le compte.
+
+**Changement d'adresse e-mail** (code à 6 chiffres envoyé à la **nouvelle** adresse ; l'ancienne est prévenue).
+| Route | Description |
+|---|---|
+| `POST /api/me/email/change` | `{newEmail, password}` → `202` **dans tous les cas valides** (adresse déjà prise comprise : on ne révèle pas qui est inscrit, aucun code n'est alors envoyé) · `401` mot de passe incorrect · `400` adresse invalide ou identique à l'actuelle |
+| `POST /api/me/email/change/confirm` | `{code}` → `200 {user}` : adresse changée et **vérifiée**, autres appareils déconnectés · `400` code faux/expiré (15 min) · `429` après 5 essais (la demande est annulée) |
+
+**Historique de visionnage.** `preferences.history = false` : les positions **ne sont plus enregistrées** (`PUT /api/me/progress/:id` répond normalement, sans rien écrire), `GET /api/me/continue-watching` renvoie `[]`, `GET /api/me/progress…` ne renvoie rien, et l'historique n'alimente plus « Pour vous » (la liste « Ma liste » et les thématiques restent prises en compte). Les anciennes données sont conservées (réapparaissent si on réactive).
+| Route | Description |
+|---|---|
+| `DELETE /api/me/history` | `200 {cleared: n}` — efface tout l'historique du compte |
+| `GET /api/me/continue-watching` | **Nouveau champ `episode`** par élément : `{key, number, seasonNumber, title}` (séries) ou `null` (films) — de quoi afficher « Épisode 6 · Saison 2 » |
+
+**Rappels utiles au front** : `POST /api/me/delete` exige **le mot de passe** (pas seulement « SUPPRIMER ») ; `GET /api/me/export` inclut désormais les préférences et thématiques.
 
 ## Voie vidéo Mux (disponible — v1.4, administrateur uniquement)
 
