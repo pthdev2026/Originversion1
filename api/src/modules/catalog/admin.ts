@@ -210,7 +210,7 @@ export interface AdminProgramView {
   /** Même forme que le corps de `PUT /api/admin/programs/:slug` : on peut le modifier puis le renvoyer tel quel. */
   document: ProgramInput;
   /** Médias rattachés au programme, quel que soit leur statut (en préparation, prêt, échec). */
-  media: { playbackId: string; status: string; durationSeconds: number | null; createdAt: string }[];
+  media: { playbackId: string; status: string; durationSeconds: number | null; createdAt: string; markers: { introStartSeconds: number | null; introEndSeconds: number | null; creditsStartSeconds: number | null } }[];
   /** Dernières tâches de préparation du programme (les plus récentes d'abord). */
   jobs: {
     id: string; playbackId: string; status: string; step: string | null; progress: number;
@@ -234,8 +234,8 @@ export async function getProgramForAdmin(sql: Sql, slug: string): Promise<AdminP
     sql<{ number: number; title: string | null }[]>`SELECT number, title FROM seasons WHERE program_slug = ${slug} ORDER BY number`,
     sql<{ season_number: number; number: number; key: string; title: string; synopsis: string | null; duration_label: string | null; image_url: string | null; image_alt: string | null }[]>`
       SELECT season_number, number, key, title, synopsis, duration_label, image_url, image_alt FROM episodes WHERE program_slug = ${slug} ORDER BY season_number, number`,
-    sql<{ playback_id: string; status: string; duration_seconds: string | null; created_at: Date }[]>`
-      SELECT playback_id, status, duration_seconds::text, created_at FROM media_assets WHERE program_slug = ${slug} ORDER BY playback_id`,
+    sql<{ playback_id: string; status: string; duration_seconds: string | null; created_at: Date; intro_start_seconds: string | null; intro_end_seconds: string | null; credits_start_seconds: string | null }[]>`
+      SELECT playback_id, status, duration_seconds::text, created_at, intro_start_seconds::text, intro_end_seconds::text, credits_start_seconds::text FROM media_assets WHERE program_slug = ${slug} ORDER BY playback_id`,
     sql<{
       id: string; playback_id: string; status: string; step: string | null; progress: string; attempts: number; max_attempts: number;
       last_error: string | null; created_at: Date; started_at: Date | null; finished_at: Date | null;
@@ -262,7 +262,8 @@ export async function getProgramForAdmin(sql: Sql, slug: string): Promise<AdminP
         })),
       })),
     },
-    media: media.map(m => ({ playbackId: m.playback_id, status: m.status, durationSeconds: m.duration_seconds === null ? null : Number(m.duration_seconds), createdAt: m.created_at.toISOString() })),
+    media: media.map(m => ({ playbackId: m.playback_id, status: m.status, durationSeconds: m.duration_seconds === null ? null : Number(m.duration_seconds), createdAt: m.created_at.toISOString(),
+      markers: { introStartSeconds: m.intro_start_seconds === null ? null : Number(m.intro_start_seconds), introEndSeconds: m.intro_end_seconds === null ? null : Number(m.intro_end_seconds), creditsStartSeconds: m.credits_start_seconds === null ? null : Number(m.credits_start_seconds) } })),
     jobs: jobs.map(j => ({
       id: j.id, playbackId: j.playback_id, status: j.status, step: j.step, progress: Number(j.progress), attempts: j.attempts, maxAttempts: j.max_attempts,
       lastError: j.last_error, createdAt: j.created_at.toISOString(), startedAt: j.started_at?.toISOString() ?? null, finishedAt: j.finished_at?.toISOString() ?? null,

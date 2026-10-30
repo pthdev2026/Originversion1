@@ -26,6 +26,7 @@ Vérifié le : 30/10/2026 · **Source de vérité : `docs/API-CONTRACT.md` (v1.5
 | Recommandations | `GET /api/programs/:slug/similar`, `/api/trending`, `/api/recommendations` | public / compte |
 | Comptes | `POST /api/auth/{register,login,logout,email/verify,password/forgot,password/reset}`, `GET /api/me`, `POST /api/me/{password,delete,email/verification,2fa/setup,2fa/enable,2fa/disable}` | public / compte |
 | Univers de créateur | `GET /api/creators/:slug`, `GET /api/admin/creators[/:slug]`, `PUT /api/admin/creators/:slug/contents` | public / admin |
+| Lecture (v1.8) | `GET /api/programs/:slug/play-target`, `PUT /api/admin/media/:playbackId/markers` (+ `content`, `resume`, `markers`, `next` dans `GET …/playback`) | public / admin |
 | Recherche | `GET /api/search`, `GET /api/search/suggestions`, `GET/POST/DELETE /api/me/searches`, `DELETE /api/me/searches/item` | public / compte |
 | Journal du catalogue | `GET /api/admin/audit` | admin |
 | Contact | `POST /api/contact`, `GET /api/admin/contact`, `POST /api/admin/contact/:id/handled` | public / admin |

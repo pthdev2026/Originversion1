@@ -195,3 +195,8 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ **Voie vidéo : Mux** pour la bêta (notre chaîne FFmpeg + Bunny reste prête en secours)
 - ✅ **Hébergement : un VPS européen** (machine unique, Docker Compose)
 - 🟡 À fixer : nom de domaine, hébergeur précis, hébergement du front, pages légales — voir `docs/PLAN-MISE-EN-LIGNE.md` §1
+
+## Lecture vidéo finalisée côté API (30/10/2026)
+- ✅ Migration 018 : repères d'intro et de générique par média, saisis au back-office (`PUT /api/admin/media/:id/markers`)
+- ✅ Réponse de lecture enrichie : `content`, `resume` (respecte « historique »), `markers`, `next` ; nouvelle route `GET /api/programs/:slug/play-target` (Lecture / Reprendre / Épisode suivant en un appel)
+- 🟡 Reste : lecture Mux `signed` avec une vraie clé, vrai film, audio multiple (décision), miniatures de la barre de lecture (storyboard Mux)

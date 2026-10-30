@@ -1,4 +1,4 @@
-# ORIGIN — Contrat d'API (v1.7, 30/10/2026)
+# ORIGIN — Contrat d'API (v1.8, 30/10/2026)
 
 Propriétaire : l'agent back-end. Toute modification est annoncée ici avant d'être déployée.
 Limites : 120 requêtes par minute et par adresse IP sur `/api/*` ; en-têtes `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
@@ -76,6 +76,26 @@ Règles pour le front :
 **Le front suit `ident.show` sans réinterpréter** : toute la règle est côté serveur (une fois par titre par défaut, jamais à la reprise
 ni à l'enchaînement automatique). Quand `show` est `false`, `manifestUrl`, `durationSeconds` et `skippableAfterSeconds` valent `null`.
 `skippableAfterSeconds` : secondes avant lesquelles le bouton « Passer » n'est pas proposé.
+
+#### Contexte de lecture (v1.8, ajouté dans la réponse de lecture)
+
+```json
+"content": { "programSlug": "ma-serie", "title": "Ma série", "kind": "serie", "episode": { "season": 1, "number": 2, "title": "Deux" } },
+"resume": { "positionSeconds": 200 },
+"markers": { "introStart": 5, "introEnd": 40, "creditsStart": 560 },
+"next": { "playbackId": "ma-serie-s1-e3", "season": 1, "number": 3, "title": "Trois" }
+```
+- `content` : de quoi remplir la barre du lecteur sans second appel (`episode` = `null` pour un film).
+- `resume` : `null` pour un visiteur, un contenu non commencé ou terminé, ou si l'**historique est désactivé**. Sinon démarrer à `positionSeconds` (plus besoin d'un appel à `/api/me/progress`).
+- `markers` (secondes, `null` = non renseigné) : afficher « Passer l'intro » entre `introStart` et `introEnd` (le bouton amène à `introEnd`) ; proposer « Épisode suivant » dès `creditsStart` (sinon dans les dernières secondes).
+- `next` : épisode suivant **lisible** (a un média prêt) ; `null` pour un film ou le dernier épisode. Pour l'enchaîner, appeler `/playback` avec `autoplay=1`.
+
+#### `GET /api/programs/:slug/play-target` (v1.8, public)
+Le bouton principal d'une fiche programme, en un appel : `200 {state, playbackId, episode, resumeSeconds}`.
+`state` ∈ `start` (début) · `resume` (reprise en cours, `resumeSeconds` > 0) · `next` (suite du dernier épisode terminé) · `rewatch` (tout vu : recommence au début). Visiteur anonyme ou historique désactivé : toujours `start`. `404` : programme inconnu ou **rien de lisible**.
+
+#### `PUT /api/admin/media/:playbackId/markers` (v1.8, administrateur)
+`{introStart, introEnd, creditsStart}` (secondes ou `null`, tous les trois requis dans le corps) → `204`. `introStart` et `introEnd` vont ensemble, `introStart < introEnd ≤ creditsStart` ; `400` sinon, `404` si le média est inconnu. Tout à `null` efface. La fiche admin d'un programme (`GET /api/admin/programs/:slug`) renvoie `markers` pour chaque média.
 
 ### `GET /media/:jeton/:playbackId/*` (distribution HLS)
 Géré par hls.js ; `Range` supporté. `403` : jeton invalide ou expiré. `404` : fichier absent.

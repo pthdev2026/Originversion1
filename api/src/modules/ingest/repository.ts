@@ -67,6 +67,14 @@ export interface PlayableAsset {
   provider: 'self' | 'mux';
   providerPlaybackId: string | null;
   providerPolicy: 'public' | 'signed' | null;
+  /** Repères éditoriaux (secondes) ; `null` = non renseigné. */
+  markers: Markers;
+}
+
+export interface Markers {
+  introStartSeconds: number | null;
+  introEndSeconds: number | null;
+  creditsStartSeconds: number | null;
 }
 
 interface AssetRow {
@@ -78,12 +86,18 @@ interface AssetRow {
   provider: 'self' | 'mux';
   provider_playback_id: string | null;
   provider_policy: 'public' | 'signed' | null;
+  intro_start_seconds: string | null;
+  intro_end_seconds: string | null;
+  credits_start_seconds: string | null;
 }
+
+const num = (value: string | null): number | null => (value === null ? null : Number(value));
 
 /** Retourne le média lisible d'un identifiant de lecture, ou null s'il n'est pas prêt. */
 export async function findPlayableAsset(sql: Sql, playbackId: string): Promise<PlayableAsset | null> {
   const [row] = await sql<AssetRow[]>`
-    SELECT playback_id, program_slug, duration_seconds::text, storage_path, renditions, provider, provider_playback_id, provider_policy
+    SELECT playback_id, program_slug, duration_seconds::text, storage_path, renditions, provider, provider_playback_id, provider_policy,
+           intro_start_seconds::text, intro_end_seconds::text, credits_start_seconds::text
     FROM media_assets
     WHERE playback_id = ${playbackId} AND status = 'ready'`;
   if (!row) return null;
@@ -96,5 +110,56 @@ export async function findPlayableAsset(sql: Sql, playbackId: string): Promise<P
     provider: row.provider,
     providerPlaybackId: row.provider_playback_id,
     providerPolicy: row.provider_policy,
+    markers: { introStartSeconds: num(row.intro_start_seconds), introEndSeconds: num(row.intro_end_seconds), creditsStartSeconds: num(row.credits_start_seconds) },
   };
+}
+
+/** Enregistre les repères d'un média (tout `null` = les effacer). `false` si le média n'existe pas. */
+export async function setMarkers(sql: Sql, playbackId: string, markers: Markers): Promise<boolean> {
+  const rows = await sql`
+    UPDATE media_assets SET intro_start_seconds = ${markers.introStartSeconds}, intro_end_seconds = ${markers.introEndSeconds},
+                            credits_start_seconds = ${markers.creditsStartSeconds}, updated_at = now()
+    WHERE playback_id = ${playbackId} RETURNING playback_id`;
+  return rows.length > 0;
+}
+
+export interface PlayableEpisode { playbackId: string; season: number; number: number; title: string }
+
+/** Épisodes d'une série qui ont un média prêt, dans l'ordre de lecture (saison puis numéro). */
+export async function listPlayableEpisodes(sql: Sql, programSlug: string): Promise<PlayableEpisode[]> {
+  const rows = await sql<{ playback_id: string; season_number: number; number: number; title: string }[]>`
+    SELECT m.playback_id, e.season_number, e.number, e.title
+    FROM episodes e JOIN media_assets m ON m.playback_id = e.program_slug || '-' || e.key AND m.status = 'ready'
+    WHERE e.program_slug = ${programSlug}
+    ORDER BY e.season_number, e.number`;
+  return rows.map(row => ({ playbackId: row.playback_id, season: row.season_number, number: row.number, title: row.title }));
+}
+
+export interface ContentInfo {
+  programSlug: string;
+  programTitle: string;
+  kind: 'film' | 'serie' | 'documentaire';
+  published: boolean;
+  /** Renseigné pour un épisode de série. */
+  episode: { season: number; number: number; title: string } | null;
+}
+
+/** Programme (et épisode éventuel) derrière un identifiant de lecture. */
+export async function describeContent(sql: Sql, playbackId: string): Promise<ContentInfo | null> {
+  const [row] = await sql<{ slug: string; title: string; kind: ContentInfo['kind']; published: boolean; season_number: number | null; number: number | null; episode_title: string | null }[]>`
+    SELECT p.slug, p.title, p.kind, p.published, e.season_number, e.number, e.title AS episode_title
+    FROM media_assets m JOIN programs p ON p.slug = m.program_slug
+    LEFT JOIN episodes e ON e.program_slug = p.slug AND m.playback_id = e.program_slug || '-' || e.key
+    WHERE m.playback_id = ${playbackId}`;
+  if (!row) return null;
+  return {
+    programSlug: row.slug, programTitle: row.title, kind: row.kind, published: row.published,
+    episode: row.season_number !== null && row.number !== null && row.episode_title !== null ? { season: row.season_number, number: row.number, title: row.episode_title } : null,
+  };
+}
+
+/** Fiche minimale d'un programme (existe, publié, type) pour décider quoi lancer. */
+export async function describeProgram(sql: Sql, slug: string): Promise<{ kind: ContentInfo['kind']; title: string } | null> {
+  const [row] = await sql<{ kind: ContentInfo['kind']; title: string }[]>`SELECT kind, title FROM programs WHERE slug = ${slug} AND published AND kind <> 'brand'`;
+  return row ?? null;
 }
