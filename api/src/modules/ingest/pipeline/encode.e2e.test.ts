@@ -181,6 +181,33 @@ describe('pipeline d’encodage (ffmpeg réel)', () => {
     assert.ok(!state || state.loudness === null || state.loudness === undefined);
   });
 
+  it('survit à une panne passagère de la base pendant le rapport de progression (aucun plantage)', async t => {
+    if (!ready) return t.skip('ffmpeg ou PostgreSQL indisponible');
+    const sourcePath = await makeSource('e2e-panne', 6);
+    const queued = await enqueueJob(sql, {
+      id: randomUUID(), playbackId: 'e2e-panne', programSlug: 'e2e-panne', kind: 'film', title: 'Panne', isDemo: true,
+      sourcePath, preset: 'ultrafast', uploadId: null, createdBy: null,
+    });
+    const claimed = await claimNextJob(sql, 'w-panne', 60);
+    assert.equal(claimed?.id, queued?.id);
+    const unhandled: unknown[] = [];
+    const listener = (reason: unknown) => { unhandled.push(reason); };
+    process.on('unhandledRejection', listener);
+    let lost = 0;
+    try {
+      await runEncodeJob(claimed as NonNullable<typeof claimed>, {
+        sql, logger, layout, store: new LocalMediaStore(layout), tools, signal: new AbortController().signal,
+        // Les rapports d'avancement « encodage … » échouent comme un CONNECT_TIMEOUT ; les points de contrôle réussissent.
+        report: async (_progress: number, step: string) => { if (step.startsWith('encodage')) { lost += 1; throw new Error('write CONNECT_TIMEOUT 127.0.0.1:5433'); } return true; },
+      });
+      await new Promise(resolve => setTimeout(resolve, 100)); // laisse passer d'éventuels rejets tardifs
+    } finally {
+      process.off('unhandledRejection', listener);
+    }
+    assert.ok(lost > 0, 'au moins un rapport a bien échoué pendant le test');
+    assert.deepEqual(unhandled, [], 'aucune promesse rejetée non gérée (sinon Node arrête le processus)');
+  });
+
   it('reprend après une interruption sans refaire les qualités terminées', async t => {
     if (!ready) return t.skip('ffmpeg ou PostgreSQL indisponible');
     const sourcePath = await makeSource('e2e-reprise', 6);

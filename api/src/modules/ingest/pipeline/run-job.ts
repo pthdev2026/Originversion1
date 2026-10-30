@@ -110,7 +110,9 @@ export async function runEncodeJob(job: MediaJob, ctx: JobContext): Promise<void
         const now = Date.now();
         if (now - lastReported < 5000) return; // au plus un rapport toutes les 5 s
         lastReported = now;
-        void ctx.report(base + fraction * span, `encodage ${rung.name}`);
+        // Rapport de confort, jamais bloquant : une panne passagère de la base ne doit ni faire échouer ni faire planter l'encodage
+        // (le bail est renouvelé par le minuteur du travailleur ; sans ce `catch`, la promesse rejetée arrêtait tout le processus).
+        void ctx.report(base + fraction * span, `encodage ${rung.name}`).catch(error => ctx.logger.warn({ err: error }, 'rapport de progression perdu (non bloquant)'));
       },
     });
     stats.set(rung.name, await validateRendition(dir, info.durationSeconds));

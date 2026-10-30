@@ -221,3 +221,8 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ `api/scripts/recette/` : base jetable `origin_recette`, API :4020, page de test :4021, comptes `@origin.test` supprimés à la fin — remplace tout test sur la base ou les comptes de développement (leçon de l'incident `admin-test@origin.local`)
 - ✅ Parcours multi-comptes dans un navigateur réel : 28/28 (inscription, liste, double clic, actualisation, fermeture de page avec `keepalive`, reprise, déconnexion/reconnexion, second compte, nettoyage)
 - ✅ Tests ajoutés : session expirée en cours de lecture ; pré-requête CORS d'un `PUT` avec cookies
+
+## Bogue corrigé : le worker d'encodage s'arrêtait sur une panne passagère de la base (30/10/2026)
+- Découvert pendant l'encodage du film de 85 min : un `CONNECT_TIMEOUT` vers PostgreSQL pendant un rapport de progression (`run-job.ts`, appel non attendu) provoquait une promesse rejetée non gérée, donc l'arrêt du processus à 63 %. La reprise par bail/points de contrôle a permis de relancer sans perdre les qualités terminées
+- ✅ Correctif : le rapport de confort est désormais non bloquant (erreur journalisée) ; test de non-régression (échoue sans le correctif, réussi avec)
+- 🟡 En production, Docker (`restart: unless-stopped`) relancerait aussi le worker ; le correctif évite surtout de perdre la qualité en cours
