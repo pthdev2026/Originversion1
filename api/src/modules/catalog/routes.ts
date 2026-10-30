@@ -1,13 +1,13 @@
 /** Module « catalog » — routes HTTP (voir docs/API-CONTRACT.md). */
 import { Hono } from 'hono';
 import type { Sql } from '../../platform/database/client.ts';
-import { errors } from '../../platform/errors.ts';
+import { AppError, errors } from '../../platform/errors.ts';
 import type { AppEnv } from '../../platform/http/types.ts';
 import { isValidId } from '../../platform/storage/layout.ts';
 import { requireAdmin } from '../identity/middleware.ts';
 import { insertAudit } from '../identity/repository.ts';
 import {
-  applySchedule, deleteCollection, deleteCreator, listCatalogAudit, listSchedule, deleteProgram, deleteTheme, getCreatorForAdmin, getProgramForAdmin, listAllForAdmin, listCreatorsForAdmin, replaceCreatorContents,
+  applySchedule, validateRelease, type BlockedRelease, deleteCollection, deleteCreator, listCatalogAudit, listSchedule, deleteProgram, deleteTheme, getCreatorForAdmin, getProgramForAdmin, listAllForAdmin, listCreatorsForAdmin, replaceCreatorContents,
   upsertCollection, upsertCreator, upsertProgram, upsertTheme,
 } from './admin.ts';
 import {
@@ -26,11 +26,18 @@ import { collectionSchema, creatorContentsSchema, creatorSchema, parseBody, prog
 const PUBLIC_CACHE = 'public, max-age=30, stale-while-revalidate=120';
 const cacheable = (c: { header: (name: string, value: string) => void }) => c.header('Cache-Control', PUBLIC_CACHE);
 
-/** Applique le calendrier éditorial (sorties/retraits arrivés à échéance) et le consigne au journal d'audit. */
-export async function runSchedule(sql: Sql, now?: Date): Promise<{ released: string[]; expired: string[] }> {
+/**
+ * Applique le calendrier éditorial et le consigne au journal d'audit. Une sortie BLOQUÉE (médias non prêts) est tracée et signalée
+ * UNE fois par `notify` (e-mail aux administrateurs, branché dans main.ts) ; elle ne se republie pas seule.
+ */
+export async function runSchedule(sql: Sql, now?: Date, notify?: (blocked: BlockedRelease) => Promise<void>): Promise<{ released: string[]; expired: string[]; blocked: BlockedRelease[] }> {
   const done = await applySchedule(sql, now);
   for (const slug of done.released) await insertAudit(sql, { userId: null, event: 'catalog.program.release', requestId: null, details: { slug } });
   for (const slug of done.expired) await insertAudit(sql, { userId: null, event: 'catalog.program.expire', requestId: null, details: { slug } });
+  for (const item of done.blocked) {
+    await insertAudit(sql, { userId: null, event: 'catalog.program.release_blocked', requestId: null, details: { slug: item.slug, missing: item.missing } });
+    await notify?.(item).catch(() => undefined); // une alerte qui échoue n'annule ni la trace ni le blocage
+  }
   return done;
 }
 
@@ -170,6 +177,17 @@ export function catalogRoutes(deps: { sql: Sql; cacheTtlMs?: number }): Hono<App
     const programs = await cached(`coming-soon:${limit}`, () => listComingSoon(deps.sql, limit));
     cacheable(c);
     return c.json({ programs });
+  });
+
+  // Validation éditoriale d'une sortie bloquée : publie maintenant si tous les médias obligatoires sont prêts, sinon 409 + liste de ce qui manque.
+  routes.post('/api/admin/programs/:slug/release', async c => {
+    const admin = requireAdmin(c);
+    const slug = slugOf(c.req.param('slug'));
+    const outcome = await validateRelease(deps.sql, slug);
+    if (outcome.result === 'unknown') throw errors.notFound('Programme introuvable.');
+    if (outcome.result === 'missing') throw new AppError('conflict', 409, `Publication impossible : médias non prêts (${outcome.missing.join(', ')}).`);
+    await insertAudit(deps.sql, { userId: admin.id, event: 'catalog.program.release_validated', requestId: c.get('requestId') ?? null, details: { slug } });
+    return c.body(null, 204);
   });
 
   // Calendrier éditorial (sorties et retraits à venir) — administrateur.

@@ -11,6 +11,7 @@ import { createLogger } from './platform/logger.ts';
 import { createLogMailer, createResendMailer } from './platform/mail.ts';
 import { StorageLayout } from './platform/storage/layout.ts';
 import { runSchedule } from './modules/catalog/routes.ts';
+import { listAdminEmails } from './modules/identity/repository.ts';
 import { purgeExpired } from './modules/ops/maintenance.repository.ts';
 import { createAccountService } from './modules/account/service.ts';
 import { createIdentityService } from './modules/identity/service.ts';
@@ -149,8 +150,18 @@ const purgeTimer = setInterval(() => void maintain(), 60 * 60 * 1000);
 purgeTimer.unref();
 
 // Programmation éditoriale : toutes les 30 s, publie/retire les programmes dont la date prévue est arrivée.
-const tickSchedule = () => runSchedule(sql).then(
-  done => (done.released.length > 0 || done.expired.length > 0) && logger.info(done, 'programmation : sorties et retraits appliqués'),
+// Sortie bloquée (médias non prêts) : trace dans le journal d'audit (faite par runSchedule) + e-mail aux administrateurs.
+const alertBlockedRelease = async (item: { slug: string; title: string; missing: string[] }) => {
+  logger.warn({ slug: item.slug, missing: item.missing }, 'sortie planifiée BLOQUÉE : médias non prêts');
+  for (const to of await listAdminEmails(sql)) {
+    void mailer.send({
+      to, subject: `ORIGIN — sortie bloquée : ${item.title}`,
+      text: `La sortie planifiée de « ${item.title} » (${item.slug}) a été bloquée : médias obligatoires non prêts (${item.missing.join(', ')}).\n\nElle ne sera PAS publiée automatiquement. Quand les médias sont prêts, validez la publication depuis le back-office, ou fixez une nouvelle date.`,
+    }).catch(error => logger.error({ err: error }, 'alerte de sortie bloquée non envoyée'));
+  }
+};
+const tickSchedule = () => runSchedule(sql, undefined, alertBlockedRelease).then(
+  done => (done.released.length > 0 || done.expired.length > 0 || done.blocked.length > 0) && logger.info({ released: done.released, expired: done.expired, blocked: done.blocked.map(item => item.slug) }, 'programmation : sorties et retraits appliqués'),
   error => logger.error({ err: error }, 'programmation impossible'),
 );
 setTimeout(() => void tickSchedule(), 5_000).unref();

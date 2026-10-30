@@ -249,3 +249,7 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ `/production/:slug` lit le serveur (fiche, saisons, épisodes, similaires, rang), états « En cours / Déjà vu » des épisodes issus de la progression du compte, « Marquer comme vu » enregistré, 404 et panne gérées sans fiche inventée ; vérifié ordinateur et mobile
 - ✅ Contrat v1.12 : `play-target.episode` = `{key, season, seasonNumber, number, title}` (`key` = identifiant d'épisode de la fiche)
 - 🟡 À la charge de l'agent front : rafraîchir le libellé du bouton au retour du lecteur ; retirer les choix audio/sous-titres fictifs ; `/classement`
+
+## Porte de publication (30/10/2026) — règle validée par le propriétaire
+- ✅ Une sortie planifiée n'est publiée automatiquement que si **tous les médias obligatoires sont prêts** ; sinon : blocage, trace (journal d'audit), alerte e-mail aux administrateurs, visible dans le calendrier, **aucune publication tardive non contrôlée** ; reprise par validation éditoriale (`POST /api/admin/programs/:slug/release`) ou nouvelle date. Migration 020. 6 tests.
+- 🟡 Le back-office n'a pas encore d'écran pour valider une sortie bloquée (demande à lui adresser) ; l'e-mail d'alerte n'a jamais été envoyé en réel (Resend non branché).

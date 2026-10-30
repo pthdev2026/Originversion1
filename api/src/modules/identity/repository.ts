@@ -271,6 +271,12 @@ export async function insertAudit(sql: Sql, input: { userId: string | null; even
   await sql`INSERT INTO audit_log (user_id, event, request_id, details) VALUES (${input.userId}, ${input.event}, ${input.requestId}, ${sql.json((input.details ?? {}) as never)})`;
 }
 
+/** Adresses des administrateurs actifs (alertes d'exploitation). */
+export async function listAdminEmails(sql: Sql): Promise<string[]> {
+  const rows = await sql<{ email: string }[]>`SELECT email FROM users WHERE role = 'admin' AND status = 'active' ORDER BY created_at`;
+  return rows.map(row => row.email);
+}
+
 // ── Appareils connus ───────────────────────────────────────────────────────────────────────────────────
 
 /** Note l'appareil d'une connexion. `isNew` : jamais vu pour ce compte ; `hadOthers` : le compte avait déjà d'autres appareils (sinon c'est la première connexion). */

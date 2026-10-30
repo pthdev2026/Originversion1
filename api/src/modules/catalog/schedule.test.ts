@@ -16,6 +16,7 @@ import { hashPassword } from '../identity/password.ts';
 import { createIdentityService } from '../identity/service.ts';
 import { createAccountService } from '../account/service.ts';
 import { runSchedule } from '../catalog/routes.ts';
+import { registerAsset } from '../ingest/repository.ts';
 
 const PASSWORD = 'Un très bon mot de passe';
 const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(64)]);
@@ -84,6 +85,7 @@ after(async () => {
 
 const search = async (q: string) => json(await call('GET', `/api/search?q=${encodeURIComponent(q)}`));
 
+const withMedia = (slug: string) => registerAsset(sql, { playbackId: slug, programSlug: slug, kind: 'film', title: slug, storagePath: slug, durationSeconds: 60, sourceWidth: 1280, sourceHeight: 720, renditions: [], preset: null, encodeSeconds: null, encodedAt: null, isDemo: false });
 const iso = (offsetMs: number) => new Date(Date.now() + offsetMs).toISOString();
 const DAY = 86_400_000;
 const film = (title: string, extra: Record<string, unknown> = {}) => ({ kind: 'film', title, tagline: `${title} : accroche`, posterUrl: '/images/x.png', ...extra });
@@ -104,6 +106,7 @@ describe('programmation des sorties', () => {
     if (!available) return t.skip('PostgreSQL indisponible');
     assert.equal((await put('secret', film('Secret', { publishAt: iso(DAY) }))).status, 201);
     assert.equal((await put('teaser', film('Teaser', { publishAt: iso(2 * DAY), announced: true }))).status, 201);
+    await withMedia('secret'); await withMedia('teaser'); // médias prêts : la porte de publication laissera sortir ces deux programmes
     assert.equal(await visible('secret'), false);
     assert.equal(await visible('teaser'), false, 'annoncé ≠ publié : la fiche complète reste fermée');
     assert.deepEqual(await comingSoon(), ['teaser'], 'seul l’annoncé apparaît dans « Prochainement »');
@@ -114,7 +117,7 @@ describe('programmation des sorties', () => {
 
   it('rien ne bouge avant l’échéance', async t => {
     if (!available) return t.skip('PostgreSQL indisponible');
-    assert.deepEqual(await runSchedule(sql), { released: [], expired: [] });
+    assert.deepEqual(await runSchedule(sql), { released: [], expired: [], blocked: [] });
     assert.equal(await visible('teaser'), false);
   });
 
@@ -126,7 +129,7 @@ describe('programmation des sorties', () => {
     assert.equal(await visible('secret'), true);
     assert.deepEqual(await comingSoon(), []);
     assert.equal((await search('teaser')).programs.length, 1, 'cherchable dès la sortie');
-    assert.deepEqual(await runSchedule(sql, new Date(Date.now() + 3 * DAY)), { released: [], expired: [] }, 'idempotent');
+    assert.deepEqual(await runSchedule(sql, new Date(Date.now() + 3 * DAY)), { released: [], expired: [], blocked: [] }, 'idempotent');
     const view = await json(await call('GET', '/api/admin/programs/teaser', undefined, adminCookie));
     assert.deepEqual([view.document.published, view.document.publishAt, view.document.announced], [true, null, false]);
     const events = (await json(await call('GET', '/api/admin/audit', undefined, adminCookie))).entries.map((e: any) => e.event);

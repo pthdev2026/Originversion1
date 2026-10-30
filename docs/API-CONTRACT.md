@@ -1,4 +1,4 @@
-# ORIGIN — Contrat d'API (v1.13, 30/10/2026)
+# ORIGIN — Contrat d'API (v1.14, 30/10/2026)
 
 Propriétaire : l'agent back-end. Toute modification est annoncée ici avant d'être déployée.
 Limites : 120 requêtes par minute et par adresse IP sur `/api/*` ; en-têtes `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
@@ -465,11 +465,12 @@ Une « lecture » = session d'au moins 10 s. Agrégats uniquement : aucun identi
 
 Le document d'un programme (`PUT /api/admin/programs/:slug`, relu par `GET /api/admin/programs/:slug`) gagne trois champs :
 `publishAt` (ISO 8601 avec fuseau, ex. `2026-12-01T18:00:00+01:00`) · `unpublishAt` · `announced`. Règles : `publishAt` seulement pour un **brouillon** (`published: false`) ; `announced: true` exige `publishAt` ; `unpublishAt` doit suivre `publishAt` ; `400` sinon.
-Une tâche du serveur (toutes les 30 s) publie les brouillons dont `publishAt` est passé (le champ est alors vidé) et repasse en brouillon les programmes dont `unpublishAt` est passé. Chaque bascule est tracée dans `GET /api/admin/audit` (`catalog.program.release` / `catalog.program.expire`). Délai de visibilité côté public : jusqu'à ~1 minute (tâche + cache de 30 s).
+**Porte de publication (v1.14, règle validée le 30/10/2026)** : à l'échéance, un brouillon n'est publié automatiquement **que si tous ses médias obligatoires sont prêts** (film/documentaire : un média prêt ; série : chaque épisode déclaré a son média prêt). Sinon la sortie est **bloquée** : trace `catalog.program.release_blocked` dans le journal, e-mail aux administrateurs, `blocked: {since, missing[]}` dans `GET /api/admin/schedule`, et **aucune publication tardive automatique** même quand les médias deviennent prêts ensuite. Elle repart par `POST …/release` ou par une **nouvelle `publishAt`** (qui lève le blocage). Une publication explicite par l'éditeur (`published: true`) reste libre. Une tâche du serveur (toutes les 30 s) publie les brouillons dont `publishAt` est passé (le champ est alors vidé) et repasse en brouillon les programmes dont `unpublishAt` est passé. Chaque bascule est tracée dans `GET /api/admin/audit` (`catalog.program.release` / `catalog.program.expire`). Délai de visibilité côté public : jusqu'à ~1 minute (tâche + cache de 30 s).
 
 | Route | Description |
 |---|---|
 | `GET /api/coming-soon?limit=20` | Public : `{programs: [{slug, title, kind, tagline, image, imageAlt, releaseAt}]}` — programmes **annoncés**, du plus proche au plus lointain. Fiche résumée seulement : `GET /api/programs/:slug` et la lecture restent en `404` jusqu'à la sortie |
+| `POST /api/admin/programs/:slug/release` | **Validation éditoriale (v1.14)** : publie maintenant si tous les médias obligatoires sont prêts → `204` ; sinon `409` avec la liste de ce qui manque ; `404` inconnu, `403` non administrateur. Réservée aux sorties bloquées ou anticipées |
 | `GET /api/admin/schedule` | Administrateur : calendrier `{entries: [{slug, title, kind, event: "release"\|"expiry", at, announced}]}` en ordre chronologique |
 
 ## Recherche intelligente et sécurité de connexion (disponible — v1.7)

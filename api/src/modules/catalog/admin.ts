@@ -70,6 +70,9 @@ export async function upsertProgram(sql: Sql, slug: string, input: ProgramInput)
         hero_video_url = EXCLUDED.hero_video_url, trailer_url = EXCLUDED.trailer_url, image_alt = EXCLUDED.image_alt,
         image_focus = EXCLUDED.image_focus, title_style = EXCLUDED.title_style, is_demo = EXCLUDED.is_demo,
         published = EXCLUDED.published, publish_at = EXCLUDED.publish_at, unpublish_at = EXCLUDED.unpublish_at, announced = EXCLUDED.announced,
+        -- Nouvelle date de sortie = nouvelle décision éditoriale : le blocage est levé et la sortie sera réévaluée à cette date.
+        release_blocked_at = CASE WHEN programs.publish_at IS DISTINCT FROM EXCLUDED.publish_at THEN NULL ELSE programs.release_blocked_at END,
+        release_blocked_missing = CASE WHEN programs.publish_at IS DISTINCT FROM EXCLUDED.publish_at THEN '[]'::jsonb ELSE programs.release_blocked_missing END,
         updated_at = now()`;
 
     // Saisons et épisodes : remplacés d'un bloc (les médias, eux, sont rattachés par identifiant de lecture).
@@ -356,27 +359,79 @@ export async function listCatalogAudit(sql: Sql, limit: number, before: number |
 // ---- Programmation : sorties et retraits planifiés -------------------------------------------------------------------------------
 
 /**
- * Applique les dates prévues : publie les brouillons dont la sortie est arrivée, retire les programmes dont le retrait est arrivé.
+ * Médias OBLIGATOIRES encore manquants d'un programme (identifiants de lecture) ; liste vide = prêt à être publié.
+ * Film/documentaire : un média prêt. Série : chaque épisode déclaré a son média prêt (sans épisode déclaré : au moins un média prêt).
+ */
+export async function missingMedia(sql: Executor, slug: string): Promise<string[]> {
+  const [program] = await sql<{ kind: string }[]>`SELECT kind FROM programs WHERE slug = ${slug}`;
+  if (!program) return [slug];
+  if (program.kind === 'serie') {
+    const rows = await sql<{ id: string }[]>`
+      SELECT e.program_slug || '-' || e.key AS id FROM episodes e
+      WHERE e.program_slug = ${slug}
+        AND NOT EXISTS (SELECT 1 FROM media_assets m WHERE m.playback_id = e.program_slug || '-' || e.key AND m.status = 'ready')
+      ORDER BY e.season_number, e.number`;
+    if (rows.length > 0) return rows.map(row => row.id);
+    const [declared] = await sql<{ n: string }[]>`SELECT count(*)::text AS n FROM episodes WHERE program_slug = ${slug}`;
+    if (Number(declared?.n ?? 0) > 0) return [];
+  }
+  const [ready] = await sql`SELECT 1 FROM media_assets WHERE program_slug = ${slug} AND status = 'ready' LIMIT 1`;
+  return ready ? [] : [slug];
+}
+
+export interface BlockedRelease { slug: string; title: string; missing: string[] }
+
+/**
+ * Applique les dates prévues. RETRAITS : un programme public dont `unpublishAt` est arrivé repasse en brouillon.
+ * SORTIES : un brouillon dont `publishAt` est arrivé est publié SEULEMENT si tous ses médias obligatoires sont prêts ;
+ * sinon la sortie est BLOQUÉE (une seule fois : `blocked` ne renvoie que les nouveaux blocages) et ne repart pas toute seule, même quand
+ * les médias deviennent prêts plus tard : il faut une validation éditoriale (`validateRelease`) ou une nouvelle date.
  * Idempotent et sans risque si plusieurs instances l'exécutent en même temps (chaque ligne n'est basculée qu'une fois).
  */
-export async function applySchedule(sql: Sql, now: Date = new Date()): Promise<{ released: string[]; expired: string[] }> {
-  const released = await sql<{ slug: string }[]>`
-    UPDATE programs SET published = true, publish_at = NULL, announced = false, updated_at = now()
-    WHERE NOT published AND publish_at IS NOT NULL AND publish_at <= ${now} RETURNING slug`;
+export async function applySchedule(sql: Sql, now: Date = new Date()): Promise<{ released: string[]; expired: string[]; blocked: BlockedRelease[] }> {
+  const due = await sql<{ slug: string; title: string }[]>`
+    SELECT slug, title FROM programs WHERE NOT published AND publish_at IS NOT NULL AND publish_at <= ${now} AND release_blocked_at IS NULL ORDER BY publish_at`;
+  const released: string[] = [];
+  const blocked: BlockedRelease[] = [];
+  for (const program of due) {
+    const missing = await missingMedia(sql, program.slug);
+    if (missing.length === 0) {
+      const rows = await sql<{ slug: string }[]>`
+        UPDATE programs SET published = true, publish_at = NULL, announced = false, updated_at = now()
+        WHERE slug = ${program.slug} AND NOT published AND publish_at IS NOT NULL AND publish_at <= ${now} AND release_blocked_at IS NULL RETURNING slug`;
+      released.push(...rows.map(row => row.slug));
+    } else {
+      const rows = await sql<{ slug: string }[]>`
+        UPDATE programs SET release_blocked_at = now(), release_blocked_missing = ${sql.json(missing as never)}, updated_at = now()
+        WHERE slug = ${program.slug} AND NOT published AND release_blocked_at IS NULL RETURNING slug`;
+      blocked.push(...rows.map(() => ({ slug: program.slug, title: program.title, missing })));
+    }
+  }
   const expired = await sql<{ slug: string }[]>`
     UPDATE programs SET published = false, unpublish_at = NULL, updated_at = now()
     WHERE published AND unpublish_at IS NOT NULL AND unpublish_at <= ${now} RETURNING slug`;
-  return { released: released.map(row => row.slug), expired: expired.map(row => row.slug) };
+  return { released, expired: expired.map(row => row.slug), blocked };
 }
 
-export interface ScheduleEntry { slug: string; title: string; kind: string; event: 'release' | 'expiry'; at: string; announced: boolean }
+/** Validation éditoriale d'une sortie bloquée (ou anticipée) : publie maintenant si les médias sont prêts, sinon renvoie ce qui manque. */
+export async function validateRelease(sql: Sql, slug: string): Promise<{ result: 'released' | 'missing' | 'unknown'; missing: string[] }> {
+  const [program] = await sql`SELECT 1 FROM programs WHERE slug = ${slug} AND kind <> 'brand'`;
+  if (!program) return { result: 'unknown', missing: [] };
+  const missing = await missingMedia(sql, slug);
+  if (missing.length > 0) return { result: 'missing', missing };
+  await sql`UPDATE programs SET published = true, publish_at = NULL, announced = false, release_blocked_at = NULL, release_blocked_missing = '[]'::jsonb, updated_at = now() WHERE slug = ${slug}`;
+  return { result: 'released', missing: [] };
+}
+
+export interface ScheduleEntry { slug: string; title: string; kind: string; event: 'release' | 'expiry'; at: string; announced: boolean; blocked: { since: string; missing: string[] } | null }
 
 /** Calendrier éditorial : toutes les sorties et tous les retraits à venir, dans l'ordre chronologique. */
 export async function listSchedule(sql: Sql): Promise<ScheduleEntry[]> {
-  const rows = await sql<{ slug: string; title: string; kind: string; event: 'release' | 'expiry'; at: Date; announced: boolean }[]>`
-    SELECT slug, title, kind, 'release' AS event, publish_at AS at, announced FROM programs WHERE publish_at IS NOT NULL AND kind <> 'brand'
+  const rows = await sql<{ slug: string; title: string; kind: string; event: 'release' | 'expiry'; at: Date; announced: boolean; blocked_at: Date | null; missing: string[] }[]>`
+    SELECT slug, title, kind, 'release' AS event, publish_at AS at, announced, release_blocked_at AS blocked_at, release_blocked_missing AS missing
+      FROM programs WHERE publish_at IS NOT NULL AND kind <> 'brand'
     UNION ALL
-    SELECT slug, title, kind, 'expiry', unpublish_at, false FROM programs WHERE unpublish_at IS NOT NULL AND kind <> 'brand'
+    SELECT slug, title, kind, 'expiry', unpublish_at, false, NULL, '[]'::jsonb FROM programs WHERE unpublish_at IS NOT NULL AND kind <> 'brand'
     ORDER BY at, title`;
-  return rows.map(row => ({ slug: row.slug, title: row.title, kind: row.kind, event: row.event, at: row.at.toISOString(), announced: row.announced }));
+  return rows.map(row => ({ slug: row.slug, title: row.title, kind: row.kind, event: row.event, at: row.at.toISOString(), announced: row.announced, blocked: row.blocked_at ? { since: row.blocked_at.toISOString(), missing: row.missing } : null }));
 }
