@@ -423,3 +423,27 @@ export async function suggest(sql: Sql, tokens: string[], limit: number): Promis
     ...themes.map(row => ({ type: 'theme' as const, slug: row.slug, label: row.title })),
   ].slice(0, limit);
 }
+
+// ---- « Prochainement » -----------------------------------------------------------------------------------------------------------
+
+export interface ComingSoonCard {
+  slug: string;
+  title: string;
+  kind: string;
+  tagline: string | null;
+  image: string | null;
+  imageAlt: string | null;
+  /** Date de sortie prévue (ISO 8601). */
+  releaseAt: string;
+}
+
+/** Programmes annoncés mais pas encore publiés, du plus proche au plus lointain. La fiche complète et la lecture restent inaccessibles jusqu'à la sortie. */
+export async function listComingSoon(sql: Sql, limit: number): Promise<ComingSoonCard[]> {
+  const rows = await sql<{ slug: string; title: string; kind: string; tagline: string | null; poster_url: string | null; hero_url: string | null; image_alt: string | null; publish_at: Date }[]>`
+    SELECT slug, title, kind, tagline, poster_url, hero_url, image_alt, publish_at FROM programs
+    WHERE NOT published AND announced AND publish_at IS NOT NULL AND publish_at > now() AND kind <> 'brand'
+    ORDER BY publish_at, title LIMIT ${limit}`;
+  return rows.map(row => ({
+    slug: row.slug, title: row.title, kind: row.kind, tagline: row.tagline, image: row.poster_url ?? row.hero_url, imageAlt: row.image_alt, releaseAt: row.publish_at.toISOString(),
+  }));
+}

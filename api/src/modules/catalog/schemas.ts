@@ -56,9 +56,18 @@ export const programSchema = z.object({
   isDemo: z.boolean().default(true),
   /** Par défaut : brouillon. Rien n'est public tant que l'administrateur ne le décide pas. */
   published: z.boolean().default(false),
+  /** Sortie planifiée (ISO 8601 avec fuseau) : le programme, tant qu'il est brouillon, devient public à cette date. */
+  publishAt: z.string().datetime({ offset: true }).nullable().default(null),
+  /** Retrait planifié : un programme public repasse en brouillon à cette date. */
+  unpublishAt: z.string().datetime({ offset: true }).nullable().default(null),
+  /** Montrer la fiche résumée dans « Prochainement » avant la sortie (exige `publishAt`). */
+  announced: z.boolean().default(false),
   themes: z.array(slug).max(30).default([]),
   seasons: z.array(season).max(100).default([]),
 }).strict().superRefine((value, ctx) => {
+  if (value.publishAt && value.published) ctx.addIssue({ code: 'custom', message: 'Un programme déjà public n’a pas de date de sortie : retirez « publishAt » ou repassez-le en brouillon.' });
+  if (value.announced && !value.publishAt) ctx.addIssue({ code: 'custom', message: 'Une annonce « Prochainement » exige une date de sortie.' });
+  if (value.publishAt && value.unpublishAt && Date.parse(value.publishAt) >= Date.parse(value.unpublishAt)) ctx.addIssue({ code: 'custom', message: 'Le retrait doit être postérieur à la sortie.' });
   const numbers = new Set<number>();
   const keys = new Set<string>();
   for (const s of value.seasons) {

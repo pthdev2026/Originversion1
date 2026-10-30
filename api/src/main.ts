@@ -10,6 +10,7 @@ import { migrate } from './platform/database/migrate.ts';
 import { createLogger } from './platform/logger.ts';
 import { createLogMailer, createResendMailer } from './platform/mail.ts';
 import { StorageLayout } from './platform/storage/layout.ts';
+import { runSchedule } from './modules/catalog/routes.ts';
 import { purgeExpired } from './modules/ops/maintenance.repository.ts';
 import { createAccountService } from './modules/account/service.ts';
 import { createIdentityService } from './modules/identity/service.ts';
@@ -146,6 +147,15 @@ const maintain = () => purgeExpired(sql, config.retention).then(
 setTimeout(() => void maintain(), 30_000).unref(); // un premier passage peu après le démarrage
 const purgeTimer = setInterval(() => void maintain(), 60 * 60 * 1000);
 purgeTimer.unref();
+
+// Programmation éditoriale : toutes les 30 s, publie/retire les programmes dont la date prévue est arrivée.
+const tickSchedule = () => runSchedule(sql).then(
+  done => (done.released.length > 0 || done.expired.length > 0) && logger.info(done, 'programmation : sorties et retraits appliqués'),
+  error => logger.error({ err: error }, 'programmation impossible'),
+);
+setTimeout(() => void tickSchedule(), 5_000).unref();
+const scheduleTimer = setInterval(() => void tickSchedule(), 30_000);
+scheduleTimer.unref();
 
 // 4. Arrêt propre : on finit les requêtes en cours, puis on ferme la base.
 let stopping = false;

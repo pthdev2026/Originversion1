@@ -7,11 +7,11 @@ import { isValidId } from '../../platform/storage/layout.ts';
 import { requireAdmin } from '../identity/middleware.ts';
 import { insertAudit } from '../identity/repository.ts';
 import {
-  deleteCollection, deleteCreator, listCatalogAudit, deleteProgram, deleteTheme, getCreatorForAdmin, getProgramForAdmin, listAllForAdmin, listCreatorsForAdmin, replaceCreatorContents,
+  applySchedule, deleteCollection, deleteCreator, listCatalogAudit, listSchedule, deleteProgram, deleteTheme, getCreatorForAdmin, getProgramForAdmin, listAllForAdmin, listCreatorsForAdmin, replaceCreatorContents,
   upsertCollection, upsertCreator, upsertProgram, upsertTheme,
 } from './admin.ts';
 import {
-  foldQuery, loadSearchVocabulary, suggest, getCollection, getCreatorUniverse, getHome, getProgramDetail, listCreators, listProgramsByTheme, listThemes, searchCreators, searchPrograms,
+  foldQuery, listComingSoon, loadSearchVocabulary, suggest, getCollection, getCreatorUniverse, getHome, getProgramDetail, listCreators, listProgramsByTheme, listThemes, searchCreators, searchPrograms,
 } from './content.ts';
 import { correctTokens } from './search.ts';
 import { listPlayablePrograms } from './repository.ts';
@@ -25,6 +25,14 @@ import { collectionSchema, creatorContentsSchema, creatorSchema, parseBody, prog
  */
 const PUBLIC_CACHE = 'public, max-age=30, stale-while-revalidate=120';
 const cacheable = (c: { header: (name: string, value: string) => void }) => c.header('Cache-Control', PUBLIC_CACHE);
+
+/** Applique le calendrier éditorial (sorties/retraits arrivés à échéance) et le consigne au journal d'audit. */
+export async function runSchedule(sql: Sql, now?: Date): Promise<{ released: string[]; expired: string[] }> {
+  const done = await applySchedule(sql, now);
+  for (const slug of done.released) await insertAudit(sql, { userId: null, event: 'catalog.program.release', requestId: null, details: { slug } });
+  for (const slug of done.expired) await insertAudit(sql, { userId: null, event: 'catalog.program.expire', requestId: null, details: { slug } });
+  return done;
+}
 
 export function catalogRoutes(deps: { sql: Sql; cacheTtlMs?: number }): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
@@ -154,6 +162,20 @@ export function catalogRoutes(deps: { sql: Sql; cacheTtlMs?: number }): Hono<App
     const action = c.req.method === 'DELETE' ? 'delete' : target[3] ? 'contents' : 'save';
     await insertAudit(deps.sql, { userId: c.get('user')?.id ?? null, event: `catalog.${kind}.${action}`, requestId: c.get('requestId') ?? null, details: { slug: target[2] } })
       .catch(() => undefined); // un journal en panne ne doit jamais faire échouer une modification déjà faite
+  });
+
+  // « Prochainement » : sorties annoncées (fiche résumée seulement, jamais de lecture avant la date).
+  routes.get('/api/coming-soon', async c => {
+    const limit = Math.min(Math.max(Number(c.req.query('limit') ?? 20) || 20, 1), 50);
+    const programs = await cached(`coming-soon:${limit}`, () => listComingSoon(deps.sql, limit));
+    cacheable(c);
+    return c.json({ programs });
+  });
+
+  // Calendrier éditorial (sorties et retraits à venir) — administrateur.
+  routes.get('/api/admin/schedule', async c => {
+    requireAdmin(c);
+    return c.json({ entries: await listSchedule(deps.sql) });
   });
 
   // Journal des modifications du catalogue (les plus récentes d'abord). `?before=<id>` pour la page suivante.

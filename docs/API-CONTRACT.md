@@ -1,4 +1,4 @@
-# ORIGIN — Contrat d'API (v1.8, 30/10/2026)
+# ORIGIN — Contrat d'API (v1.9, 30/10/2026)
 
 Propriétaire : l'agent back-end. Toute modification est annoncée ici avant d'être déployée.
 Limites : 120 requêtes par minute et par adresse IP sur `/api/*` ; en-têtes `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
@@ -460,6 +460,17 @@ Application d'authentification standard (Google Authenticator, Microsoft Authent
   "catalogHealth": { "published": 36, "playable": 2, "publishedWithoutMedia": ["…"] } }
 ```
 Une « lecture » = session d'au moins 10 s. Agrégats uniquement : aucun identifiant de compte ni e-mail.
+
+## Programmation des sorties (disponible — v1.9)
+
+Le document d'un programme (`PUT /api/admin/programs/:slug`, relu par `GET /api/admin/programs/:slug`) gagne trois champs :
+`publishAt` (ISO 8601 avec fuseau, ex. `2026-12-01T18:00:00+01:00`) · `unpublishAt` · `announced`. Règles : `publishAt` seulement pour un **brouillon** (`published: false`) ; `announced: true` exige `publishAt` ; `unpublishAt` doit suivre `publishAt` ; `400` sinon.
+Une tâche du serveur (toutes les 30 s) publie les brouillons dont `publishAt` est passé (le champ est alors vidé) et repasse en brouillon les programmes dont `unpublishAt` est passé. Chaque bascule est tracée dans `GET /api/admin/audit` (`catalog.program.release` / `catalog.program.expire`). Délai de visibilité côté public : jusqu'à ~1 minute (tâche + cache de 30 s).
+
+| Route | Description |
+|---|---|
+| `GET /api/coming-soon?limit=20` | Public : `{programs: [{slug, title, kind, tagline, image, imageAlt, releaseAt}]}` — programmes **annoncés**, du plus proche au plus lointain. Fiche résumée seulement : `GET /api/programs/:slug` et la lecture restent en `404` jusqu'à la sortie |
+| `GET /api/admin/schedule` | Administrateur : calendrier `{entries: [{slug, title, kind, event: "release"\|"expiry", at, announced}]}` en ordre chronologique |
 
 ## Recherche intelligente et sécurité de connexion (disponible — v1.7)
 

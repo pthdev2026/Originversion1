@@ -36,6 +36,9 @@ export interface ProgramInput {
   titleStyle: 'condensed' | 'serif' | 'bebas' | 'italic-serif' | null;
   isDemo: boolean;
   published: boolean;
+  publishAt: string | null;
+  unpublishAt: string | null;
+  announced: boolean;
   themes: string[];
   seasons: {
     number: number;
@@ -53,12 +56,12 @@ export async function upsertProgram(sql: Sql, slug: string, input: ProgramInput)
     await tx`
       INSERT INTO programs (slug, kind, title, title_lines, tagline, synopsis, category, duration_label, year, language, rating,
                             presenter, genres, keywords, badges, poster_url, hero_url, logo_url, hero_video_url, trailer_url, image_alt,
-                            image_focus, title_style, is_demo, published)
+                            image_focus, title_style, is_demo, published, publish_at, unpublish_at, announced)
       VALUES (${slug}, ${input.kind}, ${input.title}, ${textArray(tx, input.titleLines)}, ${input.tagline}, ${input.synopsis},
               ${input.category}, ${input.durationLabel}, ${input.year}, ${input.language}, ${input.rating}, ${input.presenter},
               ${textArray(tx, input.genres)}, ${textArray(tx, input.keywords)}, ${textArray(tx, input.badges)}, ${input.posterUrl}, ${input.heroUrl}, ${input.logoUrl},
               ${input.heroVideoUrl}, ${input.trailerUrl}, ${input.imageAlt}, ${input.imageFocus}, ${input.titleStyle},
-              ${input.isDemo}, ${input.published})
+              ${input.isDemo}, ${input.published}, ${input.publishAt ? new Date(input.publishAt) : null}, ${input.unpublishAt ? new Date(input.unpublishAt) : null}, ${input.announced})
       ON CONFLICT (slug) DO UPDATE SET
         kind = EXCLUDED.kind, title = EXCLUDED.title, title_lines = EXCLUDED.title_lines, tagline = EXCLUDED.tagline,
         synopsis = EXCLUDED.synopsis, category = EXCLUDED.category, duration_label = EXCLUDED.duration_label, year = EXCLUDED.year,
@@ -66,7 +69,8 @@ export async function upsertProgram(sql: Sql, slug: string, input: ProgramInput)
         badges = EXCLUDED.badges, poster_url = EXCLUDED.poster_url, hero_url = EXCLUDED.hero_url, logo_url = EXCLUDED.logo_url,
         hero_video_url = EXCLUDED.hero_video_url, trailer_url = EXCLUDED.trailer_url, image_alt = EXCLUDED.image_alt,
         image_focus = EXCLUDED.image_focus, title_style = EXCLUDED.title_style, is_demo = EXCLUDED.is_demo,
-        published = EXCLUDED.published, updated_at = now()`;
+        published = EXCLUDED.published, publish_at = EXCLUDED.publish_at, unpublish_at = EXCLUDED.unpublish_at, announced = EXCLUDED.announced,
+        updated_at = now()`;
 
     // Saisons et épisodes : remplacés d'un bloc (les médias, eux, sont rattachés par identifiant de lecture).
     await tx`DELETE FROM seasons WHERE program_slug = ${slug}`;
@@ -225,7 +229,7 @@ export async function getProgramForAdmin(sql: Sql, slug: string): Promise<AdminP
     category: string | null; duration_label: string | null; year: number | null; language: string | null; rating: string | null;
     presenter: string | null; genres: string[]; keywords: string[]; badges: string[]; poster_url: string | null; hero_url: string | null; logo_url: string | null;
     hero_video_url: string | null; trailer_url: string | null; image_alt: string | null; image_focus: string | null;
-    title_style: ProgramInput['titleStyle']; is_demo: boolean; published: boolean; created_at: Date; updated_at: Date;
+    title_style: ProgramInput['titleStyle']; is_demo: boolean; published: boolean; publish_at: Date | null; unpublish_at: Date | null; announced: boolean; created_at: Date; updated_at: Date;
   }[]>`SELECT * FROM programs WHERE slug = ${slug} AND kind <> 'brand'`;
   if (!p) return null;
 
@@ -253,6 +257,7 @@ export async function getProgramForAdmin(sql: Sql, slug: string): Promise<AdminP
       genres: p.genres, keywords: p.keywords, badges: p.badges, posterUrl: p.poster_url, heroUrl: p.hero_url, logoUrl: p.logo_url,
       heroVideoUrl: p.hero_video_url, trailerUrl: p.trailer_url, imageAlt: p.image_alt, imageFocus: p.image_focus,
       titleStyle: p.title_style, isDemo: p.is_demo, published: p.published,
+      publishAt: p.publish_at?.toISOString() ?? null, unpublishAt: p.unpublish_at?.toISOString() ?? null, announced: p.announced,
       themes: themes.map(row => row.theme_slug),
       seasons: seasons.map(season => ({
         number: season.number,
@@ -346,4 +351,32 @@ export async function listCatalogAudit(sql: Sql, limit: number, before: number |
     FROM audit_log a LEFT JOIN users u ON u.id = a.user_id
     WHERE a.event LIKE 'catalog.%' ${before ? sql`AND a.id < ${before}` : sql``}
     ORDER BY a.id DESC LIMIT ${limit}`;
+}
+
+// ---- Programmation : sorties et retraits planifiés -------------------------------------------------------------------------------
+
+/**
+ * Applique les dates prévues : publie les brouillons dont la sortie est arrivée, retire les programmes dont le retrait est arrivé.
+ * Idempotent et sans risque si plusieurs instances l'exécutent en même temps (chaque ligne n'est basculée qu'une fois).
+ */
+export async function applySchedule(sql: Sql, now: Date = new Date()): Promise<{ released: string[]; expired: string[] }> {
+  const released = await sql<{ slug: string }[]>`
+    UPDATE programs SET published = true, publish_at = NULL, announced = false, updated_at = now()
+    WHERE NOT published AND publish_at IS NOT NULL AND publish_at <= ${now} RETURNING slug`;
+  const expired = await sql<{ slug: string }[]>`
+    UPDATE programs SET published = false, unpublish_at = NULL, updated_at = now()
+    WHERE published AND unpublish_at IS NOT NULL AND unpublish_at <= ${now} RETURNING slug`;
+  return { released: released.map(row => row.slug), expired: expired.map(row => row.slug) };
+}
+
+export interface ScheduleEntry { slug: string; title: string; kind: string; event: 'release' | 'expiry'; at: string; announced: boolean }
+
+/** Calendrier éditorial : toutes les sorties et tous les retraits à venir, dans l'ordre chronologique. */
+export async function listSchedule(sql: Sql): Promise<ScheduleEntry[]> {
+  const rows = await sql<{ slug: string; title: string; kind: string; event: 'release' | 'expiry'; at: Date; announced: boolean }[]>`
+    SELECT slug, title, kind, 'release' AS event, publish_at AS at, announced FROM programs WHERE publish_at IS NOT NULL AND kind <> 'brand'
+    UNION ALL
+    SELECT slug, title, kind, 'expiry', unpublish_at, false FROM programs WHERE unpublish_at IS NOT NULL AND kind <> 'brand'
+    ORDER BY at, title`;
+  return rows.map(row => ({ slug: row.slug, title: row.title, kind: row.kind, event: row.event, at: row.at.toISOString(), announced: row.announced }));
 }

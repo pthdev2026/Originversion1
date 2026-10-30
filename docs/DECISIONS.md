@@ -200,3 +200,8 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Migration 018 : repères d'intro et de générique par média, saisis au back-office (`PUT /api/admin/media/:id/markers`)
 - ✅ Réponse de lecture enrichie : `content`, `resume` (respecte « historique »), `markers`, `next` ; nouvelle route `GET /api/programs/:slug/play-target` (Lecture / Reprendre / Épisode suivant en un appel)
 - 🟡 Reste : lecture Mux `signed` avec une vraie clé, vrai film, audio multiple (décision), miniatures de la barre de lecture (storyboard Mux)
+
+## Programmation des sorties (30/10/2026)
+- ✅ Migration 019 : sortie planifiée, retrait planifié, annonce « Prochainement ». `published` reste l'unique interrupteur lu par tout le catalogue (accueil, recherche, lecture, recommandations) ; une tâche de 30 s le bascule aux dates prévues → aucune requête du catalogue n'a changé, donc aucun risque d'oubli
+- ✅ `GET /api/coming-soon` (public), `GET /api/admin/schedule` (calendrier), traces `catalog.program.release|expire` dans le journal
+- 🟡 Le fuseau horaire vient de la date saisie (ISO avec décalage) ; le back-office devra proposer le fuseau de Paris par défaut
