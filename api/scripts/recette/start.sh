@@ -42,9 +42,13 @@ for s in le-silence les-passagers derniere-sortie teaser-origin un-nouveau-matin
   $A -d "{\"kind\":\"film\",\"title\":\"$s\",\"tagline\":\"Accroche de recette\",\"synopsis\":\"Synopsis de recette.\",\"category\":\"Film original\",\"published\":true,\"isDemo\":true}" localhost:$API_PORT/api/admin/programs/$s >/dev/null
 done
 $A -d '{"title":"À l’affiche","layout":"hero","homePosition":0,"published":true,"items":["le-silence","les-passagers","derniere-sortie","teaser-origin","un-nouveau-matin","le-trone","les-choisis","la-reine-guerriere","lintervention","ligne-rouge"]}' localhost:$API_PORT/api/admin/collections/hero >/dev/null
-# Média prêt : le film de 15 min déjà encodé en développement (fichiers HLS partagés en lecture seule).
-DUR=$(python3 -c "import json;print(json.load(open('$ROOT/storage/videos/hls/le-silence/meta.json')).get('durationSeconds',900))" 2>/dev/null || echo 900)
-sqlrun "$RECETTE_URL" "INSERT INTO media_assets (playback_id, program_slug, status, storage_path, duration_seconds, source_width, source_height, renditions) VALUES ('le-silence','le-silence','ready','le-silence',$DUR,1920,1080,'[]'::jsonb)" >/dev/null
+# Médias prêts : les films déjà encodés en développement (fichiers HLS partagés en LECTURE SEULE) dont le programme existe en recette.
+for meta in "$ROOT"/storage/videos/hls/*/meta.json; do
+  id=$(basename "$(dirname "$meta")")
+  case "$id" in le-silence|les-passagers|derniere-sortie|teaser-origin|un-nouveau-matin|le-trone|les-choisis|la-reine-guerriere|lintervention|ligne-rouge) ;; *) continue;; esac
+  DUR=$(python3 -c "import json;print(json.load(open('$meta'))['source']['durationSeconds'])" 2>/dev/null || echo 900)
+  sqlrun "$RECETTE_URL" "INSERT INTO media_assets (playback_id, program_slug, status, storage_path, duration_seconds, source_width, source_height, renditions) VALUES ('$id','$id','ready','$id',$DUR,1920,1080,'[]'::jsonb)" >/dev/null && echo "média de recette : $id (${DUR}s)"
+done
 
 # Page de test (origine DIFFÉRENTE de l'API, même site : comme le vrai front) + hls.js (copie du front, lecture seule).
 mkdir -p "$RECETTE_DIR/bench"; cp "$API_DIR/scripts/recette/bench.html" "$RECETTE_DIR/bench/index.html"

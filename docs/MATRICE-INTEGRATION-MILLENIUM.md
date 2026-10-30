@@ -42,7 +42,7 @@ Agent : **F** = front · **B** = back-end · **BO** = back-office. Preuve : « E
 | `origin-hero` | Sélectionner un autre programme | — (état local) | `active.id` | — | — | F | **VÉRIFIÉ MILLENIUM** (le bouton Ma liste suit le programme actif) | E1 : Silence ↔ Passagers, état du bouton correct à chaque fois |
 | `origin-hero` (mobile) | **Ma liste** | `PUT/DELETE /api/me/list/:slug`, `GET /api/me/list` | slug | oui | my_list | F + B | **VÉRIFIÉ MILLENIUM** | E1 : ajout → ligne en base ; actualisation → bouton restauré ; retrait possible |
 | `origin-hero` (visiteur) | Ma liste sans compte | — | — | non | — | F | **VÉRIFIÉ MILLENIUM** (renvoi vers `/connexion`) | E1 |
-| `origin-hero` (ordinateur) | Ma liste | — | — | — | — | F | **Absent** : le bouton « Ma liste » n'existe que dans la disposition mobile (`hero-trio`) ; sur ordinateur seuls « Regarder maintenant » et « Voir la bande-annonce » apparaissent | lecture du code |
+| `origin-hero` (ordinateur) | **Ma liste** | `PUT/DELETE /api/me/list/:slug` | — | oui | my_list | F + B | **VÉRIFIÉ MILLENIUM** (jalon 3 : bouton « Ma liste » ajouté à côté de « Voir la bande-annonce », même gabarit ; clic retenu tant que la session n'est pas connue) | E2 : ajout → ligne en base, retrait, clic dès l'hydratation appliqué après chargement |
 | `origin-hero` | **Regarder** | navigation `/production/$slug` | `active.id` | non | — | F | **VÉRIFIÉ MILLENIUM** pour la navigation et la lecture des programmes ayant un média (voir 2.5) | E0 (essai du 30/10, branche de l'agent front) |
 | `origin-hero` | Infos | — (fiche locale) | titre, synopsis | non | — | F | **Simulé** (données locales) | — |
 | `origin-hero` | Bande-annonce | `heroVideoUrl` local | vidéo d'ambiance | non | programs | F + BO | **Simulé** · gestion serveur **Absente** (seul `heroVideoUrl`) | — |
@@ -52,7 +52,7 @@ Agent : **F** = front · **B** = back-end · **BO** = back-office. Preuve : « E
 |---|---|---|---|---|---|---|---|
 | Accueil : Top 10, rails, suggestions, thématiques, créateurs, univers | Afficher les collections | `GET /api/home`, `/api/collections/:slug`, `/api/themes` | non | collections, programs, themes, creators | F | **Simulé** (modules `origin-*.ts`) · API seule. Vérifié : les titres du Top 10 (`gladiator`, `damnes`, `acteurs`, `au-dela`) **existent** dans le catalogue du serveur de développement (200) ; la base de **recette** ne contient que les 10 programmes de la Hero, donc leur ajout y serait refusé (404) — à compléter avant de recetter le Top 10 | vérification d'identifiants |
 | Accueil | « Pour vous » | `GET /api/recommendations` | facultative | watch_progress, user_themes | F | **Simulé** · API seule | API testée |
-| Accueil / `/continuer` | Continuer à regarder | `GET /api/me/continue-watching` | oui | watch_progress | F | **Simulé** (`demo-space.progress`) · Recette indépendante | recette 28/28 |
+| `/continuer` | Continuer à regarder (liste, « Reprendre », « Marquer comme vu », « Retirer », annuler) | `GET /api/me/continue-watching`, `PUT/DELETE /api/me/progress/:id` | oui | watch_progress | F + B | **VÉRIFIÉ MILLENIUM** pour l'affichage et la mise à jour après lecture (« 23 % · Il reste 12 min », sortie de la liste à la fin) ; retirer / marquer comme vu / annuler : code branché et testé (faux serveur), non démontré dans l'écran | E2 + tests |
 | `search-overlay` | Rechercher, suggestions, correction de fautes | `GET /api/search`, `/api/search/suggestions` | non | programs | F | **Simulé** (`searchCatalog` local) · API seule | API testée |
 | `/production/$slug` | Fiche, saisons, épisodes | `GET /api/programs/:slug` | non | programs, seasons, episodes | F | **Simulé** (`productions.ts`, `watch-catalog.ts`) · API seule | — |
 | `/production/$slug` | Ma liste (bouton de la fiche) | idem 2.2 | oui | my_list | F | Partiel (même magasin que la Hero, non démontré sur cette page) | tests faux serveur |
@@ -72,8 +72,8 @@ Agent : **F** = front · **B** = back-end · **BO** = back-office. Preuve : « E
 | Composant | Action | Route · méthode | Auth | Tables | Resp. | Statut | Preuve |
 |---|---|---|---|---|---|---|---|
 | `playback-experience` | Démarrer la lecture | `GET /api/programs/:id/playback` + HLS signé | selon `PLAYBACK_REQUIRES_LOGIN` | media_assets | F | **VÉRIFIÉ MILLENIUM** (film de 15 min, 1920×1080, pause, saut, fin, aucune erreur) | E0 |
-| idem | Progression périodique et à la fermeture | `PUT /api/me/progress/:playbackId` | oui | watch_progress | F | **Non branché** · Recette indépendante (28/28 dont fermeture de page) | recette |
-| idem | Reprise (`resume`) | champ de `/playback` | oui | watch_progress | F | **Non branché** · Recette indépendante | recette |
+| idem | Progression périodique, pause, saut, fin, fermeture de page, sortie du lecteur | `PUT /api/me/progress/:playbackId` | oui | watch_progress | F + B | **VÉRIFIÉ MILLENIUM** (ordinateur et mobile) | E2 : envoi à 12 s sans pause ; pause → 203,6 s exactes en base ; navigation complète en lecture → +1,9 s enregistrées (keepalive) ; fin → `completed`, 900 s ; film de 85 min : saut à 2 500 s, pause → 2 504,6 s |
+| idem | Reprise (`resume`) | champ de `/playback` | oui | watch_progress | F + B | **VÉRIFIÉ MILLENIUM** | E2 : reprise à 204,6 s (enregistré 203,6) ; film de 85 min repris à 2 504,6 s puis 1 814,8 s ; après fin → repart à 0,1 s ; après déconnexion/reconnexion → 34 % restauré |
 | idem | Ident, repères d'intro, épisode suivant, sous-titres | champs de `/playback` | non | media_assets, subtitle_tracks | F | **Non branché** · API seule | API testée |
 | idem | Choix de langue audio | — | — | — | — | **Absent** côté serveur ; l'écran le présente → à retirer | — |
 | idem | Expiration du lien / erreurs | `403`, `expiresAt` | — | — | F | Partiel (`playback-recovery.ts` existe) | tests front |
@@ -111,10 +111,10 @@ Données de la Hero, du Top 10, des rails, des suggestions, des univers, des cr�
 ### Bugs et écarts connus
 | # | Écart | Gravité | Responsable |
 |---|---|---|---|
-| 1 | Pas de bouton « Ma liste » dans la Hero **sur ordinateur** | Élevée (le cahier le demande) | F |
+| 1 | ~~Pas de bouton « Ma liste » dans la Hero sur ordinateur~~ → **corrigé** (jalon 3, branche d'intégration) | — | F |
 | 2 | La base de **recette** ne contient que 10 programmes : ajouter les titres du Top 10 et des rails à l'amorçage de recette avant de les tester (le catalogue de développement, lui, les contient) | Moyenne | B |
-| 3 | Progression/reprise/ident/sous-titres/suivant non lus par le lecteur | Élevée | F |
-| 4 | Après actualisation, l'état « Ma liste » met ≈ 4 s à apparaître (build de développement : hydratation + session + liste) | Faible (à re-mesurer en production) ; prévoir un état neutre pendant le chargement | F |
+| 3 | Progression et reprise : **corrigé** (jalon 3). Restent non lus par le lecteur : ident, repères d'intro, épisode suivant (les sous-titres sont lus par le nouveau lecteur de l'agent front) | Moyenne | F |
+| 4 | Après actualisation, l'état « Ma liste » met ≈ 4 s à apparaître (le clic pendant ce délai est désormais retenu et appliqué) (build de développement : hydratation + session + liste) | Faible (à re-mesurer en production) ; prévoir un état neutre pendant le chargement | F |
 | 5 | « Se souvenir de moi » est ignoré : la durée de session est décidée par le serveur (30 jours) | Faible | F (retirer ou relier) |
 | 6 | Soumission du formulaire avant hydratation = rechargement de la page (les champs n'ont pas d'attribut `name`, rien ne fuit dans l'URL) | Faible | F |
 | 7 | Les cookies ignorent le port : deux API sur `localhost` partagent la session | Info | B (documenté) |
@@ -129,3 +129,20 @@ Données de la Hero, du Top 10, des rails, des suggestions, des univers, des cr�
 1. Jalon 3 : brancher la progression et la reprise dans le lecteur (branche d'intégration, même méthode : magasin + tests + preuve navigateur).
 2. Jalon 4 : remplacer l'accueil statique par `GET /api/home` ; compléter l'amorçage de la base de recette avec le catalogue complet.
 3. Remonter à l'agent front le point n°1 (bouton Ma liste sur ordinateur).
+
+## 6. Jalon 3 — compte rendu (30/10/2026, soir)
+**Preuve E2** — branche `integration/backend-hero` (tip `43fb5ca`, contient le dernier commit de l'agent front `666af6b` : nouveau lecteur), front `:3211`, API de recette `:4020` (base jetable supprimée à la fin), comptes `*@origin.test` jetables. **Ordinateur 1366×800 et mobile 375×812.**
+- **Ordinateur, Alice** : inscription par le formulaire → Hero « Ma liste » (bouton desktop) → « Regarder maintenant » → fiche → « Regarder » → lecture HLS (900 s) → progression envoyée toutes les 12 s **sans aucune pause** → saut → **pause par le bouton du lecteur : 203,6 s en base** → « Retour au programme » → `/continuer` : « Le Silence · 23 % · Il reste 12 min » → « Regarder » : **la lecture repart à 204,6 s** → **navigation de page complète en cours de lecture : 223,1 s en base** (la page a quitté à 221,2 s) → fin du film : `completed`, 900 s, retiré de « Continuer », bouton « rewatch » → nouvelle lecture repart à 0,1 s → pause à 303,2 s → **déconnexion par l'interface → reconnexion → `/continuer` : 34 % · Il reste 10 min**.
+- **Mobile, Bob** : inscription → liste, progression, « Continuer » **vides**, bouton « start » → trio « Ma liste » sur Les Passagers → **film de 85 min** : durée 85,1 min, saut à 2 500 s, pause → 2 504,6 s en base (durée serveur 5 103,3 s) → `/continuer` : « Les Passagers · 49 % · Il reste 44 min » → reprise exactement à 2 504,6 s.
+- **Isolation (lue en base)** : Alice `{le-silence 303,2 s ; liste le-silence}`, Bob `{les-passagers 2 504,6 s ; liste les-passagers}` — aucune ligne croisée.
+- **Session expirée pendant la lecture** (session de Bob invalidée côté serveur) : la vidéo continue sans interruption (42 s observées), aucune alerte, les envois s'arrêtent après les 401 (3 requêtes au total, pas de boucle).
+- **Nouveau lecteur de l'agent front** (commandes TV, pastilles de qualité) : pause 1 814,8 s en base, reprise à 1 814,8 s — **aucune régression** après fusion.
+- **Tests** : front **51/51**, typage sans erreur ; back-end **280/280**.
+
+### Limites du jalon 3 (déclarées)
+- Aucun message visible quand la session expire pendant la lecture : la progression s'arrête sans bruit jusqu'à la reconnexion (à proposer à l'agent front : toast non bloquant).
+- Le bouton de la fiche programme reste « Regarder » même quand un `resume` existe (la lecture, elle, reprend bien) ; `GET /api/programs/:slug/play-target` peut fournir le libellé « Reprendre ».
+- « Retirer » / « Marquer comme vu » / « Annuler » de `/continuer` : branchés et testés avec un faux serveur, non cliqués dans l'écran.
+- Non branchés : ident de marque, « Passer l'intro », épisode suivant, choix audio (absent côté serveur).
+- Séries (plusieurs épisodes) : non testées dans l'interface (aucun programme-série avec médias en recette).
+- Navigateur : Chromium seulement ; Safari/Firefox non testés (l'envoi `keepalive` à la fermeture y est le point à surveiller).

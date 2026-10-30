@@ -231,3 +231,10 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Authentification réelle et « Ma liste » persistée par l'API, **vérifiées dans l'interface MILLENIUM** (branche locale `integration/backend-hero` du dépôt front, non fusionnée, non publiée) ; deux comptes isolés ; base de recette jetable
 - ✅ Matrice et tableau de suivi : `docs/MATRICE-INTEGRATION-MILLENIUM.md`
 - 🟡 Reste simulé dans MILLENIUM : accueil/rails, fiches, recherche, Continuer à regarder, espace (photo, appareils, préférences), progression et reprise du lecteur ; bouton « Ma liste » absent de la Hero sur ordinateur
+
+## Jalon 3 — lecture, progression et reprise dans MILLENIUM (30/10/2026)
+- ✅ Progression et reprise **réelles** dans le lecteur de MILLENIUM, vérifiées sur ordinateur et mobile, deux comptes isolés, film de 15 min et film de 85 min, y compris fin de programme, sortie du lecteur, fermeture de page (`keepalive`), session expirée en cours de lecture, déconnexion/reconnexion
+- ✅ « Continuer à regarder » issu du serveur ; bouton « Ma liste » de la Hero sur ordinateur ; clic retenu pendant le chargement de la session
+- ✅ Film réel de 85 min encodé **en local uniquement** : 4 qualités, 1 276 fichiers par qualité, durée 5 103,3 s partout, 6,0 Go ; tâche 13:57 → 17:24 (3 h 27, deux tentatives après un plantage du worker corrigé, machine partagée avec d'autres calculs)
+- ✅ Consolidation : la branche d'intégration contient le dernier commit de l'agent front (avance rapide possible) — procédure : `docs/CONSOLIDATION-FRONT-INTEGRATION.md`
+- 🟡 Pas encore dans la branche principale du front : en attente de la fusion par l'agent front
