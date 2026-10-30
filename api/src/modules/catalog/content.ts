@@ -230,13 +230,13 @@ export async function listThemes(sql: Sql): Promise<ThemeView[]> {
   return rows.map(row => ({ slug: row.slug, title: row.title, image: row.image_url, programCount: Number(row.count) }));
 }
 
-export async function listProgramsByTheme(sql: Sql, themeSlug: string): Promise<ProgramCard[] | null> {
+export async function listProgramsByTheme(sql: Sql, themeSlug: string, limit?: number): Promise<ProgramCard[] | null> {
   const [theme] = await sql`SELECT 1 FROM themes WHERE slug = ${themeSlug}`;
   if (!theme) return null;
   const rows = await sql<ProgramRow[]>`
     SELECT ${PROGRAM_COLUMNS(sql)} FROM programs p
     JOIN program_themes pt ON pt.program_slug = p.slug AND pt.theme_slug = ${themeSlug}
-    WHERE p.published AND p.kind <> 'brand' ORDER BY p.title`;
+    WHERE p.published AND p.kind <> 'brand' ORDER BY p.title ${limit ? sql`LIMIT ${limit}` : sql``}`;
   return rows.map(toCard);
 }
 
@@ -275,12 +275,17 @@ export async function listCreators(sql: Sql): Promise<CreatorView[]> {
 }
 
 /** Page d'accueil complète en UN appel : collections publiées placées sur l'accueil, thèmes, créateurs. */
-export async function getHome(sql: Sql): Promise<{ collections: CollectionView[]; themes: ThemeView[]; creators: CreatorView[] }> {
+/** Thématique de l'accueil : ses premiers programmes (10 au plus) accompagnent la thématique, même s'ils ne sont dans aucune collection. */
+export interface HomeThemeView extends ThemeView { programs: ProgramCard[] }
+const HOME_THEME_PROGRAMS = 10;
+
+export async function getHome(sql: Sql): Promise<{ collections: CollectionView[]; themes: HomeThemeView[]; creators: CreatorView[] }> {
   const rows = await sql<CollectionRow[]>`
     SELECT slug, title, layout, badge, view_all_url FROM collections
     WHERE published AND home_position IS NOT NULL ORDER BY home_position`;
   const [collections, themes, creators] = await Promise.all([loadCollections(sql, rows), listThemes(sql), listCreators(sql)]);
-  return { collections, themes, creators };
+  const withPrograms = await Promise.all(themes.map(async theme => ({ ...theme, programs: (await listProgramsByTheme(sql, theme.slug, HOME_THEME_PROGRAMS)) ?? [] })));
+  return { collections, themes: withPrograms, creators };
 }
 
 /** Texte de recherche → mots « pliés » (sans accents, minuscules), bornés. Même règle que `origin_fold` en base. */

@@ -1,4 +1,4 @@
-# ORIGIN — Contrat d'API (v1.12, 30/10/2026)
+# ORIGIN — Contrat d'API (v1.13, 30/10/2026)
 
 Propriétaire : l'agent back-end. Toute modification est annoncée ici avant d'être déployée.
 Limites : 120 requêtes par minute et par adresse IP sur `/api/*` ; en-têtes `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
@@ -246,7 +246,7 @@ Visuels (`GET /images/:slug/:file`, public, cache 24 h ; jpg, jpeg, png, webp, a
 ### Routes
 | Route | Réponse |
 |---|---|
-| `GET /api/home` | `{collections: Collection[], themes: Theme[], creators: Creator[]}` — **toute la page d'accueil en un appel**, collections dans l'ordre d'affichage |
+| `GET /api/home` | `{collections: Collection[], themes: Theme[], creators: Creator[]}` — **v1.13 : chaque `Theme` porte aussi `programs: ProgramCard[]` (ses 10 premiers programmes par ordre alphabétique, y compris ceux qui ne sont dans aucune collection de l'accueil)** — **toute la page d'accueil en un appel**, collections dans l'ordre d'affichage |
 | `GET /api/programs/:slug` | Fiche complète (voir ci-dessous) · `404` si inconnu ou brouillon |
 | `GET /api/collections/:slug` | `Collection` · `404` |
 | `GET /api/themes` | `{themes: [{slug, title, image, programCount}]}` |

@@ -163,6 +163,10 @@ describe('catalogue éditorial', () => {
     const home = await json(await send('GET', '/api/home'));
     assert.deepEqual(home.collections.map((c: any) => c.slug), ['top-10']);
     assert.equal(home.themes.length, 1);
+    // v1.13 : chaque thématique de l'accueil porte ses premiers programmes, même s'ils ne sont dans AUCUNE collection de l'accueil
+    assert.deepEqual(home.themes[0].programs.map((p: any) => p.slug), ['les-secrets']);
+    assert.ok(home.themes[0].programs[0].images !== undefined);
+    assert.ok(home.themes[0].programs.length <= 10);
   });
 
   it('créateurs : seuls les publiés sont visibles', async t => {
