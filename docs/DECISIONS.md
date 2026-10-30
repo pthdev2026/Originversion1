@@ -210,3 +210,9 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Vidéo de test de 15 min (1080p, 1,1 Go) : envoi tus → encodage (4 qualités) → disponible → lecture dans un navigateur réel (pause, reprise, saut au milieu, saut en fin, fin de lecture, aucune erreur) ; côté API : reprise à 7 min, bouton « Reprendre », « Continuer à regarder », film terminé → « rewatch »
 - 🟡 Le front n'envoie pas encore la progression : la reprise fonctionne côté API, pas encore dans l'interface
 - 🟡 Film réel de 85 min en cours d'encodage local ; même cycle à rejouer à la fin
+
+## Intégration de la Hero Section — côté back-end (30/10/2026)
+- ✅ `PUT /api/me/list/:slug` refuse un contenu inconnu/brouillon (404) ; plafond de 500 atomique (verrou par compte)
+- ✅ Isolation, idempotence, concurrence et persistance vérifiées par 9 tests et, en navigateur réel, par un parcours pilote + deuxième compte (CORS et cookies entre `localhost:3210` et `localhost:4000`)
+- ✅ Demandes d'intégration documentées : `docs/DEMANDES-INTEGRATION-HERO.md` (agent front F1–F9, agent back-office B1–B3)
+- 🟡 Aucun écran MILLENIUM n'est encore branché à ces routes : la Hero reste simulée tant que le front n'a pas traité F1–F5

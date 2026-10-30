@@ -18,3 +18,7 @@ Format : date · ce qui est voulu · pourquoi · forme souhaitée · statut.
 - (ancien statut : à confirmer)
 - **Voulu** : confirmer que `CORS_ORIGINS` contient `http://localhost:3210` et que l'API est servie en `http://localhost:4000` en local.
 - **Pourquoi** : le cookie `origin_session` exige le même site (`localhost`, pas `127.0.0.1`) ; le front passera sur `localhost`.
+
+## 2026-10-30 · Intégration de la Hero Section (demandes du back-end vers le front et le back-office) · statut : **ouvert**
+- **Voulu** : voir `docs/DEMANDES-INTEGRATION-HERO.md` (front F1–F9, back-office B1–B3), avec recette en navigateur sur deux comptes.
+- **Pourquoi** : la Hero est encore simulée (compte de démonstration, « Ma liste » en stockage navigateur) ; le back-end est prêt et vérifié (contrat v1.10).

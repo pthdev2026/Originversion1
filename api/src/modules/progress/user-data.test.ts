@@ -154,9 +154,14 @@ describe('reprise de lecture', () => {
   });
 });
 
+const putProgram = (slug: string, body: Record<string, unknown>) =>
+  send('PUT', `/api/admin/programs/${slug}`, { kind: 'serie', title: slug, ...body }, adminCookie);
+
 describe('ma liste', () => {
   it('ajoute sans doublon, liste, retire, et isole les comptes', async t => {
     if (!available) return t.skip('PostgreSQL injoignable');
+    await putProgram('deux-fois-oui', { published: true });
+    await putProgram('tout-recommencer', { published: true });
     assert.equal((await send('PUT', '/api/me/list/deux-fois-oui', undefined, alice)).status, 204);
     assert.equal((await send('PUT', '/api/me/list/deux-fois-oui', undefined, alice)).status, 204, 'idempotent');
     assert.equal((await send('PUT', '/api/me/list/tout-recommencer', undefined, alice)).status, 204);
@@ -175,8 +180,6 @@ describe('ma liste', () => {
 });
 
 describe('demandes du front du 16/10 (liste enrichie, progression par programme)', () => {
-  const putProgram = (slug: string, body: Record<string, unknown>) =>
-    send('PUT', `/api/admin/programs/${slug}`, { kind: 'serie', title: slug, ...body }, adminCookie);
   const asset = (id: string, slug: string) => registerAsset(sql, {
     playbackId: id, programSlug: slug, kind: 'serie', title: slug, storagePath: id, durationSeconds: 100,
     sourceWidth: 1280, sourceHeight: 720, renditions: [], preset: null, encodeSeconds: null, encodedAt: null, isDemo: true,
@@ -221,18 +224,24 @@ describe('demandes du front du 16/10 (liste enrichie, progression par programme)
     const dave = await signUp('dave@mail.fr');
     await putProgram('liste-ok', { published: true, tagline: 'Une accroche', category: 'Série originale' });
     await putProgram('liste-brouillon', { published: false });
-    for (const slug of ['liste-ok', 'liste-brouillon', 'liste-inconnu']) await send('PUT', `/api/me/list/${slug}`, undefined, dave);
+    await putProgram('liste-retire', { published: true });
+    for (const slug of ['liste-ok', 'liste-retire']) assert.equal((await send('PUT', `/api/me/list/${slug}`, undefined, dave)).status, 204);
+    assert.equal((await send('PUT', '/api/me/list/liste-brouillon', undefined, dave)).status, 404, 'un brouillon ne peut pas être ajouté');
+    assert.equal((await send('PUT', '/api/me/list/liste-inconnu', undefined, dave)).status, 404, 'un contenu inconnu non plus');
+    // Retiré (repassé en brouillon) APRÈS l'ajout : la ligne reste, sans fiche. Ligne orpheline (programme supprimé) : idem.
+    await putProgram('liste-retire', { published: false });
+    await sql`INSERT INTO my_list (user_id, slug, added_at) SELECT id, 'liste-inconnu', now() + interval '1 second' FROM users WHERE email = 'dave@mail.fr'`;
 
     const response = await send('GET', '/api/me/list', undefined, dave);
     assert.equal(response.status, 200);
     const body = (await response.json()) as { items: { slug: string; addedAt: string; program: { slug: string; title: string; tagline: string; playable: boolean } | null }[] };
-    assert.deepEqual(body.items.map(item => item.slug), ['liste-inconnu', 'liste-brouillon', 'liste-ok'], 'récents d’abord');
+    assert.deepEqual(body.items.map(item => item.slug), ['liste-inconnu', 'liste-retire', 'liste-ok'], 'récents d’abord');
     const ok = body.items.find(item => item.slug === 'liste-ok');
     assert.equal(ok?.program?.title, 'liste-ok');
     assert.equal(ok?.program?.tagline, 'Une accroche');
     assert.equal(ok?.program?.playable, false);
     assert.match(ok?.addedAt ?? '', /^\d{4}-\d{2}-\d{2}T/);
-    assert.equal(body.items.find(item => item.slug === 'liste-brouillon')?.program, null, 'un brouillon n’est jamais exposé');
+    assert.equal(body.items.find(item => item.slug === 'liste-retire')?.program, null, 'un contenu retiré n’est jamais exposé');
     assert.equal(body.items.find(item => item.slug === 'liste-inconnu')?.program, null);
     // Compatibilité : les anciens champs sont toujours là.
     assert.ok(body.items.every(item => typeof item.slug === 'string' && typeof item.addedAt === 'string'));

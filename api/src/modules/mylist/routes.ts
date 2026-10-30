@@ -6,7 +6,7 @@ import type { AppEnv } from '../../platform/http/types.ts';
 import { isValidId } from '../../platform/storage/layout.ts';
 import { getCards } from '../catalog/content.ts';
 import { requireUser } from '../identity/middleware.ts';
-import { addEntry, countEntries, listEntries, removeEntry } from './repository.ts';
+import { addEntry, listEntries, removeEntry } from './repository.ts';
 
 const MAX_ENTRIES = 500;
 
@@ -31,8 +31,9 @@ export function myListRoutes(deps: { sql: Sql }): Hono<AppEnv> {
   routes.put('/api/me/list/:slug', async c => {
     const user = requireUser(c);
     const slug = slugOf(c.req.param('slug'));
-    if ((await countEntries(deps.sql, user.id)) >= MAX_ENTRIES) throw errors.badRequest(`Votre liste ne peut pas dépasser ${MAX_ENTRIES} contenus.`);
-    await addEntry(deps.sql, user.id, slug);
+    // Seul un contenu publié peut être ajouté : pas de ligne fantôme. (Un contenu retiré APRÈS l'ajout reste dans la liste avec `program: null`.)
+    if ((await getCards(deps.sql, [slug])).size === 0) throw errors.notFound('Contenu introuvable.');
+    if ((await addEntry(deps.sql, user.id, slug, MAX_ENTRIES)) === 'full') throw errors.badRequest(`Votre liste ne peut pas dépasser ${MAX_ENTRIES} contenus.`);
     return c.body(null, 204);
   });
 
