@@ -175,3 +175,23 @@ Données de la Hero, du Top 10, des rails, des suggestions, des univers, des cr�
 - Épisodes sans média : la lecture répond « pas encore disponible » ; la fiche ne les marque pas encore comme tels (le serveur fournit `playable` par épisode).
 - Titre de l'onglet « Programme introuvable » pendant une panne (le serveur coupé est vu comme une fiche absente par le titre ; la page, elle, affiche bien l'erreur).
 - `/classement` et la recherche (F7, agent front) : non traités ici. Chromium seulement. Le Silence n'a pas de saison ni d'épisode « série » : un film est une saison d'un épisode (`feature`).
+
+## 9. Recette navigateur du 31/10/2026 — sommet front local `1449774` (mode TV, Hero tablette), API réelle + PostgreSQL jetable
+Environnement isolé (ports 4020/3211, base `origin_recette` supprimée ensuite), deux comptes `*@origin.test` jetables, desktop 1440×900 puis mobile 375×812. Tests front : 70/70, `tsc` propre.
+
+| Parcours | Desktop | Mobile | Preuve |
+|---|---|---|---|
+| Inscription | ✅ (formulaire, case conditions) | — | compte créé, écran « Bienvenue » |
+| Connexion | ✅ | ✅ (compte A, formulaire) | `/api/me` identifie le compte |
+| Déconnexion | ✅ (boîte de confirmation « Se déconnecter ») | ✅ (API) | `/api/me` → 401 |
+| Catalogue / collections | ✅ (Hero, Top 10, thématiques réels) | ✅ | requêtes `:4020`, aucun appel 127.0.0.1 |
+| Recherche | ✅ « pasagers » → « passagers » corrigé | ✅ « silance » → « silence » | `/api/search` |
+| Fiche programme | ✅ | ✅ | boutons Regarder/Reprendre/Ma liste |
+| Ma liste | ✅ ajout, persistance au rechargement | ✅ liste de A visible sur un autre appareil | `/api/me/list` |
+| Lecture | ✅ (85 min réel, HLS) | ✅ (reprise à ~34 s, 480p) | `video.currentTime`, pas en pause |
+| Progression / reprise | ✅ envoi pendant la lecture + à la fermeture | ✅ « Reprendre » repart de la position | `continue-watching` 22,7 s puis 41,8 s |
+| Continuer à regarder | ✅ (menu, page compte) | ✅ | compteur 1, « il reste 85 min » |
+| Espace personnel | ✅ `/compte` (profil, ma liste, continuer) | ✅ `/ma-liste` | texte de page |
+| Isolation 2 comptes | ✅ B : liste 0, reprises 0 | — | API |
+
+**Écarts constatés (front, non bloquants)** : (1) à l'ouverture d'une fiche, les boutons affichent « Regarder / Ajouter à ma liste » pendant 4–8 s en dev avant de passer à « Reprendre / Retirer » (session + liste chargées après coup) ; (2) la recherche ne tolère pas une faute DANS un mot incomplet (« passagr » → rien ; « pasagers » ou « passag » → ok) — amélioration back possible ; (3) le lecteur n'envoie pas encore la mesure de lecture (jeton v1.15 à brancher) ; (4) 5 commits front (mode TV, Hero tablette) existent seulement en local chez l'agent front : l'agent attend l'accord de son utilisateur pour pousser.
