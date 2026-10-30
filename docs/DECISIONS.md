@@ -216,3 +216,8 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Isolation, idempotence, concurrence et persistance vérifiées par 9 tests et, en navigateur réel, par un parcours pilote + deuxième compte (CORS et cookies entre `localhost:3210` et `localhost:4000`)
 - ✅ Demandes d'intégration documentées : `docs/DEMANDES-INTEGRATION-HERO.md` (agent front F1–F9, agent back-office B1–B3)
 - 🟡 Aucun écran MILLENIUM n'est encore branché à ces routes : la Hero reste simulée tant que le front n'a pas traité F1–F5
+
+## Banc de recette isolé (30/10/2026)
+- ✅ `api/scripts/recette/` : base jetable `origin_recette`, API :4020, page de test :4021, comptes `@origin.test` supprimés à la fin — remplace tout test sur la base ou les comptes de développement (leçon de l'incident `admin-test@origin.local`)
+- ✅ Parcours multi-comptes dans un navigateur réel : 28/28 (inscription, liste, double clic, actualisation, fermeture de page avec `keepalive`, reprise, déconnexion/reconnexion, second compte, nettoyage)
+- ✅ Tests ajoutés : session expirée en cours de lecture ; pré-requête CORS d'un `PUT` avec cookies

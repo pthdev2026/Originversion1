@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Banc de recette ORIGIN</title>
+<style>body{font:14px system-ui;margin:24px;background:#111;color:#eee}td,th{padding:4px 10px;border-bottom:1px solid #333;text-align:left}.ok{color:#6c6}.ko{color:#f66}video{width:320px;display:block;margin:8px 0}</style></head>
+<body><h1>Banc de recette ORIGIN — parcours multi-comptes (navigateur réel)</h1>
+<p id="state">…</p><video id="v" muted playsinline></video><table id="t"></table>
+<script src="./hls.min.js"></script>
+<script>
+// Cette page joue le rôle du front : AUTRE origine que l'API (même site « localhost »), cookies httpOnly, fetch avec credentials.
+const API = 'http://localhost:4020';
+const SLUG = 'le-silence';
+const S = JSON.parse(sessionStorage.getItem('recette') || 'null') || (() => { const id = Math.random().toString(36).slice(2, 8);
+  const s = { phase: 1, id, e1: `pilote-${id}@origin.test`, e2: `second-${id}@origin.test`, pw: `Rc9-${id}-trois-mots-Qw!`, checks: [] }; return s; })();
+const save = () => sessionStorage.setItem('recette', JSON.stringify(S));
+const check = (name, ok, detail = '') => { S.checks.push({ name, ok: !!ok, detail: String(detail) }); save(); };
+const api = async (method, path, body, extra = {}) => {
+  const r = await fetch(API + path, { method, credentials: 'include', headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, ...extra });
+  let d = null; try { d = await r.json(); } catch {} return { s: r.status, d };
+};
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const render = () => { document.getElementById('t').innerHTML = '<tr><th>Vérification</th><th></th><th>Détail</th></tr>' + S.checks.map(c => `<tr><td>${c.name}</td><td class="${c.ok ? 'ok' : 'ko'}">${c.ok ? 'OK' : 'ÉCHEC'}</td><td>${c.detail}</td></tr>`).join(''); };
+
+async function play(startAt) {
+  const info = (await api('GET', `/api/programs/${SLUG}/playback`)).d; const v = document.getElementById('v');
+  const hls = new Hls(); hls.loadSource(info.manifestUrl); hls.attachMedia(v);
+  await new Promise((res, rej) => { v.addEventListener('loadedmetadata', res, { once: true }); hls.on(Hls.Events.ERROR, (_, e) => e.fatal && rej(new Error(e.details))); setTimeout(() => rej(new Error('délai')), 15000); });
+  v.currentTime = startAt; await v.play(); const t0 = v.currentTime; await sleep(3500);
+  return { v, info, advanced: v.currentTime - t0 };
+}
+
+(async () => {
+  document.getElementById('state').textContent = `phase ${S.phase} — comptes ${S.e1} / ${S.e2}`;
+  try {
+    if (S.phase === 1) {
+      check('Aucune session au départ (cookies vidés)', (await api('GET', '/api/me')).s === 401);
+      check('Inscription du compte pilote', (await api('POST', '/api/auth/register', { email: S.e1, password: S.pw })).s === 201);
+      check('Cookie de session httpOnly (illisible par le script)', !document.cookie.includes('session'));
+      check('Session reconnue (GET /api/me)', (await api('GET', '/api/me')).d?.user?.email === S.e1);
+      const dbl = await Promise.all([api('PUT', `/api/me/list/${SLUG}`), api('PUT', `/api/me/list/${SLUG}`)]);
+      check('Ma liste : double clic simultané', dbl.every(x => x.s === 204), dbl.map(x => x.s).join('/'));
+      check('Ma liste : contenu inconnu refusé', (await api('PUT', '/api/me/list/inexistant')).s === 404);
+      check('Ma liste : une seule ligne', (await api('GET', '/api/me/list')).d.items.length === 1);
+      const before = (await api('GET', `/api/programs/${SLUG}/play-target`)).d;
+      check('Bouton principal avant lecture = start', before.state === 'start', before.state);
+      const { v, info, advanced } = await play(120);
+      check('Lecture HLS réelle (hls.js) démarrée à 120 s et avancée', advanced > 2, `+${advanced.toFixed(1)} s, ${v.videoWidth}×${v.videoHeight}`);
+      check('Ident / repères / suivant présents dans la réponse de lecture', info.ident && info.markers && 'next' in info && info.content?.programSlug === SLUG);
+      check('Progression périodique (PUT)', (await api('PUT', `/api/me/progress/${SLUG}`, { positionSeconds: v.currentTime - 1, durationSeconds: 900, sentAt: Date.now() })).s === 200);
+      window.__pos = v.currentTime;
+      S.phase = 2; S.unloadPos = v.currentTime; save();
+      // Fermeture de la page : l'envoi se fait pendant le déchargement, avec keepalive (cas réel d'un lecteur qu'on quitte).
+      const sendOnLeave = () => fetch(API + `/api/me/progress/${SLUG}`, { method: 'PUT', credentials: 'include', keepalive: true, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ positionSeconds: window.__pos + 1.5, durationSeconds: 900, sentAt: Date.now() }) });
+      window.addEventListener('pagehide', sendOnLeave); document.getElementById('state').textContent = 'rechargement de la page (fermeture simulée)…';
+      await sleep(300); location.reload(); return;
+    }
+    if (S.phase === 2) {
+      await sleep(500);
+      check('Après actualisation : session conservée', (await api('GET', '/api/me')).d?.user?.email === S.e1);
+      check('Après actualisation : Ma liste conservée', (await api('GET', '/api/me/list')).d.items.map(i => i.slug).join() === SLUG);
+      const pb = (await api('GET', `/api/programs/${SLUG}/playback`)).d;
+      const sentOnLeave = pb.resume && pb.resume.positionSeconds > S.unloadPos + 0.5;
+      check('Progression envoyée À LA FERMETURE de la page (fetch keepalive + CORS)', sentOnLeave, `reprise=${pb.resume?.positionSeconds} / dernière périodique=${(S.unloadPos - 1).toFixed(1)}`);
+      check('Reprise : /playback renvoie resume', pb.resume && pb.resume.positionSeconds > 100, pb.resume?.positionSeconds);
+      const tgt = (await api('GET', `/api/programs/${SLUG}/play-target`)).d;
+      check('Bouton principal = resume', tgt.state === 'resume', `${tgt.state} @ ${tgt.resumeSeconds}`);
+      const cw = (await api('GET', '/api/me/continue-watching')).d.items;
+      check('Continuer à regarder contient le film', cw.length === 1 && cw[0].playbackId === SLUG, cw[0]?.progressRatio);
+      const { v, advanced } = await play(pb.resume.positionSeconds);
+      check('Reprise de lecture à la position enregistrée', advanced > 2 && Math.abs(v.currentTime - pb.resume.positionSeconds) < 8, `lecture à ${v.currentTime.toFixed(1)} s`);
+      check('Déconnexion', (await api('POST', '/api/auth/logout')).s === 204);
+      check('Après déconnexion : liste refusée (401) et lecture sans reprise', (await api('GET', '/api/me/list')).s === 401 && (await api('GET', `/api/programs/${SLUG}/playback`)).d.resume === null);
+      check('Reconnexion', (await api('POST', '/api/auth/login', { email: S.e1, password: S.pw })).s === 200);
+      check('Après reconnexion : liste et reprise restaurées', (await api('GET', '/api/me/list')).d.items.length === 1 && (await api('GET', `/api/programs/${SLUG}/playback`)).d.resume?.positionSeconds > 100);
+      await api('POST', '/api/auth/logout');
+      check('Deuxième compte : inscription', (await api('POST', '/api/auth/register', { email: S.e2, password: S.pw })).s === 201);
+      const second = { list: (await api('GET', '/api/me/list')).d.items.length, prog: (await api('GET', `/api/me/progress/${SLUG}`)).s, cw: (await api('GET', '/api/me/continue-watching')).d.items.length, tgt: (await api('GET', `/api/programs/${SLUG}/play-target`)).d.state, res: (await api('GET', `/api/programs/${SLUG}/playback`)).d.resume };
+      check('Deuxième compte : liste vide, aucune progression, aucun « continuer », bouton start, pas de reprise', second.list === 0 && second.prog === 404 && second.cw === 0 && second.tgt === 'start' && second.res === null, JSON.stringify(second));
+      check('Deuxième compte : retirer le même film', (await api('DELETE', `/api/me/list/${SLUG}`)).s === 204);
+      await api('POST', '/api/auth/logout'); await api('POST', '/api/auth/login', { email: S.e1, password: S.pw });
+      check('Pilote intact après les actions du deuxième compte', (await api('GET', '/api/me/list')).d.items.length === 1 && (await api('GET', `/api/me/progress/${SLUG}`)).s === 200);
+      check('Nettoyage : suppression du compte pilote', (await api('POST', '/api/me/delete', { password: S.pw })).s === 204);
+      await api('POST', '/api/auth/login', { email: S.e2, password: S.pw });
+      check('Nettoyage : suppression du second compte', (await api('POST', '/api/me/delete', { password: S.pw })).s === 204);
+      S.phase = 3; save();
+    }
+  } catch (e) { check('Erreur inattendue', false, e.message); }
+  render(); const ok = S.checks.every(c => c.ok); document.title = ok ? 'RECETTE OK' : 'RECETTE ECHEC'; window.__report = { ok, checks: S.checks };
+  document.getElementById('state').textContent = (ok ? '✔ TOUT EST BON' : '✘ ÉCHEC') + ` — ${S.checks.filter(c => c.ok).length}/${S.checks.length}`;
+  sessionStorage.removeItem('recette');
+})();
+</script></body></html>

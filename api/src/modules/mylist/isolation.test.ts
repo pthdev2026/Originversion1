@@ -180,6 +180,31 @@ describe('compte pilote et deuxième compte', () => {
     second = secondAgain;
   });
 
+  it('session expirée pendant la lecture : 401, rien n’est perdu, reprise après reconnexion', async t => {
+    if (!available) return t.skip('PostgreSQL indisponible');
+    const cookie = cookieOf(await call('POST', '/api/auth/register', { email: 'expire@mail.fr', password: PASSWORD }));
+    assert.equal((await send('PUT', '/api/me/progress/film-a', cookie, { positionSeconds: 200, durationSeconds: 600, sentAt: 10 })).status, 200);
+    await sql`UPDATE sessions SET expires_at = now() - interval '1 minute' WHERE user_id = (SELECT id FROM users WHERE email = 'expire@mail.fr')`;
+    assert.equal((await send('PUT', '/api/me/progress/film-a', cookie, { positionSeconds: 300, durationSeconds: 600, sentAt: 20 })).status, 401, 'envoi après expiration : refusé proprement');
+    assert.equal((await send('GET', '/api/me/list', cookie)).status, 401);
+    const again = cookieOf(await call('POST', '/api/auth/login', { email: 'expire@mail.fr', password: PASSWORD }));
+    assert.equal((await json(await send('GET', '/api/programs/film-a/playback', again))).resume.positionSeconds, 200, 'la dernière position reçue avant l’expiration est conservée');
+    assert.equal((await send('PUT', '/api/me/progress/film-a', again, { positionSeconds: 300, durationSeconds: 600, sentAt: 20 })).status, 200, 'le front peut rejouer l’envoi refusé');
+    await send('POST', '/api/me/delete', again, { password: PASSWORD });
+  });
+
+  it('pré-requête CORS (PUT avec cookies) : autorisée pour le front, refusée pour une origine inconnue', async t => {
+    if (!available) return t.skip('PostgreSQL indisponible');
+    const preflight = (origin: string) => app.request('/api/me/progress/film-a', { method: 'OPTIONS', headers: { origin, 'access-control-request-method': 'PUT', 'access-control-request-headers': 'content-type' } });
+    const allowed = await preflight('http://localhost:3210');
+    assert.ok([200, 204].includes(allowed.status));
+    assert.equal(allowed.headers.get('access-control-allow-origin'), 'http://localhost:3210');
+    assert.equal(allowed.headers.get('access-control-allow-credentials'), 'true');
+    assert.match(allowed.headers.get('access-control-allow-methods') ?? '', /PUT/);
+    assert.match((allowed.headers.get('access-control-allow-headers') ?? '').toLowerCase(), /content-type/);
+    assert.equal((await preflight('https://evil.example')).headers.get('access-control-allow-origin'), null);
+  });
+
   it('plafond de 500 contenus : respecté même sous ajouts simultanés', async t => {
     if (!available) return t.skip('PostgreSQL indisponible');
     await sql`INSERT INTO my_list (user_id, slug) SELECT u.id, 'rempli-' || g FROM users u, generate_series(1, 497) g WHERE u.email = 'second@mail.fr'`;

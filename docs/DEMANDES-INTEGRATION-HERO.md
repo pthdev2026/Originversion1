@@ -92,3 +92,15 @@
 - Bandes-annonces gérées, audio multiple, direct, profils multiples : absents (voir `docs/ETAT-GENERAL-PLATEFORME-2026-10-30.md`).
 - Lecture signée Mux : bloquée par l'absence de clé de signature (voir `docs/PLAN-TEST-MUX-FILM-LONG.md`).
 - Le film réel de 85 min est encore en cours d'encodage local.
+
+## 5. État réel au 30/10/2026 (mis à jour)
+| Demande | État | Preuve |
+|---|---|---|
+| Messages envoyés aux sessions « Agent front brief » et « Back-office ORIGIN phase 1 » | **envoyés**, aucune réponse reçue à ce stade | — |
+| F1–F9 (front) | **non commencées** : la branche `front/hero-immersive` (`b90d441`) utilise toujours `demo-accounts`/`demo-session`/`demo-space` | lecture du code |
+| Banc de référence « comme un front » (autre origine que l'API, mêmes cookies et CORS) | **28/28** vérifications réussies dans un navigateur réel, base et comptes jetables | `api/scripts/recette/` |
+| Envoi de la progression à la **fermeture de la page** (`fetch` + `keepalive` + `credentials`, avec pré-requête CORS) | **fonctionne** (reprise 125,1 s après une dernière envoi périodique à 122,6 s) — mesuré sous Chromium ; Safari/Firefox non testés | bench, test CORS |
+| Session expirée pendant la lecture | `401` propre, dernière position conservée, envoi rejouable après reconnexion | `isolation.test.ts` |
+
+**Piège à connaître (front) :** les cookies ignorent le **port**. En développement, `localhost:3210` ↔ `localhost:4000` fonctionne ; mais deux API sur deux ports de `localhost` partagent le même cookie `origin_session` (une connexion écrase l'autre).
+**Lancer la recette sur le vrai front :** `api/scripts/recette/start.sh`, puis le front sur `:3211` avec `VITE_API_URL=http://localhost:4020`.
