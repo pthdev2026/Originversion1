@@ -18,3 +18,10 @@ Requête commune (CSS et `COMPACT_QUERY`) : `(max-width: 767px), (max-width: 110
 - Téléphone en paysage (≥ 768 px de large) : retombe sur la mise en page ordinateur.
 - TV : base à définir (focus télécommande, marges de sécurité) — chantier suivant.
 - Durée / note non affichées : aucune donnée réelle à ce stade.
+
+## Menu du bas (téléphone, ≤ 767 px) — 30/10/2026, `front/menu-bas-mobile`
+- Pastille de verre flottante : Accueil · Films (section Films & Séries) · Ma liste · Compte (Connexion si visiteur) + bouton rond Rechercher. Composant `mobile-tab-bar.tsx`, monté dans `__root.tsx`.
+- Se retire au défilement vers le bas, revient vers le haut ; masquée pendant la lecture et sur les pages de connexion.
+- Teinte du verre : celle du film de la Hero (variables `--hg-*` posées sur la racine) ; neutre sur les autres pages.
+- « Regarder » et le cœur reviennent dans la Hero (plus de barre fixe en double) ; le burger du haut reste pour le secondaire.
+- À décider : Originals / Explorer / Recommandations (accessibles par le burger) ; teinte du film sur la page programme.

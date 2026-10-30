@@ -42,6 +42,8 @@ export const programSchema = z.object({
   rating: optText(20),
   presenter: optText(120),
   genres: labels,
+  /** Mots-clés de recherche (synonymes, thèmes, noms) : retrouvent le programme sans apparaître à l'écran. */
+  keywords: labels,
   badges: labels,
   posterUrl: optUrl,
   heroUrl: optUrl,

@@ -1,4 +1,4 @@
-# ORIGIN — Contrat d'API (v1.6, 30/10/2026)
+# ORIGIN — Contrat d'API (v1.7, 30/10/2026)
 
 Propriétaire : l'agent back-end. Toute modification est annoncée ici avant d'être déployée.
 Limites : 120 requêtes par minute et par adresse IP sur `/api/*` ; en-têtes `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
@@ -233,6 +233,7 @@ Visuels (`GET /images/:slug/:file`, public, cache 24 h ; jpg, jpeg, png, webp, a
 | `GET /api/themes/:slug` | `{programs: ProgramCard[]}` · `404` |
 | `GET /api/creators` | `{creators: [{slug, name, showTitle, intro, themes, ambience, image, imageAlt, imageFocus, isProvisional}]}` |
 | `GET /api/creators/:slug` | Univers d'un créateur : `{slug, name, alias, domain, tagline, accent, chapters, contents: {message[], conference[], serie[], live[]}, featured}` · `404` si inconnu. `accent` = « R G B ». Le **live est une annonce** (date `liveAt`), pas de diffusion en direct |
+| `GET /api/search/suggestions?q=&limit=8` | Complétion à la frappe (dès 1 caractère) : `{query, suggestions: [{type: program\|creator\|theme, slug, label}]}` |
 | `GET /api/search?q=…&limit=20` | `{query, programs: ProgramCard[], creators: Creator[]}` — 2 à 80 caractères ; sans accents ni casse ; plusieurs mots = tous requis ; titres d'abord |
 
 `Collection` : `{slug, title, layout, badge, viewAllUrl, items: (ProgramCard & {rank})[]}`.
@@ -439,6 +440,20 @@ Application d'authentification standard (Google Authenticator, Microsoft Authent
   "catalogHealth": { "published": 36, "playable": 2, "publishedWithoutMedia": ["…"] } }
 ```
 Une « lecture » = session d'au moins 10 s. Agrégats uniquement : aucun identifiant de compte ni e-mail.
+
+## Recherche intelligente et sécurité de connexion (disponible — v1.7)
+
+- `GET /api/search` renvoie aussi `correctedQuery` : `null` si la recherche a abouti telle quelle ; sinon, quand rien n'a été trouvé et qu'une faute de frappe est probable, la recherche corrigée (« thriler » → « thriller »), dont les résultats sont renvoyés. Le front peut afficher « Résultats pour … ». Les **mots-clés** (`keywords` d'un programme, saisis au back-office) se cherchent comme le titre.
+- Recherches récentes (compte connecté, désactivées avec « historique » ; 20 conservées au plus ; incluses dans l'export RGPD) :
+
+| Route | Description |
+|---|---|
+| `GET /api/me/searches` | `200 {searches: string[]}` — les 10 dernières |
+| `POST /api/me/searches` | `{q}` (2..80) → `204` ; à appeler quand la personne **valide** une recherche |
+| `DELETE /api/me/searches` | `204` — tout effacer |
+| `DELETE /api/me/searches/item` | `{q}` → `204` — oublier une recherche |
+
+- Connexion depuis un **appareil inconnu** d'un compte qui en avait déjà : e-mail d'alerte (lien vers `/reinitialiser`). Aucune réponse d'API ne change.
 
 ## Univers de créateur et contact (disponible — v1.6)
 

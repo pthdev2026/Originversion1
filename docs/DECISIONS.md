@@ -184,3 +184,9 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Migration 016 : formulaire « Nous contacter » (limité à 5/h/IP, piège anti-robot, conservé + e-mail à `SUPPORT_EMAIL`, purgé avec l'audit)
 - 🟡 Le « direct » n'est qu'une annonce datée : pas de diffusion en direct (décision propriétaire requise)
 - ✅ Journal d'audit du catalogue (B3) : chaque écriture réussie sur programmes/thèmes/créateurs/collections est tracée (qui, quoi, quand — jamais le contenu), lisible via `GET /api/admin/audit`, purgée selon `RETENTION_AUDIT_DAYS`
+
+## Recherche intelligente et alerte de connexion (30/10/2026)
+- ✅ Migration 017 : `programs.keywords` (synonymes cherchés comme le titre), `search_history`, `login_devices`
+- ✅ Recherche tolérante aux fautes (distance d'édition 1–2 selon la longueur, uniquement si rien n'est trouvé ; `correctedQuery`), suggestions à la frappe, recherches récentes liées au réglage « historique »
+- ✅ E-mail d'alerte à la connexion depuis un nouvel appareil
+- 🟡 Non fait, décision propriétaire : profils multiples façon Netflix, connexion Google/Apple, code par e-mail sans mot de passe, passkeys

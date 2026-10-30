@@ -11,8 +11,9 @@ import {
   upsertCollection, upsertCreator, upsertProgram, upsertTheme,
 } from './admin.ts';
 import {
-  foldQuery, getCollection, getCreatorUniverse, getHome, getProgramDetail, listCreators, listProgramsByTheme, listThemes, searchCreators, searchPrograms,
+  foldQuery, loadSearchVocabulary, suggest, getCollection, getCreatorUniverse, getHome, getProgramDetail, listCreators, listProgramsByTheme, listThemes, searchCreators, searchPrograms,
 } from './content.ts';
+import { correctTokens } from './search.ts';
 import { listPlayablePrograms } from './repository.ts';
 import { createTtlCache } from '../../platform/http/ttl-cache.ts';
 import { collectionSchema, creatorContentsSchema, creatorSchema, parseBody, programSchema, themeSchema } from './schemas.ts';
@@ -96,10 +97,33 @@ export function catalogRoutes(deps: { sql: Sql; cacheTtlMs?: number }): Hono<App
     if (q.length < 2 || q.length > 80) throw errors.badRequest('La recherche doit faire entre 2 et 80 caractères.');
     const limit = Math.min(Math.max(Number(c.req.query('limit') ?? 20) || 20, 1), 50);
     const tokens = foldQuery(q);
-    const [programs, creators] = await cached(`search:${limit}:${tokens.join(' ')}`, () =>
-      Promise.all([searchPrograms(deps.sql, tokens, limit), searchCreators(deps.sql, tokens, 10)]));
+    const result = await cached(`search:${limit}:${tokens.join(' ')}`, async () => {
+      const run = (words: string[]) => Promise.all([searchPrograms(deps.sql, words, limit), searchCreators(deps.sql, words, 10)]);
+      let [programs, creators] = await run(tokens);
+      let correctedQuery: string | null = null;
+      // Rien trouvé : on tente une correction des fautes de frappe (« mysterre » → « mystere »).
+      if (programs.length === 0 && creators.length === 0 && tokens.length > 0) {
+        const fixed = correctTokens(tokens, await cached('search-vocabulary', () => loadSearchVocabulary(deps.sql)));
+        if (fixed.changed) {
+          [programs, creators] = await run(fixed.tokens);
+          if (programs.length > 0 || creators.length > 0) correctedQuery = fixed.tokens.join(' ');
+        }
+      }
+      return { programs, creators, correctedQuery };
+    });
     cacheable(c);
-    return c.json({ query: q, programs, creators });
+    return c.json({ query: q, correctedQuery: result.correctedQuery, programs: result.programs, creators: result.creators });
+  });
+
+  // Complétion automatique de la barre de recherche (dès 1 caractère) : titres, créateurs, thématiques.
+  routes.get('/api/search/suggestions', async c => {
+    const q = (c.req.query('q') ?? '').trim();
+    if (q.length < 1 || q.length > 80) throw errors.badRequest('La saisie doit faire entre 1 et 80 caractères.');
+    const limit = Math.min(Math.max(Number(c.req.query('limit') ?? 8) || 8, 1), 15);
+    const tokens = foldQuery(q);
+    const suggestions = await cached(`suggest:${limit}:${tokens.join(' ')}`, () => suggest(deps.sql, tokens, limit));
+    cacheable(c);
+    return c.json({ query: q, suggestions });
   });
 
   // Page d'un créateur : présentation, chapitres et contenus classés par rubrique. 404 si inconnu ou non publié.

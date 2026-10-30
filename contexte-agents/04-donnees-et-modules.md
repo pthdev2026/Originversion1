@@ -29,6 +29,7 @@ Vérifié le : 30/10/2026 · Sources : `api/migrations/*.sql` (font foi), `api/s
 | Comptes | `invitations` | Codes d'invitation (empreinte, usages max) | 003 |
 | Comptes | `user_preferences`, `user_themes`, `email_changes` | Préférences (document validé, valeurs par défaut dans le code), thématiques préférées, changement d'adresse par code (empreinte, 5 essais, 15 min). `users` gagne `locale` et la photo ; `sessions` gagne `public_id` et `device` (libellé approximatif, jamais d'IP) | 014 |
 | Univers de créateur | `creator_contents` | Contenus rattachés à un créateur par rubrique (message, conférence, série, direct), 1 « à la une » ; `creators` gagne alias, domaine, accroche, accent, chapitres | 015 |
+| Recherche et appareils | `search_history`, `login_devices` | Dernières recherches d'un compte (20 max) ; appareils déjà vus (alerte de nouvelle connexion). `programs` gagne `keywords` | 017 |
 | Contact | `contact_messages` | Messages du formulaire « Nous contacter », purgés avec l'audit | 016 |
 | Comptes | `user_totp`, `user_recovery_codes` | Double authentification : secret chiffré, `last_step` anti-rejeu, codes de secours à usage unique | 012 |
 | Comptes | `audit_log` | Qui a fait quoi, quand (sans IP) ; `user_id` → NULL à la suppression du compte | 003 |

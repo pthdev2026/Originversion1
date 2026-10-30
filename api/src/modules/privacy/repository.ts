@@ -1,6 +1,6 @@
 /** Module « privacy » — lecture des données personnelles d'un compte (SQL uniquement). */
 import type { Sql } from '../../platform/database/client.ts';
-import { getPreferences, listUserThemes } from '../account/repository.ts';
+import { getPreferences, listSearches, listUserThemes } from '../account/repository.ts';
 
 export interface PersonalDataExport {
   generatedAt: string;
@@ -21,6 +21,7 @@ export interface PersonalDataExport {
   myList: { slug: string; addedAt: string }[];
   preferences: Record<string, unknown>;
   favoriteThemes: string[];
+  recentSearches: string[];
   activeSessions: number;
   /** Journal des événements de sécurité de CE compte (connexions, changements de mot de passe…). Aucune adresse IP n'est conservée. */
   securityEvents: { event: string; at: string }[];
@@ -33,7 +34,7 @@ export async function exportPersonalData(sql: Sql, userId: string): Promise<Pers
   }[]>`SELECT id, email, display_name, role, email_verified_at, two_factor_enabled, created_at, last_login_at, locale, avatar_kind FROM users WHERE id = ${userId}`;
   if (!account) return null;
 
-  const [progress, list, sessions, events, preferences, favoriteThemes] = await Promise.all([
+  const [progress, list, sessions, events, preferences, favoriteThemes, recentSearches] = await Promise.all([
     sql<{ playback_id: string; program_slug: string | null; position_seconds: string; duration_seconds: string | null; completed: boolean; updated_at: Date }[]>`
       SELECT playback_id, program_slug, position_seconds::text, duration_seconds::text, completed, updated_at
       FROM watch_progress WHERE user_id = ${userId} ORDER BY updated_at DESC`,
@@ -42,6 +43,7 @@ export async function exportPersonalData(sql: Sql, userId: string): Promise<Pers
     sql<{ event: string; created_at: Date }[]>`SELECT event, created_at FROM audit_log WHERE user_id = ${userId} ORDER BY created_at DESC LIMIT 1000`,
     getPreferences(sql, userId),
     listUserThemes(sql, userId),
+    listSearches(sql, userId, 20),
   ]);
 
   return {
@@ -58,6 +60,7 @@ export async function exportPersonalData(sql: Sql, userId: string): Promise<Pers
     myList: list.map(row => ({ slug: row.slug, addedAt: row.added_at.toISOString() })),
     preferences: preferences as unknown as Record<string, unknown>,
     favoriteThemes,
+    recentSearches,
     activeSessions: Number(sessions[0]?.count ?? 0),
     securityEvents: events.map(row => ({ event: row.event, at: row.created_at.toISOString() })),
   };

@@ -11,6 +11,7 @@ import type { Sql } from '../../platform/database/client.ts';
 import { requireUser } from '../identity/middleware.ts';
 import { avatarView, publicUser } from '../identity/routes.ts';
 import * as identity from '../identity/repository.ts';
+import { foldQuery } from '../catalog/content.ts';
 import { preferencesPatchSchema } from './preferences.ts';
 import * as repo from './repository.ts';
 import { MAX_AVATAR_BYTES, type AccountService } from './service.ts';
@@ -26,6 +27,7 @@ const avatarSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('photo'), zoom: z.number().min(1).max(4) }).strict(),
   z.object({ kind: z.literal(null) }).strict(),
 ]);
+const searchSchema = z.object({ q: z.string().trim().min(2, 'Recherche trop courte.').max(80, 'Recherche trop longue.') }).strict();
 const emailChangeSchema = z.object({ newEmail: email, password: z.string().max(128) }).strict();
 const emailConfirmSchema = z.object({ code: z.string().trim().regex(/^\d{6}$/, 'Le code comporte 6 chiffres.') }).strict();
 
@@ -172,6 +174,33 @@ export function accountRoutes(deps: AccountRoutesDeps): Hono<AppEnv> {
     const body = await readJson(c, emailConfirmSchema);
     await deps.account.confirmEmailChange(user, body.code, c.get('sessionTokenHash'), ctx(c));
     return c.json({ user: await fresh(user.id) });
+  });
+
+  // ---- Dernières recherches (comme l'historique de visionnage, désactivées avec lui) -----------------------------------------
+  routes.get('/api/me/searches', async c => {
+    const user = requireUser(c);
+    const items = (await repo.isHistoryEnabled(deps.sql, user.id)) ? await repo.listSearches(deps.sql, user.id, 10) : [];
+    return c.json({ searches: items });
+  });
+
+  // Appelé par le front quand la personne VALIDE une recherche (pas à chaque lettre). Historique désactivé : rien n'est gardé.
+  routes.post('/api/me/searches', async c => {
+    const user = requireUser(c);
+    const { q } = await readJson(c, searchSchema);
+    const folded = foldQuery(q).join(' ');
+    if (folded.length >= 2 && (await repo.isHistoryEnabled(deps.sql, user.id))) await repo.rememberSearch(deps.sql, user.id, folded, q);
+    return c.body(null, 204);
+  });
+
+  routes.delete('/api/me/searches', async c => {
+    await repo.clearSearches(deps.sql, requireUser(c).id);
+    return c.body(null, 204);
+  });
+
+  routes.delete('/api/me/searches/item', async c => {
+    const { q } = await readJson(c, searchSchema);
+    await repo.forgetSearch(deps.sql, requireUser(c).id, foldQuery(q).join(' '));
+    return c.body(null, 204);
   });
 
   return routes;

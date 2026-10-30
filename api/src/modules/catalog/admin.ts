@@ -24,6 +24,7 @@ export interface ProgramInput {
   rating: string | null;
   presenter: string | null;
   genres: string[];
+  keywords: string[];
   badges: string[];
   posterUrl: string | null;
   heroUrl: string | null;
@@ -51,17 +52,17 @@ export async function upsertProgram(sql: Sql, slug: string, input: ProgramInput)
     const [existing] = await tx`SELECT 1 FROM programs WHERE slug = ${slug}`;
     await tx`
       INSERT INTO programs (slug, kind, title, title_lines, tagline, synopsis, category, duration_label, year, language, rating,
-                            presenter, genres, badges, poster_url, hero_url, logo_url, hero_video_url, trailer_url, image_alt,
+                            presenter, genres, keywords, badges, poster_url, hero_url, logo_url, hero_video_url, trailer_url, image_alt,
                             image_focus, title_style, is_demo, published)
       VALUES (${slug}, ${input.kind}, ${input.title}, ${textArray(tx, input.titleLines)}, ${input.tagline}, ${input.synopsis},
               ${input.category}, ${input.durationLabel}, ${input.year}, ${input.language}, ${input.rating}, ${input.presenter},
-              ${textArray(tx, input.genres)}, ${textArray(tx, input.badges)}, ${input.posterUrl}, ${input.heroUrl}, ${input.logoUrl},
+              ${textArray(tx, input.genres)}, ${textArray(tx, input.keywords)}, ${textArray(tx, input.badges)}, ${input.posterUrl}, ${input.heroUrl}, ${input.logoUrl},
               ${input.heroVideoUrl}, ${input.trailerUrl}, ${input.imageAlt}, ${input.imageFocus}, ${input.titleStyle},
               ${input.isDemo}, ${input.published})
       ON CONFLICT (slug) DO UPDATE SET
         kind = EXCLUDED.kind, title = EXCLUDED.title, title_lines = EXCLUDED.title_lines, tagline = EXCLUDED.tagline,
         synopsis = EXCLUDED.synopsis, category = EXCLUDED.category, duration_label = EXCLUDED.duration_label, year = EXCLUDED.year,
-        language = EXCLUDED.language, rating = EXCLUDED.rating, presenter = EXCLUDED.presenter, genres = EXCLUDED.genres,
+        language = EXCLUDED.language, rating = EXCLUDED.rating, presenter = EXCLUDED.presenter, genres = EXCLUDED.genres, keywords = EXCLUDED.keywords,
         badges = EXCLUDED.badges, poster_url = EXCLUDED.poster_url, hero_url = EXCLUDED.hero_url, logo_url = EXCLUDED.logo_url,
         hero_video_url = EXCLUDED.hero_video_url, trailer_url = EXCLUDED.trailer_url, image_alt = EXCLUDED.image_alt,
         image_focus = EXCLUDED.image_focus, title_style = EXCLUDED.title_style, is_demo = EXCLUDED.is_demo,
@@ -222,7 +223,7 @@ export async function getProgramForAdmin(sql: Sql, slug: string): Promise<AdminP
   const [p] = await sql<{
     slug: string; kind: ProgramInput['kind']; title: string; title_lines: string[]; tagline: string | null; synopsis: string | null;
     category: string | null; duration_label: string | null; year: number | null; language: string | null; rating: string | null;
-    presenter: string | null; genres: string[]; badges: string[]; poster_url: string | null; hero_url: string | null; logo_url: string | null;
+    presenter: string | null; genres: string[]; keywords: string[]; badges: string[]; poster_url: string | null; hero_url: string | null; logo_url: string | null;
     hero_video_url: string | null; trailer_url: string | null; image_alt: string | null; image_focus: string | null;
     title_style: ProgramInput['titleStyle']; is_demo: boolean; published: boolean; created_at: Date; updated_at: Date;
   }[]>`SELECT * FROM programs WHERE slug = ${slug} AND kind <> 'brand'`;
@@ -249,7 +250,7 @@ export async function getProgramForAdmin(sql: Sql, slug: string): Promise<AdminP
     document: {
       kind: p.kind, title: p.title, titleLines: p.title_lines, tagline: p.tagline, synopsis: p.synopsis, category: p.category,
       durationLabel: p.duration_label, year: p.year, language: p.language, rating: p.rating, presenter: p.presenter,
-      genres: p.genres, badges: p.badges, posterUrl: p.poster_url, heroUrl: p.hero_url, logoUrl: p.logo_url,
+      genres: p.genres, keywords: p.keywords, badges: p.badges, posterUrl: p.poster_url, heroUrl: p.hero_url, logoUrl: p.logo_url,
       heroVideoUrl: p.hero_video_url, trailerUrl: p.trailer_url, imageAlt: p.image_alt, imageFocus: p.image_focus,
       titleStyle: p.title_style, isDemo: p.is_demo, published: p.published,
       themes: themes.map(row => row.theme_slug),

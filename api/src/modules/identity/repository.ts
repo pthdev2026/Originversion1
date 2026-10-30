@@ -270,3 +270,15 @@ export async function consumeInvitation(sql: Executor, codeHash: string): Promis
 export async function insertAudit(sql: Sql, input: { userId: string | null; event: string; requestId: string | null; details?: Record<string, unknown> }): Promise<void> {
   await sql`INSERT INTO audit_log (user_id, event, request_id, details) VALUES (${input.userId}, ${input.event}, ${input.requestId}, ${sql.json((input.details ?? {}) as never)})`;
 }
+
+// ── Appareils connus ───────────────────────────────────────────────────────────────────────────────────
+
+/** Note l'appareil d'une connexion. `isNew` : jamais vu pour ce compte ; `hadOthers` : le compte avait déjà d'autres appareils (sinon c'est la première connexion). */
+export async function touchLoginDevice(sql: Sql, userId: string, device: string): Promise<{ isNew: boolean; hadOthers: boolean }> {
+  const [others] = await sql<{ n: string }[]>`SELECT count(*)::text AS n FROM login_devices WHERE user_id = ${userId} AND device <> ${device}`;
+  const [row] = await sql<{ inserted: boolean }[]>`
+    INSERT INTO login_devices (user_id, device) VALUES (${userId}, ${device})
+    ON CONFLICT (user_id, device) DO UPDATE SET last_seen = now()
+    RETURNING (xmax = 0) AS inserted`;
+  return { isNew: row?.inserted === true, hadOthers: Number(others?.n ?? 0) > 0 };
+}

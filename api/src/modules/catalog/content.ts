@@ -380,3 +380,46 @@ export async function getCreatorUniverse(sql: Sql, slug: string): Promise<Creato
     contents,
   };
 }
+
+// ---- Recherche : vocabulaire et suggestions ------------------------------------------------------------------------------------
+
+/** Mots connus du catalogue publié (pliés) avec leur fréquence : sert à corriger les fautes de frappe. */
+export async function loadSearchVocabulary(sql: Sql): Promise<Map<string, number>> {
+  const rows = await sql<{ word: string; n: string }[]>`
+    SELECT word, count(*)::text AS n FROM (
+      SELECT regexp_split_to_table(p.search_text, '[^a-z0-9]+') AS word FROM programs p WHERE p.published AND p.kind <> 'brand'
+      UNION ALL
+      SELECT regexp_split_to_table(origin_fold(t.title), '[^a-z0-9]+') FROM themes t
+      UNION ALL
+      SELECT regexp_split_to_table(origin_fold(c.name), '[^a-z0-9]+') FROM creators c WHERE c.published
+    ) w WHERE char_length(word) >= 3 GROUP BY word`;
+  return new Map(rows.map(row => [row.word, Number(row.n)]));
+}
+
+export interface Suggestion {
+  type: 'program' | 'creator' | 'theme';
+  slug: string;
+  label: string;
+}
+
+/** Complétions pour la barre de recherche : titres, créateurs et thématiques dont un mot COMMENCE par la saisie. */
+export async function suggest(sql: Sql, tokens: string[], limit: number): Promise<Suggestion[]> {
+  if (tokens.length === 0) return [];
+  const last = tokens[tokens.length - 1] ?? '';
+  const head = tokens.slice(0, -1);
+  const headLikes = `{${head.map(token => `"%${token}%"`).join(',')}}`; // tokens = [a-z0-9] seulement : sans danger
+  const programs = await sql<{ slug: string; title: string }[]>`
+    SELECT p.slug, p.title FROM programs p
+    WHERE p.published AND p.kind <> 'brand' AND p.search_text ~ ${'(^| )' + last} AND p.search_text LIKE ALL (${headLikes}::text[])
+    ORDER BY (origin_fold(p.title) LIKE ${last + '%'}) DESC, p.title LIMIT ${limit}`;
+  const themes = await sql<{ slug: string; title: string }[]>`
+    SELECT t.slug, t.title FROM themes t WHERE origin_fold(t.title) ~ ${'(^| )' + last} ORDER BY t.title LIMIT 3`;
+  const creators = (await listCreators(sql))
+    .filter(creator => foldQuery(creator.name).some(word => word.startsWith(last)))
+    .slice(0, 3);
+  return [
+    ...programs.map(row => ({ type: 'program' as const, slug: row.slug, label: row.title })),
+    ...creators.map(creator => ({ type: 'creator' as const, slug: creator.slug, label: creator.name })),
+    ...themes.map(row => ({ type: 'theme' as const, slug: row.slug, label: row.title })),
+  ].slice(0, limit);
+}

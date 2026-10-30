@@ -144,3 +144,28 @@ export async function deletePendingEmailChange(sql: Executor, userId: string): P
 export async function changeEmail(sql: Executor, userId: string, newEmail: string): Promise<void> {
   await sql`UPDATE users SET email = ${newEmail}, email_verified_at = now(), updated_at = now() WHERE id = ${userId}`;
 }
+
+// ---- Recherches récentes ---------------------------------------------------------------------------------------------------
+
+export async function listSearches(sql: Executor, userId: string, limit: number): Promise<string[]> {
+  const rows = await sql<{ query: string }[]>`SELECT query FROM search_history WHERE user_id = ${userId} ORDER BY searched_at DESC LIMIT ${limit}`;
+  return rows.map(row => row.query);
+}
+
+/** Mémorise une recherche (la même recherche remonte en tête) et ne garde que les 20 dernières. */
+export async function rememberSearch(sql: Sql, userId: string, folded: string, query: string): Promise<void> {
+  await sql`
+    INSERT INTO search_history (user_id, folded, query) VALUES (${userId}, ${folded}, ${query})
+    ON CONFLICT (user_id, folded) DO UPDATE SET query = EXCLUDED.query, searched_at = now()`;
+  await sql`
+    DELETE FROM search_history WHERE user_id = ${userId} AND folded IN (
+      SELECT folded FROM search_history WHERE user_id = ${userId} ORDER BY searched_at DESC OFFSET 20)`;
+}
+
+export async function forgetSearch(sql: Sql, userId: string, folded: string): Promise<void> {
+  await sql`DELETE FROM search_history WHERE user_id = ${userId} AND folded = ${folded}`;
+}
+
+export async function clearSearches(sql: Sql, userId: string): Promise<void> {
+  await sql`DELETE FROM search_history WHERE user_id = ${userId}`;
+}

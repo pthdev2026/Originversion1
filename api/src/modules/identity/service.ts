@@ -99,6 +99,24 @@ export function createIdentityService(deps: {
       .catch(error => logger.error({ err: error, userId: user.id }, 'e-mail de vérification non envoyé'));
   }
 
+  /** Alerte de sécurité : connexion depuis un appareil jamais vu sur un compte qui en avait déjà. Ne bloque ni n'échoue jamais la connexion. */
+  async function alertIfNewDevice(user: User, device: string | null): Promise<void> {
+    if (!device) return;
+    try {
+      const { isNew, hadOthers } = await repo.touchLoginDevice(sql, user.id, device);
+      if (!isNew || !hadOthers) return;
+      void mailer
+        .send({
+          to: user.email,
+          subject: 'Nouvelle connexion à votre compte ORIGIN',
+          text: `Une connexion à votre compte vient d'avoir lieu depuis un nouvel appareil : ${device}.\n\nSi c'est vous, vous n'avez rien à faire. Sinon, changez votre mot de passe : ${config.publicAppUrl}/reinitialiser, puis déconnectez les autres appareils depuis votre espace.`,
+        })
+        .catch(error => logger.error({ err: error, userId: user.id }, 'alerte de nouvelle connexion non envoyée'));
+    } catch (error) {
+      logger.error({ err: error, userId: user.id }, 'appareil de connexion non enregistré');
+    }
+  }
+
   const encryptionKey = (): string => {
     const key = config.encryptionKey === undefined ? DEV_ENCRYPTION_KEY : config.encryptionKey;
     if (!key) throw new AppError('unavailable', 503, 'La double authentification n’est pas configurée sur ce serveur (AUTH_ENCRYPTION_KEY).');
@@ -139,6 +157,7 @@ export function createIdentityService(deps: {
 
       await audit(user.id, 'register', ctx);
       await sendVerification(user).catch(error => logger.error({ err: error, userId: user.id }, 'jeton de vérification non créé'));
+      if (ctx.device) await repo.touchLoginDevice(sql, user.id, ctx.device).catch(() => undefined);
       return { user, sessionToken: await startSession(user.id, ctx.device ?? null) };
     },
 
@@ -176,6 +195,7 @@ export function createIdentityService(deps: {
 
       await repo.recordLoginSuccess(sql, found.id);
       await audit(found.id, 'login_success', ctx);
+      await alertIfNewDevice(found, ctx.device ?? null);
       const { passwordHash: _hash, failedLoginCount: _count, lockedUntil: _locked, ...user } = found;
       return { user, sessionToken: await startSession(found.id, ctx.device ?? null) };
     },
