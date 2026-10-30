@@ -175,8 +175,17 @@ export async function getJob(sql: Sql, id: string): Promise<MediaJob | null> {
   return row ? toJob(row) : null;
 }
 
-export async function listJobs(sql: Sql, limit: number): Promise<MediaJob[]> {
-  const rows = await sql<JobRow[]>`SELECT * FROM media_jobs ORDER BY created_at DESC LIMIT ${limit}`;
+export interface JobFilter {
+  /** Tâches d'un contenu précis (identifiant de lecture). */
+  playbackId?: string;
+  /** Tâches de tous les contenus d'un programme (film ou tous les épisodes d'une série). */
+  programSlug?: string;
+}
+
+export async function listJobs(sql: Sql, limit: number, filter: JobFilter = {}): Promise<MediaJob[]> {
+  const byPlayback = filter.playbackId ? sql`AND playback_id = ${filter.playbackId}` : sql``;
+  const byProgram = filter.programSlug ? sql`AND program_slug = ${filter.programSlug}` : sql``;
+  const rows = await sql<JobRow[]>`SELECT * FROM media_jobs WHERE true ${byPlayback} ${byProgram} ORDER BY created_at DESC LIMIT ${limit}`;
   return rows.map(toJob);
 }
 

@@ -15,6 +15,7 @@ Dossier de travail **local** du projet ORIGIN (source de vérité).
 | `assets/visuels/` | Visuels Hero et photographies |
 | `assets/affiches/` | Affiches verticales et horizontales |
 | `app/` | Front React (dépôt Git à part, relié à Lovable) |
+| *(hors de ce dossier)* `~/Desktop/ORIGIN-back-office/` | Back-office (outil d'administration), dépôt Git à part, parle à l'API par son adresse — voir `docs/CAHIER-DES-CHARGES-BACK-OFFICE.md` |
 | `api/` | API locale : autorisation de lecture, distribution HLS |
 | `video-pipeline/` | Encodage FFmpeg → HLS multi-débits |
 | `storage/` | Rendus vidéo générés (non versionné) |

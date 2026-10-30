@@ -13,9 +13,9 @@ LIS D'ABORD, dans cet ordre :
 TA MISSION : la PHASE 1 du cahier des charges (connexion + double authentification, catalogue, fiche programme, envoi de vidéo reprenable, suivi des préparations, publication), puis tu t'arrêtes et tu présentes le résultat. Ne commence pas les phases 2 et 3 sans validation.
 
 RÈGLES NON NÉGOCIABLES :
-- Application à part, dossier `admin/` à la racine du projet ; non reliée à Lovable ; jamais de push sur `main` d'un autre dépôt.
+- Application à part : dossier `~/Desktop/ORIGIN-back-office/` sur le Bureau, dépôt Git séparé, non reliée à Lovable ; elle ne contient aucun code de l'API et lui parle uniquement par son adresse (`VITE_API_URL`) ; jamais de push sur `main` d'un autre dépôt.
 - Tout en français, simple (le propriétaire n'est pas développeur). Chaque erreur de l'API est expliquée à l'écran avec son `message` et son `requestId`.
-- Aucun état simulé affiché à l'utilisateur. Les routes B1–B4 du cahier des charges peuvent être simulées dans le code tant que l'agent back-end ne les a pas livrées (signalé dans le code, jamais à l'écran).
+- Aucun état simulé affiché à l'utilisateur. Les routes B1, B2 et B4 sont LIVRÉES (contrat v1.3) : utilise-les directement. B3 (journal) peut être simulée dans le code (signalé dans le code, jamais à l'écran).
 - Ne jamais modifier `api/`. Besoin d'une route ou d'un champ : une demande écrite dans `docs/API-REQUESTS.md` (ce que tu veux, pourquoi, forme souhaitée).
 - Aucun secret dans le code ; aucun jeton dans localStorage (cookie httpOnly seulement, `credentials: 'include'`).
 - Aucune action destructive sans confirmation.
@@ -25,4 +25,4 @@ MÉTHODE : (1) reformule la mission et signale les risques, (2) propose ta pile 
 ```
 
 ## Pour l'agent back-end (parallèle)
-Livrer B1 (envoi d'images), B2 (fiche admin d'un programme), B4 (filtre des tâches) ; annoncer chaque ajout dans `docs/API-CONTRACT.md` ; configurer `CORS_ORIGINS` avec l'origine du back-office.
+B1 (envoi d'images), B2 (fiche admin) et B4 (filtre des tâches) : **livrés** le 30/10/2026 (contrat v1.3). Reste B3 (journal) ; configurer `CORS_ORIGINS` avec l'origine du back-office (local : `http://localhost:<port>`).

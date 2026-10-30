@@ -5,12 +5,31 @@
  * pas des contenus protégés. Seuls des formats d'image sont servis (pas de SVG : il peut contenir du script).
  */
 import { createReadStream } from 'node:fs';
-import { stat } from 'node:fs/promises';
+import { mkdir, rename, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { Hono } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import { errors } from '../../platform/errors.ts';
+import type { AppEnv } from '../../platform/http/types.ts';
 import { isValidId, resolveInside, type StorageLayout } from '../../platform/storage/layout.ts';
+import { requireAdmin } from '../identity/middleware.ts';
+
+/** Taille maximale d'une image envoyée par l'administration. */
+export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Reconnaît le VRAI format d'une image d'après ses premiers octets (l'extension du nom ne prouve rien).
+ * Retourne l'extension canonique, ou null si ce n'est pas une image acceptée (jpg, png, webp, avif).
+ */
+export function detectImageFormat(bytes: Uint8Array): 'jpg' | 'png' | 'webp' | 'avif' | null {
+  const at = (offset: number, text: string) => text.split('').every((char, i) => bytes[offset + i] === char.charCodeAt(0));
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'jpg';
+  if (bytes.length >= 8 && bytes[0] === 0x89 && at(1, 'PNG') && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a) return 'png';
+  if (bytes.length >= 12 && at(0, 'RIFF') && at(8, 'WEBP')) return 'webp';
+  if (bytes.length >= 12 && at(4, 'ftyp') && (at(8, 'avif') || at(8, 'avis'))) return 'avif';
+  return null;
+}
 
 const IMAGE_TYPES: Record<string, string> = {
   '.jpg': 'image/jpeg',
@@ -22,8 +41,40 @@ const IMAGE_TYPES: Record<string, string> = {
   '.mp4': 'video/mp4',
 };
 
-export function imageRoutes(deps: { storage: StorageLayout }): Hono {
-  const routes = new Hono();
+export function imageRoutes(deps: { storage: StorageLayout }): Hono<AppEnv> {
+  const routes = new Hono<AppEnv>();
+
+  // Dépôt d'une image par l'administration (affiche, fond, logo, portrait). Le fichier remplace l'éventuel fichier de même nom.
+  // L'URL renvoyée (`/images/<slug>/<fichier>`) se place ensuite dans la fiche du programme (posterUrl, heroUrl…).
+  routes.put(
+    '/files/images/:slug/:file',
+    bodyLimit({ maxSize: MAX_IMAGE_BYTES, onError: () => { throw errors.tooLarge('Image trop volumineuse (10 Mo au plus).'); } }),
+    async c => {
+      requireAdmin(c);
+      const { slug, file } = c.req.param();
+      if (!isValidId(slug)) throw errors.badRequest('Identifiant de programme invalide.');
+      if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,150}$/.test(file) || file.includes('..')) throw errors.badRequest('Nom de fichier invalide.');
+      const extension = path.extname(file).toLowerCase().replace('.', '');
+      if (!['jpg', 'jpeg', 'png', 'webp', 'avif'].includes(extension)) throw errors.badRequest('Formats acceptés : jpg, png, webp, avif.');
+
+      const bytes = new Uint8Array(await c.req.arrayBuffer());
+      if (bytes.byteLength === 0) throw errors.badRequest('Fichier vide.');
+      if (bytes.byteLength > MAX_IMAGE_BYTES) throw errors.tooLarge('Image trop volumineuse (10 Mo au plus).');
+      const real = detectImageFormat(bytes);
+      if (!real) throw errors.badRequest('Ce fichier n’est pas une image jpg, png, webp ou avif valide.');
+      if (real !== (extension === 'jpeg' ? 'jpg' : extension)) {
+        throw errors.badRequest(`L’extension « .${extension} » ne correspond pas au contenu réel du fichier (${real}).`);
+      }
+
+      const target = resolveInside(path.join(deps.storage.imagesRoot, slug), file);
+      if (!target) throw errors.badRequest('Chemin invalide.');
+      await mkdir(path.dirname(target), { recursive: true });
+      const temporary = `${target}.${process.pid}.tmp`;
+      await writeFile(temporary, bytes);
+      await rename(temporary, target); // remplacement atomique : jamais d'image à moitié écrite
+      return c.json({ url: `/images/${slug}/${file}`, bytes: bytes.byteLength }, 201);
+    },
+  );
 
   routes.get('/images/:slug/:file', async c => {
     const { slug, file } = c.req.param();

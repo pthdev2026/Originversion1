@@ -43,7 +43,7 @@ Aujourd'hui, ajouter une vidéo exige des commandes tapées sur le serveur (`npm
 ## 3. Architecture
 | Sujet | Décision |
 |---|---|
-| Application | **À part** du site public : dossier `admin/` à la racine du projet (`ORIGIN-plateforme/admin/`), **non relié à Lovable** |
+| Application | **À part** du site public et du dossier du projet : dossier **`~/Desktop/ORIGIN-back-office/`** sur le Bureau, **dépôt Git séparé**, **non relié à Lovable**. Il ne contient aucun code de l'API : il lui parle uniquement par son adresse (`VITE_API_URL`) |
 | Adresse | `admin.origin.xxx` (même domaine principal que l'API, pour le cookie de session) ; non indexée par les moteurs de recherche (`noindex`) |
 | Hébergement | Fichiers statiques (application monopage) servis par le portier Caddy du serveur, ou tout hébergeur statique |
 | Pile conseillée | React + TypeScript strict + Vite + Tailwind + Vitest, gestionnaire **bun** (comme le front) ; l'agent peut proposer mieux s'il le justifie |
@@ -79,7 +79,7 @@ Sécurité complémentaire (côté serveur, hors de ce chantier) : option de n'a
 - Boutons : « Nouveau programme », ouvrir une fiche.
 - État vide : « Aucun programme. Créez le premier. »
 
-**S3 — Fiche programme** (créer / modifier) — `PUT /api/admin/programs/:slug`, lecture : `GET /api/admin/programs/:slug` (voir §7, B2)
+**S3 — Fiche programme** (créer / modifier) — `PUT /api/admin/programs/:slug`, lecture : `GET /api/admin/programs/:slug` (livré, voir §7 B2)
 - Champs (conformes à la validation du serveur, `api/src/modules/catalog/schemas.ts`) : type, titre, lignes de titre, accroche, résumé, catégorie, libellé de durée, année, langue, classification, présentateur, genres, étiquettes, thématiques (liste issue de `GET /api/themes`), visuels (affiche, fond, logo : adresse ou image envoyée, voir B1), texte alternatif des images, vidéo de fond, bande-annonce, « démonstration ».
 - **Identifiant (slug)** : proposé automatiquement à partir du titre (minuscules, chiffres, tirets, sans accents) ; **modifiable seulement à la création** (l'identifiant ne change plus ensuite). Vérifier qu'il n'existe pas déjà.
 - **Séries** : éditeur de saisons et d'épisodes (clé d'épisode `s1-e1`, numéro, titre, résumé, durée, image). L'identifiant de lecture d'un épisode est `<slug>-<clé>` (affiché en lecture seule).
@@ -137,14 +137,14 @@ Contrat détaillé : `docs/API-CONTRACT.md`. En cas d'écart entre ce document e
 ---
 
 ## 7. Ce que le back-end ajoute pour le back-office (côté agent back-end)
-À livrer avant ou pendant la phase 1 ; l'agent du back-office peut **simuler ces routes** en attendant (clairement signalé « simulé » dans le code, jamais à l'écran).
+**B1, B2 et B4 sont livrés (contrat v1.3, 30/10/2026)** et testés : l'agent du back-office les utilise directement. B3 (journal) et B5 (Mux) restent à venir ; il peut simuler B3 en attendant (clairement signalé « simulé » dans le code, jamais à l'écran).
 
 | Réf. | Ajout | Contrat proposé | Utilisé par | Priorité |
 |---|---|---|---|---|
-| **B1** | Envoi d'images | `PUT /files/images/:slug/:file` — corps = image brute ; `.jpg .jpeg .png .webp .avif` ; ≤ 10 Mo ; type vérifié sur le contenu (pas seulement l'extension) ; réponse `201 { url: "/images/<slug>/<file>" }` ; administrateur uniquement | S3, S9 | Phase 1 |
-| **B2** | Vue « fiche admin » d'un programme | `GET /api/admin/programs/:slug` — tous les champs éditoriaux (brouillon inclus), saisons/épisodes, thématiques, **médias** (`playbackId`, statut, durée) et **dernières tâches** | S3, S4, S6 | Phase 1 |
+| **B1** ✅ livré | Envoi d'images | `PUT /files/images/:slug/:file` — corps = image brute ; `.jpg .jpeg .png .webp .avif` ; ≤ 10 Mo ; type vérifié sur le contenu (pas seulement l'extension) ; réponse `201 { url: "/images/<slug>/<file>" }` ; administrateur uniquement | S3, S9 | Phase 1 |
+| **B2** ✅ livré | Vue « fiche admin » d'un programme | `GET /api/admin/programs/:slug` — tous les champs éditoriaux (brouillon inclus), saisons/épisodes, thématiques, **médias** (`playbackId`, statut, durée) et **dernières tâches** | S3, S4, S6 | Phase 1 |
 | **B3** | Journal des modifications éditoriales | Écriture dans `audit_log` à chaque modification admin (`catalog.program.upsert`, `…delete`, `collection.upsert`…) ; `GET /api/admin/audit?limit=&before=` | S13 | Phase 3 |
-| **B4** | Filtre des tâches | `GET /api/admin/jobs?playbackId=` ou `?program=` | S4, S5 | Phase 1 |
+| **B4** ✅ livré | Filtre des tâches | `GET /api/admin/jobs?playbackId=` ou `?program=` | S4, S5 | Phase 1 |
 | **B5** | Fournisseur Mux (seulement si retenu) | Envoi direct à Mux, webhook, signataire | S4 | Après l'essai comparatif |
 Chaque ajout est annoncé dans `docs/API-CONTRACT.md` (nouvelle version) avant d'être utilisé.
 

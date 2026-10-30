@@ -77,7 +77,7 @@ PostgreSQL sur Supabase : **compatible sans toucher à l'authentification**, mai
 5. Réseau de sauvegarde hors site. 6. Contenus de lancement (combien d'heures, quels programmes). 7. Qui valide les droits d'image. 8. Domaine personnalisé pour le front (même site que l'API) — préalable à l'achat du domaine. 9. Essai comparatif « 1 vidéo, 2 voies » (FFmpeg+Bunny / Mux) : lancer ? 10. **SagePlus et Angels** : nature et fonctions à reprendre (voir `01-…` §6).
 
 ## 7. Prochaines actions recommandées (ordre)
-0. **Back-office** : cahier des charges rédigé (`docs/CAHIER-DES-CHARGES-BACK-OFFICE.md`), à valider par le propriétaire ; en parallèle côté back-end : B1 (envoi d'images), B2 (fiche admin), B4 (filtre des tâches), puis B3 (journal). Vérification du CDN (`npm run cdn:check`) **indépendante** du back-office, à faire dès qu'un compte Bunny existe.
+0. **Back-office** : cahier des charges rédigé (`docs/CAHIER-DES-CHARGES-BACK-OFFICE.md`), à valider par le propriétaire ; côté back-end : **B1 (envoi d'images), B2 (fiche admin), B4 (filtre des tâches) livrés le 30/10 (contrat v1.3)** ; reste B3 (journal). Vérification du CDN (`npm run cdn:check`) **indépendante** du back-office, à faire dès qu'un compte Bunny existe.
 1. ~~Répondre aux 3 demandes de `docs/API-REQUESTS.md`~~ — fait le 30/10. Audit d'architecture cible (hébergement de PostgreSQL, Mux, composants à déployer) : `docs/AUDIT-ARCHITECTURE-CIBLE-2026-10-30.md`.
 2. Dès qu'un serveur/domaine existe : construire l'image Docker, lancer le compose, `/health`, premier admin.
 3. Dès que le compte Bunny existe : `cdn:check`, puis `DELIVERY_MODE=bunny`, puis refaire le test de charge depuis une autre machine.

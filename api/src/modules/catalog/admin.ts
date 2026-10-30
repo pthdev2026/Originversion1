@@ -192,3 +192,72 @@ export async function listAllForAdmin(sql: Sql): Promise<{
     collections: collections.map(r => ({ slug: r.slug, title: r.title, layout: r.layout, published: r.published, homePosition: r.home_position, itemCount: Number(r.count) })),
   };
 }
+
+// ---- Lecture « administration » d'un programme (brouillons inclus) -----------------------------------------------------
+
+export interface AdminProgramView {
+  slug: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Même forme que le corps de `PUT /api/admin/programs/:slug` : on peut le modifier puis le renvoyer tel quel. */
+  document: ProgramInput;
+  /** Médias rattachés au programme, quel que soit leur statut (en préparation, prêt, échec). */
+  media: { playbackId: string; status: string; durationSeconds: number | null; createdAt: string }[];
+  /** Dernières tâches de préparation du programme (les plus récentes d'abord). */
+  jobs: {
+    id: string; playbackId: string; status: string; step: string | null; progress: number;
+    attempts: number; maxAttempts: number; lastError: string | null;
+    createdAt: string; startedAt: string | null; finishedAt: string | null;
+  }[];
+}
+
+export async function getProgramForAdmin(sql: Sql, slug: string): Promise<AdminProgramView | null> {
+  const [p] = await sql<{
+    slug: string; kind: ProgramInput['kind']; title: string; title_lines: string[]; tagline: string | null; synopsis: string | null;
+    category: string | null; duration_label: string | null; year: number | null; language: string | null; rating: string | null;
+    presenter: string | null; genres: string[]; badges: string[]; poster_url: string | null; hero_url: string | null; logo_url: string | null;
+    hero_video_url: string | null; trailer_url: string | null; image_alt: string | null; image_focus: string | null;
+    title_style: ProgramInput['titleStyle']; is_demo: boolean; published: boolean; created_at: Date; updated_at: Date;
+  }[]>`SELECT * FROM programs WHERE slug = ${slug} AND kind <> 'brand'`;
+  if (!p) return null;
+
+  const [themes, seasons, episodes, media, jobs] = await Promise.all([
+    sql<{ theme_slug: string }[]>`SELECT theme_slug FROM program_themes WHERE program_slug = ${slug} ORDER BY theme_slug`,
+    sql<{ number: number; title: string | null }[]>`SELECT number, title FROM seasons WHERE program_slug = ${slug} ORDER BY number`,
+    sql<{ season_number: number; number: number; key: string; title: string; synopsis: string | null; duration_label: string | null; image_url: string | null; image_alt: string | null }[]>`
+      SELECT season_number, number, key, title, synopsis, duration_label, image_url, image_alt FROM episodes WHERE program_slug = ${slug} ORDER BY season_number, number`,
+    sql<{ playback_id: string; status: string; duration_seconds: string | null; created_at: Date }[]>`
+      SELECT playback_id, status, duration_seconds::text, created_at FROM media_assets WHERE program_slug = ${slug} ORDER BY playback_id`,
+    sql<{
+      id: string; playback_id: string; status: string; step: string | null; progress: string; attempts: number; max_attempts: number;
+      last_error: string | null; created_at: Date; started_at: Date | null; finished_at: Date | null;
+    }[]>`SELECT id, playback_id, status, step, progress::text, attempts, max_attempts, last_error, created_at, started_at, finished_at
+         FROM media_jobs WHERE program_slug = ${slug} ORDER BY created_at DESC LIMIT 10`,
+  ]);
+
+  return {
+    slug: p.slug,
+    createdAt: p.created_at.toISOString(),
+    updatedAt: p.updated_at.toISOString(),
+    document: {
+      kind: p.kind, title: p.title, titleLines: p.title_lines, tagline: p.tagline, synopsis: p.synopsis, category: p.category,
+      durationLabel: p.duration_label, year: p.year, language: p.language, rating: p.rating, presenter: p.presenter,
+      genres: p.genres, badges: p.badges, posterUrl: p.poster_url, heroUrl: p.hero_url, logoUrl: p.logo_url,
+      heroVideoUrl: p.hero_video_url, trailerUrl: p.trailer_url, imageAlt: p.image_alt, imageFocus: p.image_focus,
+      titleStyle: p.title_style, isDemo: p.is_demo, published: p.published,
+      themes: themes.map(row => row.theme_slug),
+      seasons: seasons.map(season => ({
+        number: season.number,
+        title: season.title,
+        episodes: episodes.filter(e => e.season_number === season.number).map(e => ({
+          key: e.key, number: e.number, title: e.title, synopsis: e.synopsis, durationLabel: e.duration_label, imageUrl: e.image_url, imageAlt: e.image_alt,
+        })),
+      })),
+    },
+    media: media.map(m => ({ playbackId: m.playback_id, status: m.status, durationSeconds: m.duration_seconds === null ? null : Number(m.duration_seconds), createdAt: m.created_at.toISOString() })),
+    jobs: jobs.map(j => ({
+      id: j.id, playbackId: j.playback_id, status: j.status, step: j.step, progress: Number(j.progress), attempts: j.attempts, maxAttempts: j.max_attempts,
+      lastError: j.last_error, createdAt: j.created_at.toISOString(), startedAt: j.started_at?.toISOString() ?? null, finishedAt: j.finished_at?.toISOString() ?? null,
+    })),
+  };
+}

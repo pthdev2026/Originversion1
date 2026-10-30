@@ -6,7 +6,7 @@ import type { AppEnv } from '../../platform/http/types.ts';
 import { isValidId } from '../../platform/storage/layout.ts';
 import { requireAdmin } from '../identity/middleware.ts';
 import {
-  deleteCollection, deleteCreator, deleteProgram, deleteTheme, listAllForAdmin,
+  deleteCollection, deleteCreator, deleteProgram, deleteTheme, getProgramForAdmin, listAllForAdmin,
   upsertCollection, upsertCreator, upsertProgram, upsertTheme,
 } from './admin.ts';
 import {
@@ -112,6 +112,14 @@ export function catalogRoutes(deps: { sql: Sql; cacheTtlMs?: number }): Hono<App
   routes.use('/api/admin/*', async (c, next) => {
     await next();
     if (c.req.method !== 'GET') cache.clear();
+  });
+
+  // Vue complète d'un programme pour le back-office : brouillon inclus, médias, dernières préparations.
+  routes.get('/api/admin/programs/:slug', async c => {
+    requireAdmin(c);
+    const view = await getProgramForAdmin(deps.sql, slugOf(c.req.param('slug')));
+    if (!view) throw errors.notFound('Programme introuvable.');
+    return c.json(view);
   });
 
   routes.put('/api/admin/programs/:slug', async c => {

@@ -161,3 +161,8 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - ✅ Agent **dédié** recommandé ; cahier des charges et prompt rédigés (`docs/CAHIER-DES-CHARGES-BACK-OFFICE.md`, `docs/PROMPT-AGENT-BACK-OFFICE.md`)
 - 🟡 Ajouts back-end prévus : B1 envoi d'images, B2 fiche admin, B3 journal des modifications, B4 filtre des tâches, B5 fournisseur Mux (si retenu)
 - 🟡 À trancher : domaine `admin.origin.xxx`, restriction par IP, voie vidéo (Bunny/Mux), qui est l'agent
+
+## Ajouts back-office livrés (30/10/2026)
+- ✅ B1 `PUT /files/images/:slug/:file` (type vérifié sur le contenu, ≤ 10 Mo, SVG refusé), B2 `GET /api/admin/programs/:slug` (fiche admin aller-retour avec `PUT`, médias, tâches), B4 filtres `?playbackId=`/`?program=` sur les tâches — contrat v1.3
+- ✅ Emplacement du back-office : dossier à part sur le Bureau (`~/Desktop/ORIGIN-back-office/`), dépôt Git séparé ; connexion à l'API **uniquement par son adresse** et par la session de l'administrateur (aucune clé d'API partagée)
+- 🟡 B3 (journal des modifications) et B5 (Mux) à venir

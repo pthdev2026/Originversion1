@@ -1,6 +1,6 @@
 # 05 — API et contrat
 
-Vérifié le : 30/10/2026 · **Source de vérité : `docs/API-CONTRACT.md` (v1.2)** — ce fichier n'en est qu'une carte. Le test `api/src/contract.test.ts` garantit que le contrat et les routes du code sont identiques.
+Vérifié le : 30/10/2026 · **Source de vérité : `docs/API-CONTRACT.md` (v1.3)** — ce fichier n'en est qu'une carte. Le test `api/src/contract.test.ts` garantit que le contrat et les routes du code sont identiques.
 
 ## 1. Conventions générales
 | Sujet | Règle |

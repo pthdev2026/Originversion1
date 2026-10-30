@@ -10,6 +10,7 @@ import { cancelJob, getJob, listJobs, retryJob, type MediaJob } from './jobs.rep
 const present = (job: MediaJob) => ({
   id: job.id,
   playbackId: job.playbackId,
+  programSlug: job.programSlug,
   title: job.title,
   status: job.status,
   step: job.step,
@@ -32,7 +33,15 @@ export function jobRoutes(deps: { sql: Sql }): Hono<AppEnv> {
   routes.get('/api/admin/jobs', async c => {
     requireAdmin(c);
     const limit = Math.min(Math.max(Number(c.req.query('limit') ?? 30) || 30, 1), 100);
-    return c.json({ jobs: (await listJobs(deps.sql, limit)).map(present) });
+    // Filtres facultatifs : `?playbackId=` (un contenu) ou `?program=` (un programme entier). Combinables.
+    const playbackId = c.req.query('playbackId');
+    const program = c.req.query('program');
+    if ((playbackId !== undefined && !isValidId(playbackId)) || (program !== undefined && !isValidId(program))) {
+      throw errors.badRequest('Filtre invalide (minuscules, chiffres et tirets).');
+    }
+    return c.json({
+      jobs: (await listJobs(deps.sql, limit, { ...(playbackId ? { playbackId } : {}), ...(program ? { programSlug: program } : {}) })).map(present),
+    });
   });
 
   routes.get('/api/admin/jobs/:id', async c => {

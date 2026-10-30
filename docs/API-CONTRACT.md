@@ -1,4 +1,4 @@
-# ORIGIN — Contrat d'API (v1.2, 30/10/2026)
+# ORIGIN — Contrat d'API (v1.3, 30/10/2026)
 
 Propriétaire : l'agent back-end. Toute modification est annoncée ici avant d'être déployée.
 Limites : 120 requêtes par minute et par adresse IP sur `/api/*` ; en-têtes `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`.
@@ -325,6 +325,14 @@ La réponse de `GET /api/programs/:id/playback` contient désormais **`subtitles
 
 Le front doit proposer ces deux actions dans « Mon compte » (« Télécharger mes données », « Supprimer mon compte »).
 Conservation : mesures de lecture anonymes 180 jours, journal de sécurité 365 jours, sessions et jetons expirés supprimés automatiquement.
+
+## Ajouts pour le back-office (disponible — v1.3, administrateur uniquement)
+
+| Route | Description |
+|---|---|
+| `GET /api/admin/programs/:slug` | **Fiche admin** d'un programme, brouillon inclus : `{slug, createdAt, updatedAt, document, media, jobs}`. `document` a **exactement la forme** du corps de `PUT /api/admin/programs/:slug` : on peut le modifier puis le renvoyer tel quel. `media` = tous les médias du programme quel que soit leur statut `[{playbackId, status, durationSeconds, createdAt}]`. `jobs` = les 10 dernières tâches de préparation `[{id, playbackId, status, step, progress, attempts, maxAttempts, lastError, createdAt, startedAt, finishedAt}]`. `404` si inconnu (les contenus de marque ne sont jamais exposés). |
+| `PUT /files/images/:slug/:file` | **Envoi d'une image** (corps = image brute). Formats `jpg`/`jpeg`/`png`/`webp`/`avif` ; ≤ 10 Mo (`413` sinon) ; le type est vérifié sur le **contenu réel** (extension qui ment ou fichier non-image → `400`) ; SVG refusé ; nom de fichier `[A-Za-z0-9][A-Za-z0-9._-]*`, sans `..`. Remplace un fichier de même nom (écriture atomique). Réponse `201 {url: "/images/<slug>/<file>", bytes}` : placer `url` dans `posterUrl`/`heroUrl`/`logoUrl`/`imageUrl` de la fiche. |
+| `GET /api/admin/jobs?playbackId=&program=&limit=` | Filtres **facultatifs et combinables** : `playbackId` (un contenu), `program` (tous les contenus d'un programme). Identifiant invalide → `400`. Chaque tâche contient maintenant `programSlug`. |
 
 ## Vérification d'adresse e-mail (disponible — v1.0)
 
