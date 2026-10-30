@@ -104,3 +104,6 @@
 
 **Piège à connaître (front) :** les cookies ignorent le **port**. En développement, `localhost:3210` ↔ `localhost:4000` fonctionne ; mais deux API sur deux ports de `localhost` partagent le même cookie `origin_session` (une connexion écrase l'autre).
 **Lancer la recette sur le vrai front :** `api/scripts/recette/start.sh`, puis le front sur `:3211` avec `VITE_API_URL=http://localhost:4020`.
+
+## 6. Mise à jour du 30/10/2026 (soir) — la connexion et Ma liste existent maintenant dans MILLENIUM
+Le travail demandé en F1 (authentification réelle) et F2 (Ma liste) a été réalisé et **vérifié dans l'interface MILLENIUM** sur une branche locale **`integration/backend-hero`** du dépôt front (commit `ca33e50`, dossier de travail séparé `~/Desktop/ORIGIN-app-integration`). **Elle n'est ni fusionnée ni publiée.** L'agent front garde la décision de la reprendre (fusion ou réécriture) ; ses fichiers de travail n'ont pas été modifiés. Détail, preuves et écarts restants : `docs/MATRICE-INTEGRATION-MILLENIUM.md`.

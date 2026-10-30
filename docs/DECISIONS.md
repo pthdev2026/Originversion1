@@ -226,3 +226,8 @@ Légende : ✅ validé · 🟡 ouvert · 💡 recommandation
 - Découvert pendant l'encodage du film de 85 min : un `CONNECT_TIMEOUT` vers PostgreSQL pendant un rapport de progression (`run-job.ts`, appel non attendu) provoquait une promesse rejetée non gérée, donc l'arrêt du processus à 63 %. La reprise par bail/points de contrôle a permis de relancer sans perdre les qualités terminées
 - ✅ Correctif : le rapport de confort est désormais non bloquant (erreur journalisée) ; test de non-régression (échoue sans le correctif, réussi avec)
 - 🟡 En production, Docker (`restart: unless-stopped`) relancerait aussi le worker ; le correctif évite surtout de perdre la qualité en cours
+
+## Intégration MILLENIUM — jalons 1 et 2 (30/10/2026)
+- ✅ Authentification réelle et « Ma liste » persistée par l'API, **vérifiées dans l'interface MILLENIUM** (branche locale `integration/backend-hero` du dépôt front, non fusionnée, non publiée) ; deux comptes isolés ; base de recette jetable
+- ✅ Matrice et tableau de suivi : `docs/MATRICE-INTEGRATION-MILLENIUM.md`
+- 🟡 Reste simulé dans MILLENIUM : accueil/rails, fiches, recherche, Continuer à regarder, espace (photo, appareils, préférences), progression et reprise du lecteur ; bouton « Ma liste » absent de la Hero sur ordinateur
