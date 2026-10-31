@@ -38,7 +38,7 @@ Le nouveau front **« Millenium »** (Lovable + refonte du 30/10, branches `fron
 | Double authentification (écrans) | ❌ aucune trace dans le code front | `/api/me/2fa/*` |
 | Reprise de lecture, « Ma liste » réels, état « Vu » | ❌ pas encore branchés | `/api/me/progress/*`, `/api/me/list/*` |
 | Ident ORIGIN (lecteur à deux vidéos) | ❌ non branché | `playback.ident` |
-| Mesure de lecture anonyme (id + `token` à reprendre de `analytics` dans la réponse de lecture, contrat v1.15) | ❌ non branchée | `POST /api/playback-sessions` |
+| Mesure de lecture anonyme (id + `token` à reprendre de `analytics` dans la réponse de lecture, contrat v1.15) | ✅ branché sur `consolidation/millenium` (non publié) — `playback-stats.ts` | `POST /api/playback-sessions` |
 | Sous-titres (`<track>`) | ❌ non branchés | `playback.subtitles` |
 | Pages `/reinitialiser`, `/verifier-email` | 🟡 à vérifier (le lien d'e-mail y pointe) | — |
 
