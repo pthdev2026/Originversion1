@@ -221,7 +221,7 @@ export async function getCollection(sql: Sql, slug: string): Promise<CollectionV
 }
 
 /**
- * `featuredSlug` : phare CONFIGURÉ par l'éditeur (null s'il n'existe pas ou n'est pas publié — jamais de référence cassée).
+ * `featuredSlug` : phare CONFIGURÉ par l'éditeur (null s'il n'existe pas, n'est pas publié ou n'appartient pas à la thématique — jamais de référence cassée).
  * `fallbackFeaturedSlug` : proposition de repli = programme le mieux classé de la thématique (classement global) ;
  * ne remplace ni n'écrase la configuration, le front l'utilise seulement quand `featuredSlug` est null.
  */
@@ -252,7 +252,8 @@ export async function listThemes(sql: Sql): Promise<ThemeView[]> {
   const rows = await sql<{ slug: string; title: string; image_url: string | null; count: string; subtitle: string | null; featured: string | null; fallback: string | null }[]>`
     WITH ${rankedCte(sql)}
     SELECT t.slug, t.title, t.image_url, t.subtitle,
-           (SELECT f.slug FROM programs f WHERE f.slug = t.featured_slug AND f.published AND f.kind <> 'brand') AS featured,
+           (SELECT f.slug FROM programs f WHERE f.slug = t.featured_slug AND f.published AND f.kind <> 'brand'
+            AND EXISTS (SELECT 1 FROM program_themes m WHERE m.theme_slug = t.slug AND m.program_slug = f.slug)) AS featured,
            (SELECT r.slug FROM program_themes pt JOIN ranked r ON r.slug = pt.program_slug WHERE pt.theme_slug = t.slug ORDER BY r.rank LIMIT 1) AS fallback,
            (SELECT count(*) FROM program_themes pt JOIN programs p ON p.slug = pt.program_slug AND p.published AND p.kind <> 'brand'
             WHERE pt.theme_slug = t.slug)::text AS count

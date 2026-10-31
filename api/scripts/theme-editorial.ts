@@ -14,8 +14,8 @@ for (const [slug, entry] of Object.entries(doc)) {
   if (slug.startsWith('_')) continue;
   const [theme] = await sql`SELECT 1 FROM themes WHERE slug = ${slug}`;
   if (!theme) { console.log(`  thématique absente, ignorée : ${slug}`); continue; }
-  const [program] = await sql`SELECT 1 FROM programs WHERE slug = ${entry.featured}`;
-  if (!program) console.log(`  phare absent du catalogue (${entry.featured}) : sous-titre seul pour « ${slug} »`);
+  const [program] = await sql`SELECT 1 FROM program_themes WHERE theme_slug = ${slug} AND program_slug = ${entry.featured}`;
+  if (!program) console.log(`  phare « ${entry.featured} » absent du catalogue ou hors de la thématique « ${slug} » : sous-titre seul`);
   await sql`UPDATE themes SET subtitle = coalesce(subtitle, ${entry.subtitle}), featured_slug = coalesce(featured_slug, ${program ? entry.featured : null}) WHERE slug = ${slug}`;
   applied += 1;
 }

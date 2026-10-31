@@ -195,3 +195,9 @@ Environnement isolé (ports 4020/3211, base `origin_recette` supprimée ensuite)
 | Isolation 2 comptes | ✅ B : liste 0, reprises 0 | — | API |
 
 **Écarts constatés (front, non bloquants)** : (1) à l'ouverture d'une fiche, les boutons affichent « Regarder / Ajouter à ma liste » pendant 4–8 s en dev avant de passer à « Reprendre / Retirer » (session + liste chargées après coup) ; (2) la recherche ne tolère pas une faute DANS un mot incomplet (« passagr » → rien ; « pasagers » ou « passag » → ok) — amélioration back possible ; (3) le lecteur n'envoie pas encore la mesure de lecture (jeton v1.15 à brancher) ; (4) 5 commits front (mode TV, Hero tablette) existent seulement en local chez l'agent front : l'agent attend l'accord de son utilisateur pour pousser.
+
+## 10. Recette du 31/10/2026 (suite) — classement, catégories, Tendances (API v1.17, front `integration/classement-themes` `71a5a86`)
+Parcours réel Accueil → Classement → fiche (Les Passagers) → Ma liste → lecture (12 s, progression `les-passagers`) → retour accueil → recherche « passagers » → même fiche avec « Reprendre » + « Retirer de ma liste » : ✅ desktop. Depuis une catégorie (Identité → La Reine guerrière en phare de repli ; Foi → Le Trône) et depuis Tendances (→ Les Passagers, bon slug, lecture ✅) : ✅ desktop. Mobile 375 px : classement (36 cartes, pas de défilement horizontal), fiche, Ma liste, lecture du Silence, catégorie Identité ✅ ; « Tendances » n'existe pas en mobile.
+États : API arrêtée → « momentanément indisponible » + Réessayer ✅ ; programme sans média → message explicite ✅ ; compte neuf → listes vides ✅.
+**Défaut corrigé pendant la recette** : le phare configuré `tout-recommencer` n'appartenait à aucune thématique serveur, donc absent de sa liste → le phare doit désormais être membre de la thématique (sinon repli).
+**Données à compléter** : `demo-b4` (reliquat de test, publié) et `tout-recommencer` sont publiés sans visuel ni catégorie.

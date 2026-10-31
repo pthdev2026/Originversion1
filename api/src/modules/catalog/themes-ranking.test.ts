@@ -120,6 +120,11 @@ describe('thématiques : cadrage éditorial', () => {
     if (!available) return t.skip('PostgreSQL indisponible');
     assert.equal((await theme('foi', { title: 'Foi', featuredSlug: 'inconnu' })).status, 400);
     assert.equal((await theme('foi', { title: 'Foi', featuredSlug: 'a-film' })).status, 204);
+    // Un phare qui n'appartient pas à la thématique n'est jamais exposé (il n'apparaîtrait pas dans sa liste).
+    assert.equal((await put('hors-theme', prog('Hors thème'))).status, 201);
+    assert.equal((await theme('foi', { title: 'Foi', featuredSlug: 'hors-theme' })).status, 204);
+    assert.equal((await themes()).find(item => item.slug === 'foi')?.featuredSlug, null);
+    assert.equal((await theme('foi', { title: 'Foi', featuredSlug: 'a-film' })).status, 204);
     await put('a-film', prog('a-film', { themes: ['foi'], published: false }));
     assert.equal((await themes()).find(item => item.slug === 'foi')?.featuredSlug, null, 'un brouillon n’est jamais exposé');
     await put('a-film', prog('a-film', { themes: ['foi'] }));
