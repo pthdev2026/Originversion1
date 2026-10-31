@@ -6,3 +6,20 @@ node_modules
 .DS_Store
 .env
 deploy/.env.production
+
+# Garde-fous avant toute publication (aucun secret, média, sauvegarde ni base ne doit jamais être suivi)
+.env.*
+!.env.example
+!.env.production.example
+*.pem
+*.key
+*.p12
+*.cred
+*.dump
+*.sql.gz
+*.enc
+backups/
+*.mp4
+*.mov
+*.m4s
+*.log
