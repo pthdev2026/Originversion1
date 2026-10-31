@@ -44,8 +44,24 @@ export async function runSchedule(sql: Sql, now?: Date, notify?: (blocked: Block
 export function catalogRoutes(deps: { sql: Sql; cacheTtlMs?: number }): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
   // Cache serveur des lectures publiques (même durée que le cache navigateur). Vidé à chaque écriture éditoriale de CE processus.
-  const cache = createTtlCache<unknown>({ ttlMs: deps.cacheTtlMs ?? 0, maxEntries: 2000 });
-  const cached = <T>(key: string, loader: () => Promise<T>): Promise<T> => cache.getOrLoad(key, loader, value => value !== null && value !== undefined) as Promise<T>;
+  // Quatre zones BORNÉES et séparées : du trafic aux clés choisies par le visiteur (recherches, identifiants inventés) ne peut
+  // chasser que sa propre zone, jamais l'accueil ni le classement. Un « introuvable » n'est mémorisé que dans sa zone, brièvement.
+  const ttlMs = deps.cacheTtlMs ?? 0;
+  const zones = {
+    core: createTtlCache<unknown>({ ttlMs, maxEntries: 100 }),          // accueil, thématiques, créateurs, classement, vocabulaire…
+    items: createTtlCache<unknown>({ ttlMs, maxEntries: 2000 }),        // fiches, collections, thématiques, univers (par identifiant valide ET existant)
+    queries: createTtlCache<unknown>({ ttlMs, maxEntries: 500 }),       // recherches et suggestions (texte libre)
+    misses: createTtlCache<true>({ ttlMs: Math.min(ttlMs, 15_000), maxEntries: 500 }),   // identifiants introuvables, 15 s au plus
+  };
+  const found = (value: unknown) => value !== null && value !== undefined;
+  const zoneOf = (key: string) => (/^(program|collection|theme|creator):/.test(key) ? zones.items : /^(search|suggest):/.test(key) ? zones.queries : zones.core);
+  const cached = async <T>(key: string, loader: () => Promise<T>): Promise<T> => {
+    if (zones.misses.has(key)) return null as T;
+    const value = (await zoneOf(key).getOrLoad(key, loader, found)) as T;
+    if (!found(value)) zones.misses.set(key, true);
+    return value;
+  };
+  const clearCaches = () => { for (const zone of Object.values(zones)) zone.clear(); };
   const slugOf = (raw: string) => {
     if (!isValidId(raw)) throw errors.badRequest('Identifiant invalide.');
     return raw;
@@ -173,7 +189,7 @@ export function catalogRoutes(deps: { sql: Sql; cacheTtlMs?: number }): Hono<App
   routes.use('/api/admin/*', async (c, next) => {
     await next();
     if (c.req.method === 'GET') return;
-    cache.clear();
+    clearCaches();
     // Journal d'audit : qui a modifié quoi dans le catalogue (écritures réussies seulement, jamais le contenu des fiches).
     const target = /^\/api\/admin\/(programs|themes|creators|collections)\/([^/]+)(\/contents)?$/.exec(c.req.path);
     if (!target || c.res.status >= 300) return;

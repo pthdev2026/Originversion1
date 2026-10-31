@@ -85,4 +85,26 @@ describe('cache serveur du catalogue', () => {
     assert.equal(await search(), 2);
     assert.equal((await app.request('/api/programs/inconnu')).status, 404);
   });
+
+  it('PROTECTION : des milliers d\'identifiants inventés et de recherches libres ne chassent ni l\'accueil ni le classement du cache', async t => {
+    if (!available) return t.skip('PostgreSQL indisponible');
+    await put('Version E'); // cache vidé
+    const home = async () => ((await (await app.request('/api/home')).json()) as { collections: unknown[]; themes: unknown[] });
+    await home(); await app.request('/api/ranking');
+    await sql`INSERT INTO themes (slug, title) VALUES ('cache-theme-direct', 'Ajoutée dans le dos')`;
+    for (let i = 0; i < 2500; i++) assert.equal((await app.request(`/api/programs/inconnu-${i}`)).status, 404);
+    for (let i = 0; i < 1500; i++) await app.request(`/api/search?q=${encodeURIComponent(`mot${i}`)}`);
+    // L'accueil est toujours servi depuis le cache : la thématique insérée « dans le dos » n'y apparaît pas.
+    const after = (await home()).themes as { slug: string }[];
+    assert.ok(!after.some(theme => theme.slug === 'cache-theme-direct'), 'accueil encore en cache après le déluge');
+  });
+
+  it('introuvable : mémorisé brièvement (la même absence ne retourne pas à PostgreSQL), levé par une écriture éditoriale', async t => {
+    if (!available) return t.skip('PostgreSQL indisponible');
+    assert.equal((await app.request('/api/programs/surgit-apres')).status, 404);
+    await sql`INSERT INTO programs (slug, kind, title, published) VALUES ('surgit-apres', 'film', 'Surgit après', true)`;
+    assert.equal((await app.request('/api/programs/surgit-apres')).status, 404, 'absence mémorisée quelques secondes');
+    await put('Version F'); // écriture éditoriale : tous les caches, « introuvables » compris, sont vidés
+    assert.equal((await app.request('/api/programs/surgit-apres')).status, 200);
+  });
 });

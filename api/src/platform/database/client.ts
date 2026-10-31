@@ -12,6 +12,18 @@ export type Sql = postgres.Sql;
 /** Accepte la connexion normale OU une transaction : pour les fonctions de repository utilisables dans les deux cas. */
 export type Executor = postgres.Sql | postgres.TransactionSql;
 
+/**
+ * Durée maximale d'UNE requête : une requête qui s'éternise (index manquant, volume imprévu) est interrompue au lieu de
+ * garder une connexion du pool — avec 10 connexions, quelques requêtes bloquées suffiraient à paralyser l'API.
+ * Les opérations longues légitimes (sauvegarde, restauration) passent par des outils externes, pas par ce pool.
+ */
+export const STATEMENT_TIMEOUT_MS = 20_000;
+
 export function connect(url: string, options: postgres.Options<Record<string, postgres.PostgresType>> = {}): Sql {
-  return postgres(url, { max: 10, idle_timeout: 20, onnotice: () => undefined, ...options });
+  const { connection, ...rest } = options;
+  return postgres(url, {
+    max: 10, idle_timeout: 20, onnotice: () => undefined,
+    connection: { statement_timeout: STATEMENT_TIMEOUT_MS, ...connection },
+    ...rest,
+  });
 }

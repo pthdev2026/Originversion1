@@ -2,6 +2,20 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { createTtlCache } from './ttl-cache.ts';
 
+describe('cache à durée de vie — lecture directe', () => {
+  it('has/set : expire avec la durée de vie et reste borné', () => {
+    let clock = 0;
+    const cache = createTtlCache<true>({ ttlMs: 1000, maxEntries: 3, now: () => clock });
+    for (const key of ['a', 'b', 'c', 'd']) cache.set(key, true);
+    assert.equal(cache.size, 3);
+    assert.equal(cache.has('a'), false, 'la plus ancienne est sortie');
+    assert.equal(cache.has('d'), true);
+    clock = 1500;
+    assert.equal(cache.has('d'), false, 'expirée');
+    assert.equal(createTtlCache<true>({ ttlMs: 0 }).has('x'), false);
+  });
+});
+
 describe('cache à durée de vie', () => {
   it('ne charge qu’une fois dans la durée de vie, puis recharge', async () => {
     let clock = 0;

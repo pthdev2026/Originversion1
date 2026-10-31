@@ -29,6 +29,7 @@ export async function migrate(sql: Sql, dir = MIGRATIONS_DIR): Promise<string[]>
     const content = await readFile(path.join(dir, file), 'utf8');
     const didApply = await sql.begin(async tx => {
       await tx`SELECT pg_advisory_xact_lock(${MIGRATION_LOCK_KEY})`;
+      await tx`SET LOCAL statement_timeout = 0`;     // une migration légitime peut dépasser la limite des requêtes courantes
       const [already] = await tx`SELECT 1 FROM schema_migrations WHERE name = ${file}`;
       if (already) return false;
       await tx.unsafe(content);

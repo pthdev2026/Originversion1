@@ -11,6 +11,9 @@
 export interface TtlCache<T> {
   /** `cacheIf` : une valeur refusée (ex. « introuvable ») est rendue mais jamais mémorisée, pour qu'on ne puisse pas remplir le cache d'inconnus. */
   getOrLoad(key: string, loader: () => Promise<T>, cacheIf?: (value: T) => boolean): Promise<T>;
+  /** Lecture / écriture directes (zone des « introuvables »). */
+  has(key: string): boolean;
+  set(key: string, value: T): void;
   clear(): void;
   readonly size: number;
 }
@@ -40,6 +43,15 @@ export function createTtlCache<T>(options: { ttlMs: number; maxEntries?: number;
       ).finally(() => pending.delete(key));
       pending.set(key, promise);
       return promise;
+    },
+    has(key) {
+      const hit = done.get(key);
+      return ttlMs > 0 && hit !== undefined && now() - hit.at < ttlMs;
+    },
+    set(key, value) {
+      if (ttlMs <= 0) return;
+      if (!done.has(key) && done.size >= maxEntries) done.delete(done.keys().next().value as string);
+      done.set(key, { at: now(), value });
     },
     clear() {
       done.clear();
