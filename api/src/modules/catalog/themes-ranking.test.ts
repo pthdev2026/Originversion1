@@ -96,7 +96,7 @@ describe('thématiques : cadrage éditorial', () => {
     if (!available) return t.skip('PostgreSQL indisponible');
     assert.equal((await theme('foi', { title: 'Foi' })).status, 204);
     for (const slug of ['a-film', 'b-film', 'c-film']) assert.equal((await put(slug, prog(slug, { themes: ['foi'] }))).status, 201);
-    assert.deepEqual((await json(await call('GET', '/api/themes/foi'))).programs.map((p: any) => p.slug), ['a-film', 'b-film', 'c-film'], 'ordre alphabétique sans phare');
+    assert.deepEqual((await json(await call('GET', '/api/themes/foi'))).programs.map((p: any) => p.slug), ['a-film', 'b-film', 'c-film'], 'sans phare : ordre du classement (égalité → titre)');
     assert.equal((await theme('foi', { title: 'Foi', subtitle: 'Sens et vie intérieure', featuredSlug: 'c-film' })).status, 204);
     const foi = (await themes()).find(item => item.slug === 'foi');
     assert.deepEqual([foi?.subtitle, foi?.featuredSlug], ['Sens et vie intérieure', 'c-film']);
@@ -157,5 +157,69 @@ describe('classement complet', () => {
     if (!available) return t.skip('PostgreSQL indisponible');
     assert.equal((await call('GET', '/api/ranking?limit=99999&offset=-5')).status, 200);
     assert.equal((await call('GET', '/api/ranking?limit=abc')).status, 200);
+  });
+});
+
+describe('classement : cohérence, stabilité, égalités', () => {
+  it('pagination : les pages mises bout à bout redonnent exactement le classement complet, sans doublon ni trou', async t => {
+    if (!available) return t.skip('PostgreSQL indisponible');
+    const full = (await json(await call('GET', '/api/ranking?limit=200'))).items.map((i: any) => i.program.slug);
+    const pages: string[] = [];
+    for (let offset = 0; offset < full.length; offset += 3) pages.push(...(await json(await call('GET', `/api/ranking?limit=3&offset=${offset}`))).items.map((i: any) => i.program.slug));
+    assert.deepEqual(pages, full);
+    assert.equal(new Set(full).size, full.length, 'aucun doublon');
+    const beyond = await json(await call('GET', '/api/ranking?limit=5&offset=5000'));
+    assert.deepEqual([beyond.items.length, beyond.total], [0, full.length], 'au-delà de la fin : liste vide mais total exact');
+  });
+
+  it('égalités d’audience : départagées par titre puis identifiant, ordre identique à chaque appel', async t => {
+    if (!available) return t.skip('PostgreSQL indisponible');
+    for (const [slug, title] of [['eg-b', 'Égal B'], ['eg-a', 'Égal A'], ['eg-c', 'Égal A']] as const) {
+      assert.equal((await put(slug, prog(title))).status, 201);
+      await asset(slug, slug);
+      for (let i = 0; i < 2; i++) await sql`INSERT INTO playback_sessions (id, playback_id, watch_seconds, device, browser, engine) VALUES (${randomUUID()}, ${slug}, 60, 'desktop', 'Chrome', 'hlsjs')`;
+    }
+    const orders = [];
+    for (let i = 0; i < 3; i++) orders.push((await json(await call('GET', '/api/ranking?limit=200'))).items.map((x: any) => x.program.slug).filter((s: string) => s.startsWith('eg-')));
+    assert.deepEqual(orders[0], ['eg-a', 'eg-c', 'eg-b']);
+    assert.deepEqual(orders[1], orders[0]);
+    assert.deepEqual(orders[2], orders[0]);
+  });
+
+  it('tendances et classement partagent la même définition d’audience (même ordre pour le même public)', async t => {
+    if (!available) return t.skip('PostgreSQL indisponible');
+    const ranking = (await json(await call('GET', '/api/ranking?limit=200'))).items.map((x: any) => x.program.slug);
+    const trending = (await json(await call('GET', '/api/trending?limit=30'))).items.map((x: any) => x.program.slug);
+    const watched = ['r-pop', 'eg-a', 'eg-c', 'eg-b'];
+    assert.deepEqual(trending.filter((s: string) => watched.includes(s)), ['r-pop', 'eg-a', 'eg-c', 'eg-b'].filter(slug => trending.includes(slug)), 'plus regardé d’abord, égalités par titre puis identifiant');
+    const byAudience = (list: string[]) => list.filter(s => watched.includes(s));
+    assert.deepEqual(byAudience(ranking).slice(0, 4).sort(), byAudience(trending).slice(0, 4).sort());
+    for (const slug of trending) assert.ok(ranking.includes(slug), `${slug} (tendance) est dans le classement`);
+  });
+
+  it('tendances : jamais de brouillon ni de programme de marque', async t => {
+    if (!available) return t.skip('PostgreSQL indisponible');
+    await put('tr-brouillon', prog('Brouillon vu', { published: false }));
+    await asset('tr-brouillon', 'tr-brouillon');
+    await sql`INSERT INTO playback_sessions (id, playback_id, watch_seconds, device, browser, engine) VALUES (${randomUUID()}, 'tr-brouillon', 600, 'desktop', 'Chrome', 'hlsjs')`;
+    const trending = (await json(await call('GET', '/api/trending?limit=30'))).items.map((x: any) => x.program.slug);
+    assert.ok(!trending.includes('tr-brouillon'));
+    assert.ok(trending.length > 0 && new Set(trending).size === trending.length);
+  });
+
+  it('phare de repli : le programme le mieux classé de la thématique, sans toucher à la configuration', async t => {
+    if (!available) return t.skip('PostgreSQL indisponible');
+    assert.equal((await theme('identite', { title: 'Identité', subtitle: 'Se découvrir' })).status, 204);
+    for (const slug of ['id-z', 'id-a']) assert.equal((await put(slug, prog(slug === 'id-z' ? 'Zèbre' : 'Abeille', { themes: ['identite'] }))).status, 201);
+    await asset('id-z', 'id-z');
+    await sql`INSERT INTO playback_sessions (id, playback_id, watch_seconds, device, browser, engine) VALUES (${randomUUID()}, 'id-z', 90, 'desktop', 'Chrome', 'hlsjs')`;
+    const identite = (await json(await call('GET', '/api/themes'))).themes.find((x: any) => x.slug === 'identite');
+    assert.equal(identite.featuredSlug, null, 'aucun phare configuré');
+    assert.equal(identite.fallbackFeaturedSlug, 'id-z', 'le plus regardé de la thématique');
+    assert.deepEqual((await json(await call('GET', '/api/themes/identite'))).programs.map((p: any) => p.slug), ['id-z', 'id-a']);
+    // La configuration existante n'est jamais écrasée par le repli.
+    assert.equal((await theme('identite', { title: 'Identité', featuredSlug: 'id-a' })).status, 204);
+    const configured = (await json(await call('GET', '/api/themes'))).themes.find((x: any) => x.slug === 'identite');
+    assert.deepEqual([configured.featuredSlug, configured.fallbackFeaturedSlug, configured.subtitle], ['id-a', 'id-z', 'Se découvrir']);
   });
 });

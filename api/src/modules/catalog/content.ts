@@ -6,6 +6,7 @@
  *  - `playable` est calculé depuis les médias RÉELLEMENT prêts : on ne promet jamais une lecture qui n'existe pas ;
  *  - l'identifiant de lecture d'un film est son slug ; celui d'un épisode est « <slug>-<clé> ».
  */
+import { AUDIENCE_MIN_WATCH_SECONDS, AUDIENCE_WINDOW_DAYS } from './audience.ts';
 import type { Sql } from '../../platform/database/client.ts';
 import type { ProgramKind } from './repository.ts';
 
@@ -219,55 +220,78 @@ export async function getCollection(sql: Sql, slug: string): Promise<CollectionV
   return (await loadCollections(sql, rows))[0] ?? null;
 }
 
-export interface ThemeView { slug: string; title: string; image: string | null; programCount: number; subtitle: string | null; featuredSlug: string | null }
+/**
+ * `featuredSlug` : phare CONFIGURÉ par l'éditeur (null s'il n'existe pas ou n'est pas publié — jamais de référence cassée).
+ * `fallbackFeaturedSlug` : proposition de repli = programme le mieux classé de la thématique (classement global) ;
+ * ne remplace ni n'écrase la configuration, le front l'utilise seulement quand `featuredSlug` est null.
+ */
+export interface ThemeView { slug: string; title: string; image: string | null; programCount: number; subtitle: string | null; featuredSlug: string | null; fallbackFeaturedSlug: string | null }
+
+/**
+ * CTE `ranked(slug, rank, total)` : classement global des programmes publiés (hors marque).
+ * 1) Top 10 éditorial (collection `top-10`, par position) ; 2) le reste par audience décroissante ; 3) titre, puis identifiant.
+ * Ordre total et déterministe : deux appels successifs donnent le même ordre (pagination stable).
+ */
+const rankedCte = (sql: Sql) => sql`
+  ranked AS (
+    SELECT p.slug,
+           row_number() OVER (ORDER BY (ci.position IS NULL), ci.position, coalesce(a.views, 0) DESC, p.title, p.slug) AS rank,
+           count(*) OVER () AS total
+    FROM programs p
+    LEFT JOIN collection_items ci ON ci.program_slug = p.slug AND ci.collection_slug = 'top-10'
+    LEFT JOIN (
+      SELECT m.program_slug AS slug, count(*) AS views
+      FROM playback_sessions s JOIN media_assets m ON m.playback_id = s.playback_id
+      WHERE s.started_at > now() - make_interval(days => ${AUDIENCE_WINDOW_DAYS}) AND s.watch_seconds >= ${AUDIENCE_MIN_WATCH_SECONDS}
+      GROUP BY m.program_slug
+    ) a ON a.slug = p.slug
+    WHERE p.published AND p.kind <> 'brand'
+  )`;
 
 export async function listThemes(sql: Sql): Promise<ThemeView[]> {
-  const rows = await sql<{ slug: string; title: string; image_url: string | null; count: string; subtitle: string | null; featured: string | null }[]>`
+  const rows = await sql<{ slug: string; title: string; image_url: string | null; count: string; subtitle: string | null; featured: string | null; fallback: string | null }[]>`
+    WITH ${rankedCte(sql)}
     SELECT t.slug, t.title, t.image_url, t.subtitle,
            (SELECT f.slug FROM programs f WHERE f.slug = t.featured_slug AND f.published AND f.kind <> 'brand') AS featured,
+           (SELECT r.slug FROM program_themes pt JOIN ranked r ON r.slug = pt.program_slug WHERE pt.theme_slug = t.slug ORDER BY r.rank LIMIT 1) AS fallback,
            (SELECT count(*) FROM program_themes pt JOIN programs p ON p.slug = pt.program_slug AND p.published AND p.kind <> 'brand'
             WHERE pt.theme_slug = t.slug)::text AS count
     FROM themes t ORDER BY t.position, t.title`;
-  return rows.map(row => ({ slug: row.slug, title: row.title, image: row.image_url, programCount: Number(row.count), subtitle: row.subtitle, featuredSlug: row.featured }));
+  return rows.map(row => ({
+    slug: row.slug, title: row.title, image: row.image_url, programCount: Number(row.count),
+    subtitle: row.subtitle, featuredSlug: row.featured, fallbackFeaturedSlug: row.fallback,
+  }));
 }
 
+/** Programmes d'une thématique : le phare configuré d'abord, puis l'ordre du classement global (jamais un ordre arbitraire). */
 export async function listProgramsByTheme(sql: Sql, themeSlug: string, limit?: number): Promise<ProgramCard[] | null> {
   const [theme] = await sql`SELECT 1 FROM themes WHERE slug = ${themeSlug}`;
   if (!theme) return null;
   const rows = await sql<ProgramRow[]>`
+    WITH ${rankedCte(sql)}
     SELECT ${PROGRAM_COLUMNS(sql)} FROM programs p
     JOIN program_themes pt ON pt.program_slug = p.slug AND pt.theme_slug = ${themeSlug}
-    WHERE p.published AND p.kind <> 'brand'
-    ORDER BY (p.slug = (SELECT featured_slug FROM themes WHERE slug = ${themeSlug})) DESC NULLS LAST, p.title ${limit ? sql`LIMIT ${limit}` : sql``}`;
+    JOIN ranked r ON r.slug = p.slug
+    ORDER BY (p.slug = (SELECT featured_slug FROM themes WHERE slug = ${themeSlug})) DESC NULLS LAST, r.rank
+    ${limit ? sql`LIMIT ${limit}` : sql``}`;
   return rows.map(toCard);
 }
 
 export interface RankedCard { rank: number; program: ProgramCard }
 
-/**
- * Classement complet : les programmes du Top 10 éditorial dans leur ordre, puis tout le reste du catalogue publié
- * par audience réelle des 14 derniers jours (sessions de plus de 10 s, voir `loadTrending`), puis par titre.
- */
+/** Classement complet (voir `rankedCte` pour la règle). */
 export async function getRanking(sql: Sql, limit: number, offset: number): Promise<{ total: number; items: RankedCard[] }> {
   const rows = await sql<(ProgramRow & { total: string; rank: string })[]>`
-    WITH audience AS (
-      SELECT m.program_slug AS slug, count(*) AS views
-      FROM playback_sessions s JOIN media_assets m ON m.playback_id = s.playback_id
-      WHERE s.started_at > now() - interval '14 days' AND s.watch_seconds >= 10
-      GROUP BY m.program_slug
-    ), ranked AS (
-      SELECT p.slug,
-             row_number() OVER (ORDER BY (ci.position IS NULL), ci.position, coalesce(a.views, 0) DESC, p.title, p.slug) AS rank,
-             count(*) OVER () AS total
-      FROM programs p
-      LEFT JOIN collection_items ci ON ci.program_slug = p.slug AND ci.collection_slug = 'top-10'
-      LEFT JOIN audience a ON a.slug = p.slug
-      WHERE p.published AND p.kind <> 'brand'
-    )
+    WITH ${rankedCte(sql)}
     SELECT ${PROGRAM_COLUMNS(sql)}, r.total::text AS total, r.rank::text AS rank
     FROM ranked r JOIN programs p ON p.slug = r.slug
     ORDER BY r.rank LIMIT ${limit} OFFSET ${offset}`;
-  return { total: Number(rows[0]?.total ?? 0), items: rows.map(row => ({ rank: Number(row.rank), program: toCard(row) })) };
+  let total = Number(rows[0]?.total ?? 0);
+  if (rows.length === 0 && offset > 0) {
+    const [count] = await sql<{ n: string }[]>`SELECT count(*)::text AS n FROM programs WHERE published AND kind <> 'brand'`;
+    total = Number(count?.n ?? 0);
+  }
+  return { total, items: rows.map(row => ({ rank: Number(row.rank), program: toCard(row) })) };
 }
 
 export interface CreatorView {

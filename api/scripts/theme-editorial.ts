@@ -1,6 +1,6 @@
 /**
  * Applique `seed/theme-editorial.json` (sous-titre + programme phare de chaque thématique) à la base.
- * Idempotent. Ne crée aucune thématique ni aucun programme : ce qui n'existe pas est signalé et ignoré.
+ * Idempotent et NON destructif : ne remplit que les champs encore vides, ne remplace jamais une valeur déjà choisie. Ne crée aucune thématique ni aucun programme : ce qui n'existe pas est signalé et ignoré.
  *   node scripts/theme-editorial.ts            (base de DATABASE_URL, sinon base de développement)
  */
 import { readFile } from 'node:fs/promises';
@@ -16,7 +16,7 @@ for (const [slug, entry] of Object.entries(doc)) {
   if (!theme) { console.log(`  thématique absente, ignorée : ${slug}`); continue; }
   const [program] = await sql`SELECT 1 FROM programs WHERE slug = ${entry.featured}`;
   if (!program) console.log(`  phare absent du catalogue (${entry.featured}) : sous-titre seul pour « ${slug} »`);
-  await sql`UPDATE themes SET subtitle = ${entry.subtitle}, featured_slug = ${program ? entry.featured : null} WHERE slug = ${slug}`;
+  await sql`UPDATE themes SET subtitle = coalesce(subtitle, ${entry.subtitle}), featured_slug = coalesce(featured_slug, ${program ? entry.featured : null}) WHERE slug = ${slug}`;
   applied += 1;
 }
 console.log(`${applied} thématique(s) mise(s) à jour.`);

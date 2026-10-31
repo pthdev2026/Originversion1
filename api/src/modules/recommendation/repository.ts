@@ -1,4 +1,5 @@
 /** Module « recommendation » — lectures SQL (caractéristiques du catalogue, historique, popularité). */
+import { AUDIENCE_MIN_WATCH_SECONDS, AUDIENCE_WINDOW_DAYS } from '../catalog/audience.ts';
 import type { Sql } from '../../platform/database/client.ts';
 import { isHistoryEnabled } from '../account/repository.ts';
 import type { HistoryEntry, ProgramFeatures } from './scoring.ts';
@@ -46,15 +47,15 @@ export async function loadHistory(sql: Sql, userId: string): Promise<HistoryEntr
   return [...entries.values()];
 }
 
-/** Programmes réellement regardés ces 14 derniers jours (au moins 10 s de lecture), du plus vu au moins vu. */
+/** Programmes réellement regardés (voir audience.ts), du plus vu au moins vu ; égalité : titre puis identifiant. */
 export async function loadTrending(sql: Sql, limit: number): Promise<{ slug: string; views: number }[]> {
   const rows = await sql<{ slug: string; views: string }[]>`
     SELECT p.slug, count(*)::text AS views
     FROM playback_sessions s
     JOIN media_assets m ON m.playback_id = s.playback_id
     JOIN programs p ON p.slug = m.program_slug AND p.published AND p.kind <> 'brand'
-    WHERE s.started_at > now() - interval '14 days' AND s.watch_seconds >= 10
-    GROUP BY p.slug ORDER BY count(*) DESC, p.slug LIMIT ${limit}`;
+    WHERE s.started_at > now() - make_interval(days => ${AUDIENCE_WINDOW_DAYS}) AND s.watch_seconds >= ${AUDIENCE_MIN_WATCH_SECONDS}
+    GROUP BY p.slug ORDER BY count(*) DESC, min(p.title), p.slug LIMIT ${limit}`;
   return rows.map(row => ({ slug: row.slug, views: Number(row.views) }));
 }
 

@@ -22,3 +22,9 @@ Format : date · ce qui est voulu · pourquoi · forme souhaitée · statut.
 ## 2026-10-30 · Intégration de la Hero Section (demandes du back-end vers le front et le back-office) · statut : **ouvert**
 - **Voulu** : voir `docs/DEMANDES-INTEGRATION-HERO.md` (front F1–F9, back-office B1–B3), avec recette en navigateur sur deux comptes.
 - **Pourquoi** : la Hero est encore simulée (compte de démonstration, « Ma liste » en stockage navigateur) ; le back-end est prêt et vérifié (contrat v1.10).
+
+## 2026-10-31 · Profils multiples par compte (écran « Qui regarde ? ») · statut : **ouvert**
+- **Voulu** : jusqu'à **5 profils** par compte, comme Netflix. Routes souhaitées : `GET /api/me/profiles` (liste), `POST /api/me/profiles` (création), `PATCH /api/me/profiles/:id` (nom, avatar), `DELETE /api/me/profiles/:id` (suppression, impossible pour le dernier profil).
+- **Pourquoi** : le front affiche « Qui regarde ? » après connexion (grille de profils, crayon pour modifier, tuile « Ajouter un profil », fond en verre teinté par l'avatar survolé). Aujourd'hui un compte n'a qu'un profil (nom + avatar de `GET /api/me`), donc l'écran n'en montre qu'un.
+- **Forme souhaitée** : `{ items: [{ id, name, avatar: null | {kind:"preset", preset:0..7} | {kind:"photo", url, zoom} , isDefault }], max: 5 }` ; le profil actif est choisi côté client (identifiant envoyé avec les rapports de lecture) ; « Ma liste » et « Continuer à regarder » devraient devenir **par profil**.
+- **À trancher avec le propriétaire** : liste et progression par profil (comme Netflix) ou partagées par compte ; profil « enfant » éventuel.
