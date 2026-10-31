@@ -15,17 +15,29 @@ x-api: &api
       condition: service_healthy
 
 services:
-  # Seul service exposé : HTTPS automatique.
+  # Seul service exposé : HTTPS automatique, un seul domaine pour le site et l'API.
   caddy:
     image: caddy:2
     restart: unless-stopped
     ports: ['80:80', '443:443']
     environment:
-      API_DOMAIN: ${API_DOMAIN}
+      APP_DOMAIN: ${APP_DOMAIN}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+    depends_on: [api, web]
+
+  # Front MILLENIUM (rendu côté serveur), derrière Caddy sur le MÊME domaine que l'API. Aucun port publié.
+  # Construit depuis le dépôt du front, cloné à côté de celui-ci (voir docs/DEPLOIEMENT-PREPRODUCTION.md).
+  web:
+    build:
+      context: ${WEB_CONTEXT:-../../hero-stream-magic}
+      dockerfile: ${WEB_DOCKERFILE:-../ORIGIN-plateforme/deploy/web.Dockerfile}
+      args:
+        VITE_API_URL: https://${APP_DOMAIN}
+        VITE_SUPPORT_EMAIL: ${SUPPORT_EMAIL:-}
+    restart: unless-stopped
     depends_on: [api]
 
   postgres:

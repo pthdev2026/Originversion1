@@ -80,6 +80,7 @@ export function createMuxService(deps: { sql: Sql; client: MuxClient; logger: Lo
       encodeSeconds: null,
       encodedAt: new Date().toISOString(),
       isDemo: row.isDemo,
+      publishNewProgram: false,
       provider: 'mux',
       providerAssetId: asset.id,
       providerPlaybackId: playback.id,

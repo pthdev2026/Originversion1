@@ -32,6 +32,12 @@ describe('configuration', () => {
     assert.deepEqual(config.corsOrigins, ['https://origin.example', 'https://www.origin.example']);
   });
 
+  it('origine unique : l\'adresse publique configurée est toujours de confiance, sans doublon', () => {
+    const base = { NODE_ENV: 'production', DATABASE_URL: 'postgres://u:p@db:5432/origin', MEDIA_SECRET: 'x'.repeat(40) };
+    assert.deepEqual(loadConfig({ ...base, CORS_ORIGINS: 'https://autre.example', PUBLIC_APP_URL: 'https://app.origin.example/' }).corsOrigins, ['https://autre.example', 'https://app.origin.example']);
+    assert.deepEqual(loadConfig({ ...base, CORS_ORIGINS: 'https://app.origin.example', PUBLIC_APP_URL: 'https://app.origin.example' }).corsOrigins, ['https://app.origin.example']);
+  });
+
   it('accepte une rotation de secret et des limites personnalisées', () => {
     const config = loadConfig({
       MEDIA_SECRET: 'n'.repeat(40),

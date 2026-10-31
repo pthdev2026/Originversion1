@@ -204,7 +204,12 @@ export function loadConfig(source: Record<string, string | undefined> = process.
   if (raw.MAIL_PROVIDER === 'resend' && !raw.MAIL_FROM) missing.push('MAIL_FROM est obligatoire quand MAIL_PROVIDER=resend');
   if (missing.length > 0) throw new ConfigError(missing);
 
-  const corsOrigins = raw.CORS_ORIGINS?.split(',').map(origin => origin.trim()).filter(Boolean);
+  const configuredOrigins = raw.CORS_ORIGINS?.split(',').map(origin => origin.trim()).filter(Boolean);
+  // Origine unique (front et API sous le même domaine) : le navigateur envoie quand même `Origin: <adresse publique>` sur les écritures.
+  // L'adresse publique explicitement configurée est donc toujours de confiance : oublier de la répéter dans CORS_ORIGINS ne casse plus la connexion.
+  const corsOrigins = configuredOrigins && source['PUBLIC_APP_URL']
+    ? [...new Set([...configuredOrigins, new URL(raw.PUBLIC_APP_URL).origin])]
+    : configuredOrigins;
 
   return {
     env: raw.NODE_ENV,

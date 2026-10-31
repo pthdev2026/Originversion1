@@ -1,16 +1,25 @@
-# Caddy : reçoit le trafic Internet, obtient et renouvelle seul le certificat HTTPS (Let's Encrypt),
-# puis transmet à l'API. Seul service exposé sur Internet (ports 80 et 443).
-{$API_DOMAIN} {
+# Caddy : reçoit le trafic Internet, obtient et renouvelle seul le certificat HTTPS (Let's Encrypt), puis aiguille.
+# ORIGINE UNIQUE : le site (front MILLENIUM) et l'API sont servis sous le MÊME domaine → cookies de session « first-party »
+# (compatibles Safari), aucune règle CORS à maintenir, un seul certificat. Seul service exposé sur Internet (ports 80 et 443).
+{$APP_DOMAIN} {
 	encode zstd gzip
 
-	# Les fichiers vidéo (.m4s) sont déjà compressés ; Caddy ne compresse que les types texte par défaut.
-	reverse_proxy api:4000 {
-		# Flux vidéo / envois longs : pas de mise en tampon des réponses.
-		flush_interval -1
+	# Tout ce qui est API ou média va à l'API ; le reste (pages, scripts, styles) va au serveur du front.
+	@api path /api/* /media/* /images/* /files/* /avatars/* /subtitles/* /uploads/* /health /ready
+	handle @api {
+		reverse_proxy api:4000 {
+			# Flux vidéo / envois longs : pas de mise en tampon des réponses.
+			flush_interval -1
+		}
+	}
+	handle {
+		reverse_proxy web:3000
 	}
 
 	header {
 		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
 		-Server
 	}
 

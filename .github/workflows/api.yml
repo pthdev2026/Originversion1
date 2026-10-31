@@ -54,7 +54,7 @@ jobs:
         working-directory: deploy
         run: |
           {
-            echo "API_DOMAIN=api.ci.invalid"
+            echo "APP_DOMAIN=app.ci.invalid"
             echo "PUBLIC_APP_URL=https://ci.invalid"
             echo "CORS_ORIGINS=https://ci.invalid"
             echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)"

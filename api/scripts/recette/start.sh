@@ -7,7 +7,7 @@ API_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 ROOT="$(cd "$API_DIR/.." && pwd)"
 RECETTE_DIR="${RECETTE_DIR:-/tmp/origin-recette}"
 API_PORT=4020; BENCH_PORT=4021
-FRONT_ORIGINS="http://localhost:3211,http://localhost:$BENCH_PORT"
+FRONT_ORIGINS="${FRONT_ORIGINS:-http://localhost:3211,http://localhost:$BENCH_PORT}"
 cd "$API_DIR"
 
 [ -f "$RECETTE_DIR/api.pid" ] && "$API_DIR/scripts/recette/stop.sh" >/dev/null 2>&1 || true
@@ -32,7 +32,7 @@ ADMIN_PW="Rc-$(openssl rand -hex 12)-Z9!"
 printf '%s\n%s\n' "$ADMIN_EMAIL" "$ADMIN_PW" > "$RECETTE_DIR/admin.cred"
 
 export DATABASE_URL="$RECETTE_URL" STORAGE_ROOT="$RECETTE_DIR/storage" HOST=127.0.0.1 PORT=$API_PORT CORS_ORIGINS="$FRONT_ORIGINS" \
-       PUBLIC_APP_URL="http://localhost:3211" NODE_ENV=development LOG_LEVEL=warn MAIL_PROVIDER=log MEDIA_SECRET="recette-secret-recette-secret-1234567890"
+       PUBLIC_APP_URL="${RECETTE_PUBLIC_URL:-http://localhost:3211}" NODE_ENV=development LOG_LEVEL=warn MAIL_PROVIDER=log MEDIA_SECRET="recette-secret-recette-secret-1234567890"
 nohup node src/main.ts > "$RECETTE_DIR/api.log" 2>&1 < /dev/null & echo $! > "$RECETTE_DIR/api.pid"
 for i in $(seq 1 60); do curl -s -m 1 localhost:$API_PORT/health >/dev/null && break; sleep 0.5; done
 curl -s -m 2 localhost:$API_PORT/health | grep -q '"ok"' || { echo "API de recette non démarrée"; tail -5 "$RECETTE_DIR/api.log"; exit 1; }

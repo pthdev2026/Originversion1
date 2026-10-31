@@ -20,6 +20,12 @@ export interface IngestInput {
   encodeSeconds: number | null;
   encodedAt: string | null;
   isDemo: boolean;
+  /**
+   * Si le programme n'existe pas encore, doit-il naître PUBLIÉ ? Vrai par défaut (outils de développement et tests).
+   * Le pipeline d'administration (encodage, Mux) passe `false` : un envoi vidéo ne publie jamais seul un programme que personne n'a créé ;
+   * la publication reste une décision éditoriale (règle de publication du 30/10). Un programme déjà présent n'est jamais modifié.
+   */
+  publishNewProgram?: boolean;
   /** Qui possède les fichiers : notre pipeline (`self`, défaut) ou Mux. */
   provider?: 'self' | 'mux';
   providerAssetId?: string | null;
@@ -31,8 +37,8 @@ export interface IngestInput {
 export async function registerAsset(sql: Sql, input: IngestInput): Promise<void> {
   await sql.begin(async tx => {
     await tx`
-      INSERT INTO programs (slug, kind, title, is_demo)
-      VALUES (${input.programSlug}, ${input.kind}, ${input.title}, ${input.isDemo})
+      INSERT INTO programs (slug, kind, title, is_demo, published)
+      VALUES (${input.programSlug}, ${input.kind}, ${input.title}, ${input.isDemo}, ${input.publishNewProgram ?? true})
       -- Un programme déjà présent garde sa fiche éditoriale (type, titre) : l'encodage n'écrase jamais le catalogue.
       ON CONFLICT (slug) DO UPDATE SET updated_at = now()`;
     await tx`

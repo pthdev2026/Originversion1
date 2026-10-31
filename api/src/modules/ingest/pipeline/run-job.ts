@@ -176,6 +176,7 @@ export async function runEncodeJob(job: MediaJob, ctx: JobContext): Promise<void
     encodeSeconds: null,
     encodedAt: meta.encodedAt,
     isDemo: job.isDemo,
+    publishNewProgram: false,
   });
   // 8. Les anciennes versions sont retirées APRÈS que la nouvelle est lisible (au mieux : une erreur n'est pas fatale).
   await ctx.store.pruneOldVersions(job.playbackId, storagePath).catch(error => log.warn({ err: error }, 'nettoyage des anciennes versions impossible'));

@@ -139,6 +139,9 @@ describe('pipeline d’encodage (ffmpeg réel)', () => {
     for (const rung of ['720p', '480p', '360p']) await validateRendition(path.join(hls, rung), 6);
     assert.ok((await stat(path.join(hls, 'poster.jpg'))).size > 0);
     assert.equal(existsSyncSafe(layout.workDir(queued?.id ?? '')), false, 'dossier de travail déplacé à la publication');
+    // Aucun programme n'existait : l'encodage l'a créé en BROUILLON (jamais publié par un simple envoi vidéo).
+    const [created] = await sql<{ published: boolean }[]>`SELECT published FROM programs WHERE slug = 'e2e-film'`;
+    assert.equal(created?.published, false, 'programme créé implicitement = brouillon');
   });
 
   it('normalise le volume : une source très faible est ramenée à la cible, une piste muette n’échoue pas', async t => {
