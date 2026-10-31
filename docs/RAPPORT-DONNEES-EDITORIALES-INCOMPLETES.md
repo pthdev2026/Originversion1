@@ -14,10 +14,10 @@ Base de développement, 38 programmes publiés (hors marque). **Aucun n'a été 
 
 **Options** : (A) *Compléter* : visuel, catégorie, synopsis, rattachement à une thématique (indispensable pour `tout-recommencer` si on veut le garder phare). (B) *Masquer* : ne pas l'afficher dans les listes automatiques (classement, recherche) tant qu'il n'a pas de visuel — règle générale possible côté API : « publié » exigerait un visuel. (C) *Dépublier* : `published=false` (réversible, données conservées). **Recommandation** : `demo-b4` → (C) après vérification que le jeu de test de charge ne l'attend pas (il le recrée) ; `tout-recommencer` → (A) si le film existe réellement, sinon (C). **Décision éditoriale requise.**
 
-## 2. Autres contenus incomplets (28 sur 38 ont au moins un champ éditorial manquant)
-- **26 programmes sans synopsis ni accroche** (tous « démonstration » : `gladiator`, `damnes`, `acteurs`, `au-dela`, séries Suspense/Science-fiction, témoignages…). L'écran affiche « Présentation à venir — contenu de démonstration ».
-- **33 programmes sur 38 sans média prêt** : ils s'affichent « Bientôt » et la lecture répond « pas encore disponible » (comportement correct, vérifié en navigateur). Parmi eux **8 des 14 éléments du Top 10 éditorial** (`gladiator`, `damnes`, `acteurs`, `au-dela`, `derniere-sortie`, `teaser-origin`…) : un visiteur voit un Top 10 dont plusieurs titres ne se lisent pas.
-- **Aucune thématique** pour 22 programmes (ils n'apparaissent dans aucune catégorie, seulement dans des collections).
+## 2. Autres contenus incomplets (28 sur 38 ont au moins un champ éditorial manquant ; chiffres vérifiés en base)
+- **27 programmes sans synopsis** (et aucun n'a d'accroche, sauf mention contraire) : tous « démonstration » — `gladiator`, `damnes`, `acteurs`, `au-dela`, séries Suspense/Science-fiction, témoignages… L'écran affiche « Présentation à venir — contenu de démonstration ».
+- **33 programmes sur 38 sans média prêt** : ils s'affichent « Bientôt » et la lecture répond « pas encore disponible » (comportement correct, vérifié en navigateur). Parmi eux **12 des 14 éléments du Top 10 éditorial** : seuls `le-silence` (rang 5) et `les-passagers` (rang 6) se lisent aujourd'hui ; un visiteur voit un Top 10 dont presque tous les titres répondent « bientôt ».
+- **Aucune thématique** pour 28 programmes (ils n'apparaissent dans aucune catégorie, seulement dans des collections).
 - Programmes sans visuel : uniquement les deux ci-dessus.
 
 **Règle proposée** (à valider) : un programme ne peut être **publié** que s'il a visuel + catégorie + synopsis ; il ne peut être mis dans le **Top 10** que s'il a un média prêt ou une date de sortie annoncée (`coming-soon`).
