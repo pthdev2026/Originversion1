@@ -9,7 +9,8 @@
  * mémorisée ; `ttlMs = 0` désactive tout (utile en test).
  */
 export interface TtlCache<T> {
-  getOrLoad(key: string, loader: () => Promise<T>): Promise<T>;
+  /** `cacheIf` : une valeur refusée (ex. « introuvable ») est rendue mais jamais mémorisée, pour qu'on ne puisse pas remplir le cache d'inconnus. */
+  getOrLoad(key: string, loader: () => Promise<T>, cacheIf?: (value: T) => boolean): Promise<T>;
   clear(): void;
   readonly size: number;
 }
@@ -22,7 +23,7 @@ export function createTtlCache<T>(options: { ttlMs: number; maxEntries?: number;
   const pending = new Map<string, Promise<T>>();
 
   return {
-    async getOrLoad(key, loader) {
+    async getOrLoad(key, loader, cacheIf) {
       if (ttlMs <= 0) return loader();
       const hit = done.get(key);
       if (hit && now() - hit.at < ttlMs) return hit.value;
@@ -31,6 +32,7 @@ export function createTtlCache<T>(options: { ttlMs: number; maxEntries?: number;
 
       const promise = loader().then(
         value => {
+          if (cacheIf && !cacheIf(value)) return value;
           if (done.size >= maxEntries) done.delete(done.keys().next().value as string); // la plus ancienne sort
           done.set(key, { at: now(), value });
           return value;

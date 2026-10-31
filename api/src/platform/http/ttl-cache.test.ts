@@ -24,6 +24,16 @@ describe('cache à durée de vie', () => {
     assert.ok(results.every(value => value === 'ok'));
   });
 
+  it('ne mémorise pas une valeur refusée par cacheIf (introuvable) : 3000 inconnus ne chassent rien du cache', async () => {
+    const cache = createTtlCache<string | null>({ ttlMs: 1000, maxEntries: 10 });
+    await cache.getOrLoad('accueil', async () => 'accueil', value => value !== null);
+    for (let i = 0; i < 3000; i++) await cache.getOrLoad(`inconnu-${i}`, async () => null, value => value !== null);
+    assert.equal(cache.size, 1);
+    let loads = 0;
+    await cache.getOrLoad('accueil', async () => { loads += 1; return 'autre'; }, value => value !== null);
+    assert.equal(loads, 0, 'l’accueil est toujours en cache');
+  });
+
   it('ne mémorise jamais une erreur', async () => {
     const cache = createTtlCache<number>({ ttlMs: 1000 });
     let attempt = 0;

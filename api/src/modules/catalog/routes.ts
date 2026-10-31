@@ -45,7 +45,7 @@ export function catalogRoutes(deps: { sql: Sql; cacheTtlMs?: number }): Hono<App
   const routes = new Hono<AppEnv>();
   // Cache serveur des lectures publiques (même durée que le cache navigateur). Vidé à chaque écriture éditoriale de CE processus.
   const cache = createTtlCache<unknown>({ ttlMs: deps.cacheTtlMs ?? 0, maxEntries: 2000 });
-  const cached = <T>(key: string, loader: () => Promise<T>): Promise<T> => cache.getOrLoad(key, loader) as Promise<T>;
+  const cached = <T>(key: string, loader: () => Promise<T>): Promise<T> => cache.getOrLoad(key, loader, value => value !== null && value !== undefined) as Promise<T>;
   const slugOf = (raw: string) => {
     if (!isValidId(raw)) throw errors.badRequest('Identifiant invalide.');
     return raw;
@@ -90,7 +90,10 @@ export function catalogRoutes(deps: { sql: Sql; cacheTtlMs?: number }): Hono<App
   routes.get('/api/ranking', async c => {
     const limit = Math.min(Math.max(Number(c.req.query('limit') ?? 50) || 50, 1), 200);
     const offset = Math.min(Math.max(Number(c.req.query('offset') ?? 0) || 0, 0), 10_000);
-    const ranking = await cached(`ranking:${limit}:${offset}`, () => getRanking(deps.sql, limit, offset));
+    // Un seul classement complet en cache (et non une entrée par limit/offset) : des URL variées ne peuvent ni multiplier
+    // les requêtes SQL ni chasser l'accueil du cache borné. La page demandée est découpée en mémoire.
+    const everything = await cached('ranking:all', () => getRanking(deps.sql, 10_000, 0));
+    const ranking = { total: everything.total, items: everything.items.slice(offset, offset + limit) };
     cacheable(c);
     return c.json(ranking);
   });
