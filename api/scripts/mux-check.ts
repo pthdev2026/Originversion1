@@ -54,7 +54,7 @@ if (process.argv.includes('--video') && !failed) {
     console.log(`\n▶ Essai complet : vidéo de test de ${(bytes.byteLength / 1024).toFixed(0)} Ko.`);
 
     const upload = await client.createDirectUpload({
-      corsOrigin: '*', passthrough: 'origin-mux-check-video', playbackPolicy: 'public', videoQuality: config.mux.videoQuality, normalizeAudio: false, timeoutSeconds: 600,
+      corsOrigin: '*', passthrough: 'origin-mux-check-video', playbackPolicy: config.mux.playbackPolicy, videoQuality: config.mux.videoQuality, normalizeAudio: false, timeoutSeconds: 600,
     });
     const sent = await fetch(upload.url as string, { method: 'PUT', body: new Uint8Array(bytes) });
     console.log(`  Envoi du fichier à Mux : HTTP ${sent.status} ${sent.ok ? '✅' : '❌'}`);
@@ -88,6 +88,24 @@ if (process.argv.includes('--video') && !failed) {
       console.log(`  Lien de lecture HLS : HTTP ${manifest.status} · ${text.startsWith('#EXTM3U') ? 'manifeste HLS valide ✅' : 'contenu inattendu ❌'}`);
       if (!manifest.ok || !text.startsWith('#EXTM3U')) failed = true;
       console.log(`  Qualités proposées : ${(text.match(/RESOLUTION=\d+x\d+/g) ?? []).join(', ') || 'non lisibles'}`);
+    } else if (playback?.policy === 'signed') {
+      // Lecture SIGNÉE : sans jeton → refus ; avec un jeton valide → manifeste ; avec le jeton d'une autre vidéo → refus.
+      if (!config.mux.signing) throw new Error('Politique « signed » sans clé de signature (MUX_SIGNING_KEY_ID / MUX_SIGNING_PRIVATE_KEY).');
+      const key = loadPrivateKey(config.mux.signing.privateKey);
+      const tokenFor = (playbackId: string, seconds = 300) => signMuxToken({ key, keyId: config.mux!.signing!.keyId, playbackId, audience: 'v', expiresAtSeconds: Math.floor(Date.now() / 1000) + seconds });
+      const url = `https://stream.mux.com/${playback.id}.m3u8`;
+      const without = await fetch(url);
+      const valid = await fetch(`${url}?token=${tokenFor(playback.id)}`);
+      const text = await valid.text();
+      const foreign = await fetch(`${url}?token=${tokenFor('autre-video-inconnue')}`);
+      const expired = await fetch(`${url}?token=${tokenFor(playback.id, -60)}`);
+      const checks: [string, boolean][] = [
+        [`sans jeton → refusé (HTTP ${without.status})`, without.status === 403 || without.status === 401],
+        [`jeton valide → manifeste HLS (HTTP ${valid.status})`, valid.ok && text.startsWith('#EXTM3U')],
+        [`jeton d'une autre vidéo → refusé (HTTP ${foreign.status})`, foreign.status === 403 || foreign.status === 401],
+        [`jeton expiré → refusé (HTTP ${expired.status})`, expired.status === 403 || expired.status === 401],
+      ];
+      for (const [label, ok] of checks) { console.log(`  Lecture signée : ${label} ${ok ? '✅' : '❌'}`); if (!ok) failed = true; }
     }
   } catch (error) {
     failed = true;
