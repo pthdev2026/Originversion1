@@ -40,6 +40,8 @@ MUX_NORMALIZE_AUDIO=false
 ```
 Redémarrer l'API : `docker compose --env-file .env.production up -d` (serveur) ou `npm run dev` (local).
 
+> **Qualité « plus » (choisie le 01/11)** : l'encodage « plus » est **payant à l'entrée**, une seule fois par vidéo : ≈ 0,025 $/min jusqu'à 720p, ≈ 0,031 $/min en 1080p ([tarifs Mux](https://www.mux.com/docs/pricing/overview)), soit ≈ **3 à 3,75 $ pour un film de 2 h**. « basic » est gratuit à l'entrée. À reconfirmer sur la page tarifs avant tout gros envoi.
+
 ### Étape 5 — Vérifier SANS coût
 ```bash
 cd api
