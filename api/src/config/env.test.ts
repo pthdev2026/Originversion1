@@ -38,6 +38,14 @@ describe('configuration', () => {
     assert.deepEqual(loadConfig({ ...base, CORS_ORIGINS: 'https://app.origin.example', PUBLIC_APP_URL: 'https://app.origin.example' }).corsOrigins, ['https://app.origin.example']);
   });
 
+  it('mode démo : DEMO_PLAYBACK_OVERRIDE accepté hors production, refusé en production, identifiants contrôlés', () => {
+    assert.deepEqual(loadConfig({ DEMO_PLAYBACK_OVERRIDE: 'les-passagers, film-b' }).demoPlaybackOverride, ['les-passagers', 'film-b']);
+    assert.equal(loadConfig({}).demoPlaybackOverride, null);
+    const prod = { NODE_ENV: 'production', DATABASE_URL: 'postgres://u:p@db:5432/origin', MEDIA_SECRET: 'x'.repeat(40), CORS_ORIGINS: 'https://app.example' };
+    assert.throws(() => loadConfig({ ...prod, DEMO_PLAYBACK_OVERRIDE: 'les-passagers' }), /interdit en production/);
+    assert.throws(() => loadConfig({ DEMO_PLAYBACK_OVERRIDE: '../../etc/passwd' }), /invalides/);
+  });
+
   it('accepte une rotation de secret et des limites personnalisées', () => {
     const config = loadConfig({
       MEDIA_SECRET: 'n'.repeat(40),

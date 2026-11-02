@@ -19,7 +19,7 @@ const markersSchema = z.object({ introStart: seconds, introEnd: seconds, credits
   if (value.introEnd !== null && value.creditsStart !== null && value.introEnd > value.creditsStart) fail('Le générique ne peut pas commencer avant la fin de l’intro.');
 });
 
-export function playbackRoutes(deps: { sql: Sql; signer: DeliverySigner; requireLogin: boolean; ident: IdentConfig; analyticsSecret: string }): Hono<AppEnv> {
+export function playbackRoutes(deps: { sql: Sql; signer: DeliverySigner; requireLogin: boolean; ident: IdentConfig; analyticsSecret: string; demoPlaybackOverride: readonly string[] | null }): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
 
   // Informations de lecture d'un contenu. Pas de média prêt = 404 explicite (« not_available »),
@@ -29,7 +29,14 @@ export function playbackRoutes(deps: { sql: Sql; signer: DeliverySigner; require
     if (deps.requireLogin && !c.get('user')) throw errors.unauthorized('Connectez-vous pour regarder ce programme.');
     const origin = new URL(c.req.url).origin;
     const flag = (name: string): boolean => ['1', 'true'].includes(c.req.query(name) ?? '');
-    const session = await createPlaybackSession(deps.sql, deps.signer, deps.ident, c.req.param('id'), {
+    // MESURE DE DÉMO (temporaire, interdite en production) : le média demandé est remplacé par l'un des médias configurés,
+    // choisi de façon stable selon l'identifiant demandé (un même programme lit toujours le même film).
+    const requested = c.req.param('id');
+    const playbackId = deps.demoPlaybackOverride?.length
+      ? (deps.demoPlaybackOverride[[...requested].reduce((sum, char) => sum + char.charCodeAt(0), 0) % deps.demoPlaybackOverride.length] ?? requested)
+      : requested;
+    if (playbackId !== requested) c.header('x-demo-override', requested);
+    const session = await createPlaybackSession(deps.sql, deps.signer, deps.ident, playbackId, {
       userId: c.get('user')?.id ?? null,
       publicOrigin: origin,
       identSeen: flag('identSeen'),

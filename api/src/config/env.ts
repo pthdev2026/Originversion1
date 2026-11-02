@@ -91,6 +91,11 @@ const schema = z.object({
   MUX_NORMALIZE_AUDIO: z.enum(['true', 'false']).default('false'),
   /** Voie vidéo proposée par défaut au back-office : `self` (notre pipeline) ou `mux`. */
   VIDEO_PROVIDER: z.enum(['self', 'mux']).default('self'),
+  /**
+   * MESURE EXCEPTIONNELLE DE DÉMONSTRATION (temporaire). Liste d'identifiants de lecture (séparés par des virgules) : quel que soit le
+   * programme ou l'épisode sur lequel on clique « Regarder », l'API répond avec l'un de ces médias. Interdit en production.
+   */
+  DEMO_PLAYBACK_OVERRIDE: z.string().optional(),
   /** E-mails : `log` (écrit dans les journaux) ou `resend` (envoi réel). */
   MAIL_PROVIDER: z.enum(['log', 'resend']).default('log'),
   MAIL_API_KEY: z.string().min(8).optional(),
@@ -136,6 +141,7 @@ export interface AppConfig {
   ident: { policy: 'title' | 'season' | 'always' | 'off'; playbackId: string; skippableAfterSeconds: number };
   catalogCacheSeconds: number;
   supportEmail: string | null;
+  demoPlaybackOverride: string[] | null;
   videoProvider: 'self' | 'mux';
   mux: {
     tokenId: string; tokenSecret: string; videoQuality: 'basic' | 'plus' | 'premium'; playbackPolicy: 'public' | 'signed';
@@ -202,6 +208,9 @@ export function loadConfig(source: Record<string, string | undefined> = process.
   }
   if (raw.MAIL_PROVIDER === 'resend' && !raw.MAIL_API_KEY) missing.push('MAIL_API_KEY est obligatoire quand MAIL_PROVIDER=resend');
   if (raw.MAIL_PROVIDER === 'resend' && !raw.MAIL_FROM) missing.push('MAIL_FROM est obligatoire quand MAIL_PROVIDER=resend');
+  const demoPlaybackOverride = raw.DEMO_PLAYBACK_OVERRIDE?.split(',').map(id => id.trim()).filter(Boolean) ?? [];
+  if (demoPlaybackOverride.length > 0 && isProduction) missing.push('DEMO_PLAYBACK_OVERRIDE est interdit en production (mesure de démonstration)');
+  if (demoPlaybackOverride.some(id => !/^[a-z0-9][a-z0-9-]*$/.test(id))) missing.push('DEMO_PLAYBACK_OVERRIDE : identifiants de lecture invalides');
   if (missing.length > 0) throw new ConfigError(missing);
 
   const configuredOrigins = raw.CORS_ORIGINS?.split(',').map(origin => origin.trim()).filter(Boolean);
@@ -240,6 +249,7 @@ export function loadConfig(source: Record<string, string | undefined> = process.
     catalogCacheSeconds: raw.CATALOG_CACHE_SECONDS,
     supportEmail: raw.SUPPORT_EMAIL ?? null,
     videoProvider: raw.VIDEO_PROVIDER,
+    demoPlaybackOverride: demoPlaybackOverride.length > 0 ? demoPlaybackOverride : null,
     mux: raw.MUX_TOKEN_ID && raw.MUX_TOKEN_SECRET
       ? {
           tokenId: raw.MUX_TOKEN_ID, tokenSecret: raw.MUX_TOKEN_SECRET, videoQuality: raw.MUX_VIDEO_QUALITY, playbackPolicy: raw.MUX_PLAYBACK_POLICY,

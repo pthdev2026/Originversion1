@@ -102,11 +102,13 @@ if (config.mux) {
     logger.warn('MUX_PLAYBACK_POLICY=public en production : les liens de lecture Mux ne sont pas protégés (utilisez « signed »).');
   }
 }
+if (config.demoPlaybackOverride) logger.warn({ medias: config.demoPlaybackOverride }, 'MODE DÉMO ACTIF : chaque « Regarder » lit un média fixe (DEMO_PLAYBACK_OVERRIDE) — temporaire, jamais en production');
 const app = createApp({
   account,
   mailer,
   supportEmail: config.supportEmail,
   ident: config.ident,
+  demoPlaybackOverride: config.demoPlaybackOverride,
   deliverySigner: createRoutingSigner({ self: deliverySigner, mux: muxSigner }),
   mux: { service: muxService, defaultProvider: config.videoProvider, playbackPolicy: config.mux?.playbackPolicy ?? 'public' },
   identity,

@@ -79,6 +79,8 @@ export interface AppDependencies {
   /** Voie vidéo Mux (`null`/absent : non configurée) et voie proposée par défaut au back-office. */
   mux?: { service: MuxService | null; defaultProvider: 'self' | 'mux'; playbackPolicy: 'public' | 'signed' };
   /** Ident de marque avant les programmes. Par défaut : une fois par titre, média `origin-ident`. */
+  /** DÉMO TEMPORAIRE : tout « Regarder » lit l'un de ces médias (voir DEMO_PLAYBACK_OVERRIDE). */
+  demoPlaybackOverride?: readonly string[] | null;
   ident?: { policy: 'title' | 'season' | 'always' | 'off'; playbackId: string; skippableAfterSeconds: number };
   /** Exploitation (valeurs par défaut sûres si absentes). */
   ops?: { backupDir: string; minFreeBytes: number; metricsToken: string | null; freeBytes?: FreeBytes };
@@ -138,6 +140,7 @@ export function createApp(deps: AppDependencies): Hono<AppEnv> {
     signer: deps.deliverySigner ?? createOriginSigner({ secret: deps.mediaSecrets[0], ttlSeconds: deps.mediaTtlSeconds }),
     requireLogin: deps.playbackRequiresLogin,
     analyticsSecret: deps.mediaSecrets[0],
+    demoPlaybackOverride: deps.demoPlaybackOverride ?? null,
     ident: deps.ident ?? { policy: 'title', playbackId: 'origin-ident', skippableAfterSeconds: 2 },
   }));
   app.route('/', identityRoutes({
