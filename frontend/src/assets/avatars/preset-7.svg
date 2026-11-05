@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Avatar night">
+<defs>
+<linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b0820"/><stop offset="1" stop-color="#1a1250"/></linearGradient>
+<radialGradient id="r" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#9a8aff"/><stop offset=".45" stop-color="#4a3fa8"/><stop offset="1" stop-color="#4a3fa8" stop-opacity="0"/></radialGradient>
+<filter id="f" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="22"/></filter>
+</defs>
+<rect width="512" height="512" fill="url(#g)"/>
+<g filter="url(#f)">
+<circle cx="249" cy="307" r="190" fill="url(#r)"/>
+<circle cx="379" cy="197" r="120" fill="#4a3fa8" opacity=".55"/>
+</g>
+<g fill="none" stroke="#fff" stroke-opacity=".16" stroke-width="1.5">
+<path d="M-20 417 Q 256 219 532 351"/>
+<path d="M-20 447 Q 256 249 532 381"/>
+</g>
+</svg>

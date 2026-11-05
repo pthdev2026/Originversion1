@@ -1,5 +1,8 @@
 # ORIGIN — plateforme de streaming PTH
 
+> **Dans ce dépôt GitHub** : `frontend/` = interface MILLENIUM (instantané du front, fonctionne sans API en « aperçu hors connexion », voir `frontend/README.md`) ; `api/`, `docs/`, `contexte-agents/`, `deploy/`, `video-pipeline/` = back-end avec son historique. Le tableau ci-dessous décrit le dossier de travail local : `app/` y correspond à `frontend/` ici ; `maquettes/`, `assets/` et `storage/` ne sont pas publiés.
+
+
 > Les histoires méritent plus qu'un écran.
 
 Dossier de travail **local** du projet ORIGIN (source de vérité).
